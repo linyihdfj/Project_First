@@ -1,0 +1,10 @@
+node_modules/
+.DS_Store
+Thumbs.db
+data/*.sqlite
+data/*.sqlite-shm
+data/*.sqlite-wal
+uploads/pages/*
+uploads/glyphs/*
+!uploads/pages/.gitkeep
+!uploads/glyphs/.gitkeep

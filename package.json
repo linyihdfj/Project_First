@@ -1,0 +1,14 @@
+{
+  "name": "sdudoc-homework1",
+  "version": "0.2.0",
+  "description": "SDUDOC 作业一：前端编辑器 + Node.js + SQLite 持久化",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node server/index.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "sqlite3": "^5.1.7"
+  }
+}
