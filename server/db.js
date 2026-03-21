@@ -826,7 +826,7 @@ async function createAnnotation(pageId, payload) {
     ],
   );
 
-  return ann;
+  return { ...ann, pageId };
 }
 
 async function updateAnnotation(annotationId, payload) {
@@ -884,17 +884,20 @@ async function updateAnnotation(annotationId, payload) {
 
   return {
     id: annotationId,
+    pageId: row.page_id,
     ...merged,
   };
 }
 
 async function deleteAnnotation(annotationId) {
+  const row = await get("SELECT page_id FROM annotations WHERE id = ?", [annotationId]);
   await transaction(async () => {
     await run("UPDATE headings SET annotation_id = NULL WHERE annotation_id = ?", [
       annotationId,
     ]);
     await run("DELETE FROM annotations WHERE id = ?", [annotationId]);
   });
+  return row ? { pageId: row.page_id } : null;
 }
 
 async function getHeadingsByArticle(articleId) {

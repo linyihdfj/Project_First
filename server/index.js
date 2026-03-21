@@ -1,5 +1,7 @@
 const path = require("path");
+const http = require("http");
 const express = require("express");
+const { Server: SocketServer } = require("socket.io");
 const { generateXmlFromSnapshot } = require("./xml");
 
 const {
@@ -42,6 +44,8 @@ const {
 } = require("./db");
 
 const app = express();
+const httpServer = http.createServer(app);
+const io = new SocketServer(httpServer, { cors: { origin: "*" } });
 const PORT = Number(process.env.PORT || 3000);
 const PROJECT_ROOT = path.resolve(__dirname, "..");
 
@@ -367,6 +371,7 @@ app.post("/api/pages/:pageId/annotations", requireAuth, requireRole("admin", "ed
       req.body || {},
     );
     res.json({ ok: true, annotation });
+    broadcastToPage(req, `page:${annotation.pageId}`, "annotation:created", { annotation, pageId: annotation.pageId });
   } catch (error) {
     sendError(res, error);
   }
@@ -379,6 +384,7 @@ app.put("/api/annotations/:annotationId", requireAuth, requireRole("admin", "edi
       req.body || {},
     );
     res.json({ ok: true, annotation });
+    broadcastToPage(req, `page:${annotation.pageId}`, "annotation:updated", { annotation, pageId: annotation.pageId });
   } catch (error) {
     sendError(res, error);
   }
@@ -393,6 +399,7 @@ app.patch("/api/annotations/:annotationId", requireAuth, requireRole("admin", "r
       { reviewStatus, reviewedBy },
     );
     res.json({ ok: true, annotation });
+    broadcastToPage(req, `page:${annotation.pageId}`, "annotation:updated", { annotation, pageId: annotation.pageId });
   } catch (error) {
     sendError(res, error);
   }
@@ -400,8 +407,11 @@ app.patch("/api/annotations/:annotationId", requireAuth, requireRole("admin", "r
 
 app.delete("/api/annotations/:annotationId", requireAuth, requireRole("admin", "editor"), async (req, res) => {
   try {
-    await deleteAnnotation(req.params.annotationId);
+    const result = await deleteAnnotation(req.params.annotationId);
     res.json({ ok: true });
+    if (result && result.pageId) {
+      broadcastToPage(req, `page:${result.pageId}`, "annotation:deleted", { annotationId: req.params.annotationId, pageId: result.pageId });
+    }
   } catch (error) {
     sendError(res, error);
   }
@@ -533,10 +543,77 @@ app.get("*", (req, res) => {
   res.sendFile(path.join(PROJECT_ROOT, "index.html"));
 });
 
+// ── Socket.IO 广播辅助 ──
+
+function broadcastToPage(req, roomName, event, data) {
+  const senderSocketId = req.headers["x-socket-id"];
+  if (senderSocketId) {
+    io.to(roomName).except(senderSocketId).emit(event, data);
+  } else {
+    io.to(roomName).emit(event, data);
+  }
+}
+
+// ── Socket.IO 认证与房间管理 ──
+
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token || "";
+  if (!token) return next(new Error("未登录"));
+  const data = verifyToken(token);
+  if (!data) return next(new Error("登录已过期"));
+  socket.userId = data.userId;
+  socket.userRole = data.role;
+  next();
+});
+
+async function getRoomMembers(roomName) {
+  const sockets = await io.in(roomName).fetchSockets();
+  return sockets.map((s) => ({
+    userId: s.userId,
+    displayName: s.displayName || "",
+    role: s.userRole,
+  }));
+}
+
+io.on("connection", async (socket) => {
+  try {
+    const user = await getUserById(socket.userId);
+    socket.displayName = user ? user.displayName : "Unknown";
+  } catch { socket.displayName = "Unknown"; }
+
+  socket.on("join-page", async ({ pageId }) => {
+    // Leave all previous page rooms
+    for (const room of socket.rooms) {
+      if (room.startsWith("page:")) {
+        socket.leave(room);
+        io.to(room).emit("presence:leave", { userId: socket.userId, displayName: socket.displayName });
+      }
+    }
+    if (!pageId) return;
+    const roomName = `page:${pageId}`;
+    socket.join(roomName);
+    // Notify others
+    socket.to(roomName).emit("presence:join", { userId: socket.userId, displayName: socket.displayName, role: socket.userRole });
+    // Send current members to the joining user
+    const members = await getRoomMembers(roomName);
+    socket.emit("presence:members", { members });
+  });
+
+  socket.on("disconnecting", () => {
+    for (const room of socket.rooms) {
+      if (room.startsWith("page:")) {
+        socket.to(room).emit("presence:leave", { userId: socket.userId, displayName: socket.displayName });
+      }
+    }
+  });
+});
+
+// ── 启动服务 ──
+
 async function bootstrap() {
   await initDatabase();
   await ensureArticle("article-1");
-  app.listen(PORT, () => {
+  httpServer.listen(PORT, () => {
     console.log(`SDUDOC server listening on http://localhost:${PORT}`);
   });
 }

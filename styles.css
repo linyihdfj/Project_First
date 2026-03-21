@@ -359,6 +359,32 @@ main {
   justify-content: flex-end;
 }
 
+.presence-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #7f6348;
+}
+
+.presence-label {
+  margin-right: 2px;
+}
+
+.presence-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: default;
+}
+
 .canvas-controls button {
   min-width: 36px;
   padding: 6px 8px;

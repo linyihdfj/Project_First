@@ -41,6 +41,7 @@ const state = {
   glyphCaptureDataUrl: "",
   articleList: [],
   accessArticleId: null,
+  presenceUsers: [],
 };
 
 const refs = {
@@ -141,6 +142,7 @@ const refs = {
   btnBackToSelect: document.getElementById("btn-back-to-select"),
   selectUserDisplayName: document.getElementById("select-user-display-name"),
   selectUserRoleBadge: document.getElementById("select-user-role-badge"),
+  btnSelectUserManage: document.getElementById("btn-select-user-manage"),
   btnSelectLogout: document.getElementById("btn-select-logout"),
   // Article access dialog
   articleAccessDialog: document.getElementById("article-access-dialog"),
@@ -172,6 +174,7 @@ let pdfJsLoadingPromise = null;
 let activePdfWorkerSrc = PDF_JS_SOURCES[0].worker;
 let metaSaveTimer = null;
 const annotationSaveTimers = new Map();
+let socket = null;
 
 function uid(prefix) {
   return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
@@ -220,6 +223,9 @@ async function apiRequest(pathname, options = {}) {
   const token = getAuthToken();
   if (token) {
     init.headers["Authorization"] = `Bearer ${token}`;
+  }
+  if (socket && socket.id) {
+    init.headers["X-Socket-Id"] = socket.id;
   }
 
   if (options.body !== undefined) {
@@ -313,6 +319,7 @@ async function loadSnapshot(articleId) {
   resetCanvasView();
   syncMetaInputsFromState();
   renderAll();
+  joinCurrentPageRoom();
 }
 
 function setActiveTab(tabName) {
@@ -793,6 +800,7 @@ function switchPage(step) {
   state.selectedHeadingId = null;
   resetCanvasView();
   renderAll();
+  joinCurrentPageRoom();
 }
 
 function getCanvasViewBounds(zoomValue = state.canvasView.zoom) {
@@ -1326,6 +1334,7 @@ function jumpToHeading(heading) {
   if (state.currentPageIndex !== pageIndex) {
     state.currentPageIndex = pageIndex;
     resetCanvasView();
+    joinCurrentPageRoom();
   }
   state.selectedHeadingId = heading.id;
 
@@ -1900,6 +1909,9 @@ function showArticleSelect() {
   if (refs.articleCreateSection) {
     refs.articleCreateSection.hidden = !(state.currentUser && (state.currentUser.role === "admin" || state.currentUser.role === "editor"));
   }
+  if (refs.btnSelectUserManage) {
+    refs.btnSelectUserManage.hidden = !(state.currentUser && state.currentUser.role === "admin");
+  }
   loadArticleList().catch((e) => alert(e.message));
 }
 
@@ -2179,6 +2191,7 @@ async function doLogin() {
     applyPermissions();
     updateUserBar();
     showArticleSelect();
+    initSocket();
   } catch (error) {
     refs.loginError.textContent = error.message;
     refs.loginError.hidden = false;
@@ -2186,6 +2199,7 @@ async function doLogin() {
 }
 
 function doLogout() {
+  if (socket) { socket.disconnect(); socket = null; }
   removeAuthToken();
   state.currentUser = null;
   hideArticleSelect();
@@ -2207,6 +2221,7 @@ async function checkAuth() {
     applyPermissions();
     updateUserBar();
     showArticleSelect();
+    initSocket();
     return true;
   } catch (e) {
     showLoginOverlay();
@@ -2536,6 +2551,9 @@ function bindEvents() {
   if (refs.btnSelectLogout) {
     refs.btnSelectLogout.addEventListener("click", doLogout);
   }
+  if (refs.btnSelectUserManage) {
+    refs.btnSelectUserManage.addEventListener("click", showUserManageDialog);
+  }
   // Article access dialog events
   if (refs.btnCloseAccessDialog) {
     refs.btnCloseAccessDialog.addEventListener("click", hideAccessDialog);
@@ -2693,6 +2711,144 @@ function renderAll() {
   renderReviewStatus();
   buildAnnotationList();
   renderGlyphList();
+}
+
+// ── Socket.IO 实时协作 ──
+
+function initSocket() {
+  if (socket) return;
+  const token = getAuthToken();
+  if (!token) return;
+
+  socket = io({ auth: { token }, reconnection: true, reconnectionDelay: 1000, reconnectionDelayMax: 5000 });
+
+  socket.on("connect", () => {
+    joinCurrentPageRoom();
+    refreshCurrentPageAnnotations();
+  });
+
+  socket.on("connect_error", (err) => {
+    if (err.message === "登录已过期") {
+      socket.disconnect();
+      socket = null;
+      removeAuthToken();
+      state.currentUser = null;
+      showLoginOverlay();
+    }
+  });
+
+  socket.on("annotation:created", handleRemoteAnnotationCreated);
+  socket.on("annotation:updated", handleRemoteAnnotationUpdated);
+  socket.on("annotation:deleted", handleRemoteAnnotationDeleted);
+  socket.on("presence:join", handlePresenceJoin);
+  socket.on("presence:leave", handlePresenceLeave);
+  socket.on("presence:members", handlePresenceMembers);
+}
+
+function joinCurrentPageRoom() {
+  if (!socket || !socket.connected) return;
+  state.presenceUsers = [];
+  renderPresenceBar();
+  const page = getCurrentPage();
+  socket.emit("join-page", { pageId: page ? page.id : null });
+}
+
+async function refreshCurrentPageAnnotations() {
+  const page = getCurrentPage();
+  if (!page || !state.article) return;
+  try {
+    const snapshot = await apiRequest(`/articles/${encodeURIComponent(state.article.id)}/snapshot`);
+    const freshPage = (snapshot.pages || []).find((p) => p.id === page.id);
+    if (freshPage) {
+      page.annotations = freshPage.annotations;
+      drawOverlay();
+      buildAnnotationList();
+      if (state.selectedAnnotationId) {
+        renderAnnotationForm();
+        renderReviewStatus();
+      }
+    }
+  } catch (e) {
+    // Silently ignore refresh failures
+  }
+}
+
+function handleRemoteAnnotationCreated({ annotation, pageId }) {
+  const page = state.pages.find((p) => p.id === pageId);
+  if (!page) return;
+  if (page.annotations.some((a) => a.id === annotation.id)) return;
+  page.annotations.push(annotation);
+  if (getCurrentPage() && getCurrentPage().id === pageId) {
+    drawOverlay();
+    buildAnnotationList();
+  }
+}
+
+function handleRemoteAnnotationUpdated({ annotation, pageId }) {
+  const page = state.pages.find((p) => p.id === pageId);
+  if (!page) return;
+  const index = page.annotations.findIndex((a) => a.id === annotation.id);
+  if (index === -1) return;
+  // Skip if local user is actively editing this annotation
+  if (state.selectedAnnotationId === annotation.id && annotationSaveTimers.has(annotation.id)) return;
+  page.annotations[index] = annotation;
+  if (getCurrentPage() && getCurrentPage().id === pageId) {
+    drawOverlay();
+    buildAnnotationList();
+    if (state.selectedAnnotationId === annotation.id) {
+      renderAnnotationForm();
+      renderReviewStatus();
+    }
+  }
+}
+
+function handleRemoteAnnotationDeleted({ annotationId, pageId }) {
+  const page = state.pages.find((p) => p.id === pageId);
+  if (!page) return;
+  page.annotations = page.annotations.filter((a) => a.id !== annotationId);
+  if (state.selectedAnnotationId === annotationId) {
+    state.selectedAnnotationId = null;
+  }
+  state.headings.forEach((h) => {
+    if (h.annotationId === annotationId) h.annotationId = null;
+  });
+  if (getCurrentPage() && getCurrentPage().id === pageId) {
+    drawOverlay();
+    buildAnnotationList();
+    renderAnnotationForm();
+    renderReviewStatus();
+  }
+}
+
+function handlePresenceJoin({ userId, displayName, role }) {
+  if (state.currentUser && userId === state.currentUser.id) return;
+  if (!state.presenceUsers.some((u) => u.userId === userId)) {
+    state.presenceUsers.push({ userId, displayName, role });
+  }
+  renderPresenceBar();
+}
+
+function handlePresenceLeave({ userId }) {
+  state.presenceUsers = state.presenceUsers.filter((u) => u.userId !== userId);
+  renderPresenceBar();
+}
+
+function handlePresenceMembers({ members }) {
+  state.presenceUsers = members.filter((m) => !state.currentUser || m.userId !== state.currentUser.id);
+  renderPresenceBar();
+}
+
+function renderPresenceBar() {
+  const bar = document.getElementById("presence-bar");
+  if (!bar) return;
+  if (!state.presenceUsers.length) {
+    bar.innerHTML = "";
+    return;
+  }
+  const avatars = state.presenceUsers.map((u) =>
+    `<span class="presence-avatar" title="${escapeHtml(u.displayName)}">${escapeHtml((u.displayName || "?").charAt(0))}</span>`
+  ).join("");
+  bar.innerHTML = `<span class="presence-label">\u5728\u7EBF:</span> ${avatars}`;
 }
 
 async function bootstrap() {

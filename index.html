@@ -29,6 +29,7 @@
           <div class="article-select-user">
             <span id="select-user-display-name"></span>
             <span id="select-user-role-badge" class="role-badge"></span>
+            <button id="btn-select-user-manage" class="secondary" hidden>用户管理</button>
             <button id="btn-select-logout">退出</button>
           </div>
         </div>
@@ -141,6 +142,7 @@
           <section class="canvas-area card">
             <div class="canvas-header">
               <strong>页面标注画布</strong>
+              <div id="presence-bar" class="presence-bar"></div>
               <div class="canvas-controls">
                 <button id="btn-zoom-out" type="button" title="缩小">-</button>
                 <button id="btn-zoom-reset" type="button" title="重置缩放">100%</button>
@@ -349,6 +351,7 @@
       </div>
     </template>
 
+    <script src="/socket.io/socket.io.js"></script>
     <script src="app.js?v=20260321-1"></script>
   </body>
 </html>
