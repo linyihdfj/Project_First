@@ -103,6 +103,8 @@
               <option value="paragraph">段</option>
             </select>
 
+            <label class="checkbox-label"><input type="checkbox" id="show-all-annotations"> 显示全部标注</label>
+
             <label>标记方式</label>
             <select id="annotation-style">
               <option value="highlight">颜色高亮</option>
@@ -117,11 +119,7 @@
           <div class="toolbar-group" id="toolbar-ai-controls">
             <label>AI 识别</label>
             <button id="btn-ai-ocr-region" disabled title="识别选中标注区域的文字">识别文字</button>
-            <button id="btn-ai-detect-layout" title="自动检测当前页面文字区域">自动标注</button>
-            <select id="ai-detect-level">
-              <option value="char">逐字</option>
-              <option value="line">逐行</option>
-            </select>
+            <button id="btn-ai-detect-layout" title="自动检测当前页面文字区域（逐字）">自动标注</button>
           </div>
         </div>
 

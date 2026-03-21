@@ -14,63 +14,124 @@ function toUnicodeCode(char) {
   return `U+${char.codePointAt(0).toString(16).toUpperCase()}`;
 }
 
-function getContentByLevel(ann) {
-  if (ann.level === "char") {
-    const charValue = ann.originalText || ann.simplifiedText || "□";
-    return {
-      paragraphType: "0",
-      sentenceType: "0",
-      charValue: charValue.slice(0, 1),
-    };
-  }
-  if (ann.level === "sentence") {
-    return {
-      paragraphType: "0",
-      sentenceType: "1",
-      charValue: (ann.originalText || ann.simplifiedText || "□").slice(0, 1),
-    };
-  }
-  return {
-    paragraphType: "1",
-    sentenceType: "0",
-    charValue: (ann.originalText || ann.simplifiedText || "□").slice(0, 1),
-  };
+function charToXml(ann) {
+  const charValue = (ann.originalText || ann.simplifiedText || "□").slice(0, 1);
+  const code = ann.charCode || toUnicodeCode(charValue);
+  const wordNotes = ann.note
+    ? `\n                <word_notes>\n                  <word_note id="wn-${escapeXml(ann.id)}" note_type="${escapeXml(ann.noteType || "1")}">${escapeXml(ann.note)}</word_note>\n                </word_notes>`
+    : "";
+  return `
+                <word id="wd-${escapeXml(ann.id)}" note="${escapeXml(ann.simplifiedText || ann.originalText || "")}">${wordNotes}
+                  <char id="${escapeXml(ann.charId)}" code="${escapeXml(code)}">${escapeXml(charValue)}</char>
+                </word>`;
 }
 
-function annotationToXmlContent(ann) {
-  const info = getContentByLevel(ann);
-  const code = ann.charCode || toUnicodeCode(info.charValue);
-  const note = ann.note ? ` note="${escapeXml(ann.note)}"` : "";
-  const wordNotes = ann.note
-    ? `\n              <word_notes>\n                <word_note id="wn-${escapeXml(ann.id)}" note_type="${escapeXml(ann.noteType)}">${escapeXml(ann.note)}</word_note>\n              </word_notes>`
-    : "";
-
+function sentenceToXml(ann, charChildren) {
+  const innerXml = charChildren.length > 0
+    ? charChildren.map(charToXml).join("")
+    : charToXml(ann);
   return `
-          <paragraph id="pg-${escapeXml(ann.id)}" type="${info.paragraphType}"${note}>
-            <sentence id="st-${escapeXml(ann.id)}" type="${info.sentenceType}" note="${escapeXml(ann.note || "")}" note_type="${escapeXml(ann.noteType || "1")}">
-              <word id="wd-${escapeXml(ann.id)}" note="${escapeXml(ann.simplifiedText || ann.originalText || "")}">${wordNotes}
-                <char id="${escapeXml(ann.charId)}" code="${escapeXml(code)}">${escapeXml(info.charValue)}</char>
-              </word>
-            </sentence>
-          </paragraph>`;
+              <sentence id="st-${escapeXml(ann.id)}" type="1" note="${escapeXml(ann.note || "")}" note_type="${escapeXml(ann.noteType || "1")}">${innerXml}
+              </sentence>`;
+}
+
+function paragraphToXml(ann, sentChildren, childMap) {
+  const note = ann.note ? ` note="${escapeXml(ann.note)}"` : "";
+  let innerXml;
+  if (sentChildren.length > 0) {
+    innerXml = sentChildren.map((sent) => {
+      const charChildren = (childMap.get(sent.id) || []).filter((c) => c.level === "char");
+      return sentenceToXml(sent, charChildren);
+    }).join("");
+  } else {
+    // Paragraph with no sentence children — wrap content as a single sentence
+    innerXml = `
+              <sentence id="st-${escapeXml(ann.id)}" type="0" note="${escapeXml(ann.note || "")}" note_type="${escapeXml(ann.noteType || "1")}">
+                ${charToXml(ann)}
+              </sentence>`;
+  }
+  return `
+            <paragraph id="pg-${escapeXml(ann.id)}" type="1"${note}>${innerXml}
+            </paragraph>`;
+}
+
+/**
+ * Build hierarchical XML content from annotations.
+ * Supports: paragraph → sentence → char hierarchy via parentId.
+ * Orphan annotations (no parentId) use legacy wrapping for backward compatibility.
+ */
+function annotationsToXmlContent(annotations) {
+  if (!annotations || annotations.length === 0) return "";
+
+  // Build child map
+  const childMap = new Map();
+  const topLevel = [];
+  for (const ann of annotations) {
+    if (ann.parentId) {
+      if (!childMap.has(ann.parentId)) childMap.set(ann.parentId, []);
+      childMap.get(ann.parentId).push(ann);
+    } else {
+      topLevel.push(ann);
+    }
+  }
+
+  // Sort children by orderIndex
+  for (const [, children] of childMap) {
+    children.sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
+  }
+
+  return topLevel.map((ann) => {
+    if (ann.level === "paragraph") {
+      const sentChildren = (childMap.get(ann.id) || []).filter((c) => c.level === "sentence");
+      return paragraphToXml(ann, sentChildren, childMap);
+    }
+    if (ann.level === "sentence") {
+      const charChildren = (childMap.get(ann.id) || []).filter((c) => c.level === "char");
+      return `
+            <paragraph id="pg-${escapeXml(ann.id)}" type="0">
+              ${sentenceToXml(ann, charChildren)}
+            </paragraph>`;
+    }
+    // char level (orphan) — legacy wrapping
+    const charValue = (ann.originalText || ann.simplifiedText || "□").slice(0, 1);
+    const code = ann.charCode || toUnicodeCode(charValue);
+    const wordNotes = ann.note
+      ? `\n              <word_notes>\n                <word_note id="wn-${escapeXml(ann.id)}" note_type="${escapeXml(ann.noteType || "1")}">${escapeXml(ann.note)}</word_note>\n              </word_notes>`
+      : "";
+    return `
+            <paragraph id="pg-${escapeXml(ann.id)}" type="0">
+              <sentence id="st-${escapeXml(ann.id)}" type="0" note="${escapeXml(ann.note || "")}" note_type="${escapeXml(ann.noteType || "1")}">
+                <word id="wd-${escapeXml(ann.id)}" note="${escapeXml(ann.simplifiedText || ann.originalText || "")}">${wordNotes}
+                  <char id="${escapeXml(ann.charId)}" code="${escapeXml(code)}">${escapeXml(charValue)}</char>
+                </word>
+              </sentence>
+            </paragraph>`;
+  }).join("");
 }
 
 function annotationToSvgShape(ann) {
   const stroke = ann.color;
-  if (ann.style === "underline") {
-    const y = ann.y + ann.height;
+  const regions = ann.regions || [];
+  if (regions.length === 0) return "";
+  return regions.map((r) => {
+    if (ann.style === "underline") {
+      const y = r.y + r.height;
+      return `
+      <line x1="${r.x}" y1="${y}" x2="${r.x + r.width}" y2="${y}" style="stroke:${stroke};stroke-width:3" />`;
+    }
+    const fill = ann.style === "highlight" ? `fill:${stroke}55;` : "fill:none;";
     return `
-      <line x1="${ann.x}" y1="${y}" x2="${ann.x + ann.width}" y2="${y}" style="stroke:${stroke};stroke-width:3" />`;
-  }
-  const fill = ann.style === "highlight" ? `fill:${stroke}55;` : "fill:none;";
-  return `
-      <rect x="${ann.x}" y="${ann.y}" width="${ann.width}" height="${ann.height}" style="${fill}stroke:${stroke};stroke-width:2" />`;
+      <rect x="${r.x}" y="${r.y}" width="${r.width}" height="${r.height}" style="${fill}stroke:${stroke};stroke-width:2" />`;
+  }).join("");
 }
 
 function annotationToSvgText(ann) {
   const codeText = ann.originalText || ann.simplifiedText || "□";
+  const regions = ann.regions || [];
+  if (regions.length === 0) return "";
+  const r = regions[0];
   return `
-      <text x="${ann.x + 2}" y="${Math.max(16, ann.y - 4)}" id="${escapeXml(ann.charId)}" fill="${escapeXml(ann.color)}" font-family="STSong" font-size="18">${escapeXml(codeText)}</text>`;
+      <text x="${r.x + 2}" y="${Math.max(16, r.y - 4)}" id="${escapeXml(ann.charId)}" fill="${escapeXml(ann.color)}" font-family="STSong" font-size="18">${escapeXml(codeText)}</text>`;
 }
 
 function generateXmlFromSnapshot(snapshot) {
@@ -99,9 +160,7 @@ function generateXmlFromSnapshot(snapshot) {
   <content page_mode="1">
 ${pages
   .map((page) => {
-    const annXml = (page.annotations || [])
-      .map(annotationToXmlContent)
-      .join("");
+    const annXml = annotationsToXmlContent(page.annotations || []);
     return `    <page layout="0" id="${escapeXml(page.id)}" page_no="${page.pageNo}" direction="0">
       <panel id="panel-${escapeXml(page.id)}" direction="0">
         <textfield id="tf-${escapeXml(page.id)}" position="1" direction="0">${annXml}

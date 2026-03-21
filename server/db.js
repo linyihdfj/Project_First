@@ -141,6 +141,9 @@ function mapAnnotationRow(row) {
     height: row.height,
     reviewStatus: row.review_status || "pending",
     reviewedBy: row.reviewed_by || "",
+    parentId: row.parent_id || null,
+    orderIndex: row.order_index || 0,
+    regions: [],
   };
 }
 
@@ -383,7 +386,29 @@ async function initDatabase() {
     if (!annCols.some((col) => col.name === "reviewed_by")) {
       await run("ALTER TABLE annotations ADD COLUMN reviewed_by TEXT");
     }
+    if (!annCols.some((col) => col.name === "parent_id")) {
+      await run("ALTER TABLE annotations ADD COLUMN parent_id TEXT");
+    }
+    if (!annCols.some((col) => col.name === "order_index")) {
+      await run("ALTER TABLE annotations ADD COLUMN order_index INTEGER NOT NULL DEFAULT 0");
+    }
   } catch (e) {}
+
+  // 标注跨页区域表
+  await run(`
+    CREATE TABLE IF NOT EXISTS annotation_regions (
+      id TEXT PRIMARY KEY,
+      annotation_id TEXT NOT NULL,
+      page_id TEXT NOT NULL,
+      x INTEGER NOT NULL,
+      y INTEGER NOT NULL,
+      width INTEGER NOT NULL,
+      height INTEGER NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(annotation_id) REFERENCES annotations(id) ON DELETE CASCADE,
+      FOREIGN KEY(page_id) REFERENCES pages(id) ON DELETE CASCADE
+    )
+  `);
 
   // 用户-文章关联表
   await run(`
@@ -399,6 +424,38 @@ async function initDatabase() {
 
   // 创建默认管理员账户
   await ensureAdminUser();
+
+  // ── 数据迁移：将 annotations 表中的 x/y/w/h 迁移到 annotation_regions ──
+  await migrateAnnotationsToRegions();
+}
+
+async function migrateAnnotationsToRegions() {
+  // 查找还未迁移的标注（x/y/w/h 不全为 0）
+  const rows = await all(
+    "SELECT id, page_id, x, y, width, height FROM annotations WHERE (x != 0 OR y != 0 OR width != 0 OR height != 0)",
+  );
+  if (!rows.length) return;
+
+  const now = nowIso();
+  for (const row of rows) {
+    // 检查是否已存在该 annotation + page 的 region
+    const existing = await get(
+      "SELECT id FROM annotation_regions WHERE annotation_id = ? AND page_id = ?",
+      [row.id, row.page_id],
+    );
+    if (!existing) {
+      await run(
+        `INSERT INTO annotation_regions (id, annotation_id, page_id, x, y, width, height, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [uid("region"), row.id, row.page_id, row.x, row.y, row.width, row.height, now],
+      );
+    }
+    // 清零标记已迁移
+    await run(
+      "UPDATE annotations SET x = 0, y = 0, width = 0, height = 0 WHERE id = ?",
+      [row.id],
+    );
+  }
 }
 
 // ── 密码哈希 ──
@@ -696,17 +753,107 @@ async function getPagesByArticle(articleId) {
     return pages;
   }
 
-  const annotationsRows = await all(
+  // 加载所有 regions，按 page_id 分组
+  const regionRows = await all(
+    `SELECT ar.id AS region_id, ar.annotation_id, ar.page_id, ar.x, ar.y, ar.width, ar.height,
+            a.id AS ann_id, a.char_id, a.level, a.style, a.color,
+            a.original_text, a.simplified_text, a.note, a.note_type,
+            a.char_code, a.glyph_ref, a.review_status, a.reviewed_by,
+            a.parent_id, a.order_index
+     FROM annotation_regions ar
+     JOIN annotations a ON a.id = ar.annotation_id
+     WHERE a.article_id = ?
+     ORDER BY a.created_at ASC`,
+    [articleId],
+  );
+
+  // 加载所有标注（用于子标注查找）
+  const allAnnotationRows = await all(
     "SELECT * FROM annotations WHERE article_id = ? ORDER BY created_at ASC",
     [articleId],
   );
+  const allAnnotationsMap = new Map();
+  allAnnotationRows.forEach((row) => {
+    allAnnotationsMap.set(row.id, mapAnnotationRow(row));
+  });
+
+  // 按页面分组 regions
   const pageMap = new Map(pages.map((page) => [page.id, page]));
-  annotationsRows.forEach((row) => {
-    const page = pageMap.get(row.page_id);
-    if (page) {
-      page.annotations.push(mapAnnotationRow(row));
+
+  // 收集每页上直接有 region 的标注 ID
+  const pageAnnotationIds = new Map(); // pageId -> Set<annotationId>
+  regionRows.forEach((row) => {
+    if (!pageAnnotationIds.has(row.page_id)) {
+      pageAnnotationIds.set(row.page_id, new Set());
+    }
+    pageAnnotationIds.get(row.page_id).add(row.annotation_id);
+  });
+
+  // 收集子标注（递归查找所有后代）
+  const childrenMap = new Map(); // parentId -> [annotationId]
+  allAnnotationRows.forEach((row) => {
+    if (row.parent_id) {
+      if (!childrenMap.has(row.parent_id)) {
+        childrenMap.set(row.parent_id, []);
+      }
+      childrenMap.get(row.parent_id).push(row.id);
     }
   });
+
+  function getAllDescendants(parentId, result = new Set()) {
+    const children = childrenMap.get(parentId) || [];
+    for (const childId of children) {
+      if (!result.has(childId)) {
+        result.add(childId);
+        getAllDescendants(childId, result);
+      }
+    }
+    return result;
+  }
+
+  // 构建每个 region 到标注对象的映射
+  const annotationRegionsMap = new Map(); // annotationId -> [{regionId, x, y, w, h, pageId}]
+  regionRows.forEach((row) => {
+    if (!annotationRegionsMap.has(row.annotation_id)) {
+      annotationRegionsMap.set(row.annotation_id, []);
+    }
+    annotationRegionsMap.get(row.annotation_id).push({
+      id: row.region_id,
+      pageId: row.page_id,
+      x: row.x,
+      y: row.y,
+      width: row.width,
+      height: row.height,
+    });
+  });
+
+  // 为每个页面组装标注列表
+  for (const page of pages) {
+    const directIds = pageAnnotationIds.get(page.id) || new Set();
+    // 收集所有需要显示的标注 ID（直接 + 子标注跟随父）
+    const allIds = new Set(directIds);
+    for (const annId of directIds) {
+      const descendants = getAllDescendants(annId);
+      for (const descId of descendants) {
+        allIds.add(descId);
+      }
+    }
+
+    const annotations = [];
+    for (const annId of allIds) {
+      const ann = allAnnotationsMap.get(annId);
+      if (!ann) continue;
+      // 该标注在当前页上的 regions
+      const allRegions = annotationRegionsMap.get(annId) || [];
+      const pageRegions = allRegions.filter((r) => r.pageId === page.id);
+      annotations.push({
+        ...ann,
+        regions: pageRegions.map((r) => ({ id: r.id, x: r.x, y: r.y, width: r.width, height: r.height })),
+      });
+    }
+
+    page.annotations = annotations;
+  }
 
   return pages;
 }
@@ -797,16 +944,18 @@ async function createAnnotation(pageId, payload) {
     noteType: payload.noteType || "1",
     charCode: payload.charCode || "",
     glyphRef: payload.glyphRef || "",
-    x: Number(payload.x) || 0,
-    y: Number(payload.y) || 0,
-    width: Number(payload.width) || 0,
-    height: Number(payload.height) || 0,
+    x: 0,
+    y: 0,
+    width: 0,
+    height: 0,
+    parentId: payload.parentId || null,
+    orderIndex: Number(payload.orderIndex) || 0,
   };
 
   await run(
     `INSERT INTO annotations
-    (id, article_id, page_id, char_id, level, style, color, original_text, simplified_text, note, note_type, char_code, glyph_ref, x, y, width, height, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    (id, article_id, page_id, char_id, level, style, color, original_text, simplified_text, note, note_type, char_code, glyph_ref, x, y, width, height, parent_id, order_index, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       ann.id,
       page.article_id,
@@ -821,16 +970,29 @@ async function createAnnotation(pageId, payload) {
       ann.noteType,
       ann.charCode,
       ann.glyphRef,
-      ann.x,
-      ann.y,
-      ann.width,
-      ann.height,
+      0,
+      0,
+      0,
+      0,
+      ann.parentId,
+      ann.orderIndex,
       now,
       now,
     ],
   );
 
-  return { ...ann, pageId };
+  // 创建第一个 region
+  const regionX = Number(payload.x) || 0;
+  const regionY = Number(payload.y) || 0;
+  const regionW = Number(payload.width) || 0;
+  const regionH = Number(payload.height) || 0;
+  const region = await addAnnotationRegion(ann.id, pageId, regionX, regionY, regionW, regionH);
+
+  return {
+    ...ann,
+    pageId,
+    regions: [{ id: region.id, x: region.x, y: region.y, width: region.width, height: region.height }],
+  };
 }
 
 async function updateAnnotation(annotationId, payload) {
@@ -858,11 +1020,13 @@ async function updateAnnotation(annotationId, payload) {
     height: Number(payload.height ?? row.height),
     reviewStatus: payload.reviewStatus ?? row.review_status ?? "pending",
     reviewedBy: payload.reviewedBy ?? row.reviewed_by ?? "",
+    parentId: payload.parentId !== undefined ? payload.parentId : (row.parent_id || null),
+    orderIndex: Number(payload.orderIndex ?? row.order_index ?? 0),
   };
 
   await run(
     `UPDATE annotations
-     SET char_id = ?, level = ?, style = ?, color = ?, original_text = ?, simplified_text = ?, note = ?, note_type = ?, char_code = ?, glyph_ref = ?, x = ?, y = ?, width = ?, height = ?, review_status = ?, reviewed_by = ?, updated_at = ?
+     SET char_id = ?, level = ?, style = ?, color = ?, original_text = ?, simplified_text = ?, note = ?, note_type = ?, char_code = ?, glyph_ref = ?, x = ?, y = ?, width = ?, height = ?, review_status = ?, reviewed_by = ?, parent_id = ?, order_index = ?, updated_at = ?
      WHERE id = ?`,
     [
       merged.charId,
@@ -881,6 +1045,8 @@ async function updateAnnotation(annotationId, payload) {
       merged.height,
       merged.reviewStatus,
       merged.reviewedBy,
+      merged.parentId,
+      merged.orderIndex,
       nowIso(),
       annotationId,
     ],
@@ -894,14 +1060,196 @@ async function updateAnnotation(annotationId, payload) {
 }
 
 async function deleteAnnotation(annotationId) {
+  // 收集所有包含该标注 region 的页面 ID
+  const regionRows = await all(
+    "SELECT DISTINCT page_id FROM annotation_regions WHERE annotation_id = ?",
+    [annotationId],
+  );
+  const pageIds = regionRows.map((r) => r.page_id);
   const row = await get("SELECT page_id FROM annotations WHERE id = ?", [annotationId]);
   await transaction(async () => {
+    await run("UPDATE annotations SET parent_id = NULL WHERE parent_id = ?", [annotationId]);
     await run("UPDATE headings SET annotation_id = NULL WHERE annotation_id = ?", [
       annotationId,
     ]);
     await run("DELETE FROM annotations WHERE id = ?", [annotationId]);
   });
-  return row ? { pageId: row.page_id } : null;
+  return row ? { pageId: row.page_id, pageIds } : null;
+}
+
+async function getChildAnnotations(parentId) {
+  const rows = await all(
+    "SELECT * FROM annotations WHERE parent_id = ? ORDER BY order_index ASC, created_at ASC",
+    [parentId],
+  );
+  return rows.map(mapAnnotationRow);
+}
+
+// ── 标注跨页区域 ──
+
+async function addAnnotationRegion(annotationId, pageId, x, y, width, height) {
+  const id = uid("region");
+  const now = nowIso();
+  await run(
+    `INSERT INTO annotation_regions (id, annotation_id, page_id, x, y, width, height, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, annotationId, pageId, Math.round(x), Math.round(y), Math.round(width), Math.round(height), now],
+  );
+  return { id, annotationId, pageId, x: Math.round(x), y: Math.round(y), width: Math.round(width), height: Math.round(height), createdAt: now };
+}
+
+async function getAnnotationsForPage(pageId) {
+  const pageRow = await get("SELECT * FROM pages WHERE id = ?", [pageId]);
+  if (!pageRow) return [];
+
+  const articleId = pageRow.article_id;
+
+  // 查询该页上直接有 region 的标注
+  const regionRows = await all(
+    `SELECT ar.id AS region_id, ar.annotation_id, ar.page_id, ar.x, ar.y, ar.width, ar.height
+     FROM annotation_regions ar
+     JOIN annotations a ON a.id = ar.annotation_id
+     WHERE ar.page_id = ?
+     ORDER BY a.created_at ASC`,
+    [pageId],
+  );
+
+  const directIds = new Set(regionRows.map((r) => r.annotation_id));
+
+  // 加载所有文章标注用于子标注查找
+  const allAnnotationRows = await all(
+    "SELECT * FROM annotations WHERE article_id = ? ORDER BY created_at ASC",
+    [articleId],
+  );
+  const allAnnotationsMap = new Map();
+  allAnnotationRows.forEach((row) => {
+    allAnnotationsMap.set(row.id, mapAnnotationRow(row));
+  });
+
+  // 构建子标注关系
+  const childrenMap = new Map();
+  allAnnotationRows.forEach((row) => {
+    if (row.parent_id) {
+      if (!childrenMap.has(row.parent_id)) childrenMap.set(row.parent_id, []);
+      childrenMap.get(row.parent_id).push(row.id);
+    }
+  });
+
+  function getAllDescendants(parentId, result = new Set()) {
+    const children = childrenMap.get(parentId) || [];
+    for (const childId of children) {
+      if (!result.has(childId)) {
+        result.add(childId);
+        getAllDescendants(childId, result);
+      }
+    }
+    return result;
+  }
+
+  // 收集所有需要显示的标注 ID（直接 + 子标注跟随父）
+  const allIds = new Set(directIds);
+  for (const annId of directIds) {
+    const descendants = getAllDescendants(annId);
+    for (const descId of descendants) {
+      allIds.add(descId);
+    }
+  }
+
+  // 获取所有标注的全部 regions
+  const allRegionRows = allIds.size > 0
+    ? await all(
+        `SELECT * FROM annotation_regions WHERE annotation_id IN (${[...allIds].map(() => '?').join(',')})`,
+        [...allIds],
+      )
+    : [];
+
+  const annotationRegionsMap = new Map();
+  allRegionRows.forEach((row) => {
+    if (!annotationRegionsMap.has(row.annotation_id)) {
+      annotationRegionsMap.set(row.annotation_id, []);
+    }
+    annotationRegionsMap.get(row.annotation_id).push({
+      id: row.id,
+      pageId: row.page_id,
+      x: row.x,
+      y: row.y,
+      width: row.width,
+      height: row.height,
+    });
+  });
+
+  const annotations = [];
+  for (const annId of allIds) {
+    const ann = allAnnotationsMap.get(annId);
+    if (!ann) continue;
+    const allRegions = annotationRegionsMap.get(annId) || [];
+    const pageRegions = allRegions.filter((r) => r.pageId === pageId);
+    annotations.push({
+      ...ann,
+      regions: pageRegions.map((r) => ({ id: r.id, x: r.x, y: r.y, width: r.width, height: r.height })),
+    });
+  }
+
+  return annotations;
+}
+
+async function getRegionsByPage(pageId) {
+  const rows = await all(
+    `SELECT ar.*, a.level, a.style, a.color, a.original_text, a.simplified_text,
+            a.note, a.note_type, a.char_id, a.char_code, a.glyph_ref,
+            a.review_status, a.reviewed_by, a.parent_id, a.order_index, a.page_id AS ann_page_id
+     FROM annotation_regions ar
+     JOIN annotations a ON a.id = ar.annotation_id
+     WHERE ar.page_id = ?`,
+    [pageId],
+  );
+  return rows.map((row) => ({
+    regionId: row.id,
+    annotationId: row.annotation_id,
+    pageId: row.page_id,
+    x: row.x,
+    y: row.y,
+    width: row.width,
+    height: row.height,
+    // annotation fields
+    id: row.annotation_id,
+    charId: row.char_id,
+    level: row.level,
+    style: row.style,
+    color: row.color,
+    originalText: row.original_text || "",
+    simplifiedText: row.simplified_text || "",
+    note: row.note || "",
+    noteType: row.note_type || "1",
+    charCode: row.char_code || "",
+    glyphRef: row.glyph_ref || "",
+    reviewStatus: row.review_status || "pending",
+    reviewedBy: row.reviewed_by || "",
+    parentId: row.parent_id || null,
+    orderIndex: row.order_index || 0,
+    originalPageId: row.ann_page_id,
+  }));
+}
+
+async function getRegionsByAnnotation(annotationId) {
+  const rows = await all(
+    "SELECT * FROM annotation_regions WHERE annotation_id = ? ORDER BY created_at ASC",
+    [annotationId],
+  );
+  return rows.map((row) => ({
+    id: row.id,
+    annotationId: row.annotation_id,
+    pageId: row.page_id,
+    x: row.x,
+    y: row.y,
+    width: row.width,
+    height: row.height,
+    createdAt: row.created_at,
+  }));
+}
+
+async function deleteAnnotationRegion(regionId) {
+  await run("DELETE FROM annotation_regions WHERE id = ?", [regionId]);
 }
 
 async function getHeadingsByArticle(articleId) {
@@ -946,14 +1294,14 @@ async function createHeading(articleId, payload) {
   let annotationId = null;
   if (annotationIdRaw) {
     const annRow = await get(
-      "SELECT id, article_id, page_id FROM annotations WHERE id = ?",
+      "SELECT id, article_id FROM annotations WHERE id = ?",
       [annotationIdRaw],
     );
     if (!annRow) {
       throw new Error("关联标注不存在");
     }
-    if (annRow.article_id !== articleId || annRow.page_id !== pageId) {
-      throw new Error("关联标注与页面不匹配");
+    if (annRow.article_id !== articleId) {
+      throw new Error("关联标注与文章不匹配");
     }
     annotationId = annRow.id;
   }
@@ -1415,6 +1763,12 @@ module.exports = {
   createAnnotation,
   updateAnnotation,
   deleteAnnotation,
+  getChildAnnotations,
+  addAnnotationRegion,
+  getAnnotationsForPage,
+  getRegionsByPage,
+  getRegionsByAnnotation,
+  deleteAnnotationRegion,
   getHeadingsByArticle,
   createHeading,
   updateHeadingParent,

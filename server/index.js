@@ -17,6 +17,12 @@ const {
   createAnnotation,
   updateAnnotation,
   deleteAnnotation,
+  getChildAnnotations,
+  addAnnotationRegion,
+  getAnnotationsForPage,
+  getRegionsByPage,
+  getRegionsByAnnotation,
+  deleteAnnotationRegion,
   createHeading,
   updateHeadingParent,
   reorderHeadings,
@@ -456,7 +462,7 @@ app.post("/api/ocr/layout-detect", requireAuth, requireRole("admin", "editor"), 
     if (!provider) {
       return sendError(res, new Error("OCR 服务未配置，请在 server/ocr-config.json 中设置 API 密钥"));
     }
-    const { pageId, level } = req.body || {};
+    const { pageId, level, x, y, width, height } = req.body || {};
     if (!pageId) {
       return sendError(res, new Error("缺少 pageId"));
     }
@@ -465,8 +471,21 @@ app.post("/api/ocr/layout-detect", requireAuth, requireRole("admin", "editor"), 
       return sendError(res, new Error("页面不存在"), 404);
     }
     const imagePath = path.join(PROJECT_ROOT, page.src.replace(/^\//, ""));
-    const imageBuffer = await readImageBuffer(imagePath);
-    const regions = await provider.detectLayout(imageBuffer, level || "line");
+    let imageBuffer;
+    if (x != null && y != null && width != null && height != null) {
+      imageBuffer = await cropImage(imagePath, { x, y, width, height });
+    } else {
+      imageBuffer = await readImageBuffer(imagePath);
+    }
+    let regions = await provider.detectLayout(imageBuffer, level || "line");
+    // If cropped, offset coordinates back to page space
+    if (x != null && y != null) {
+      regions = regions.map((r) => ({
+        ...r,
+        x: r.x + Math.round(x),
+        y: r.y + Math.round(y),
+      }));
+    }
     res.json({ ok: true, regions });
   } catch (error) {
     sendError(res, error);
@@ -487,6 +506,58 @@ app.post("/api/pages/:pageId/annotations/batch", requireAuth, requireRole("admin
       broadcastToPage(req, `page:${annotation.pageId}`, "annotation:created", { annotation, pageId: annotation.pageId });
     }
     res.json({ ok: true, annotations: created, count: created.length });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ── 标注跨页区域 ──
+
+app.post("/api/annotations/:annotationId/regions", requireAuth, requireRole("admin", "editor"), async (req, res) => {
+  try {
+    const { annotationId } = req.params;
+    const { pageId, x, y, width, height } = req.body || {};
+    if (!pageId || x == null || y == null || width == null || height == null) {
+      return sendError(res, new Error("缺少 pageId, x, y, width, height"));
+    }
+    const region = await addAnnotationRegion(annotationId, pageId, x, y, width, height);
+    res.json({ ok: true, region });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+app.get("/api/annotations/:annotationId/regions", requireAuth, async (req, res) => {
+  try {
+    const regions = await getRegionsByAnnotation(req.params.annotationId);
+    res.json({ ok: true, regions });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+app.get("/api/pages/:pageId/cross-page-annotations", requireAuth, async (req, res) => {
+  try {
+    const annotations = await getRegionsByPage(req.params.pageId);
+    res.json({ ok: true, annotations });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+app.get("/api/pages/:pageId/annotations", requireAuth, async (req, res) => {
+  try {
+    const annotations = await getAnnotationsForPage(req.params.pageId);
+    res.json({ ok: true, annotations });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+app.delete("/api/annotation-regions/:regionId", requireAuth, requireRole("admin", "editor"), async (req, res) => {
+  try {
+    await deleteAnnotationRegion(req.params.regionId);
+    res.json({ ok: true });
   } catch (error) {
     sendError(res, error);
   }

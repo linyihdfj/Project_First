@@ -1142,3 +1142,115 @@ textarea {
 .ai-btn-sm.reject:hover {
   background: #EF9A9A;
 }
+
+/* Review badge (small, inline) for annotation list */
+.review-badge-sm {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-left: 4px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.review-badge-sm.pending { background: #fff3cd; color: #856404; }
+.review-badge-sm.approved { background: #d4edda; color: #155724; }
+.review-badge-sm.rejected { background: #f8d7da; color: #721c24; }
+
+/* Hierarchical annotation list */
+.annotation-list-item {
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.ann-expand {
+  display: inline-block;
+  width: 16px;
+  font-size: 10px;
+  text-align: center;
+  user-select: none;
+}
+
+/* Paragraph AI results */
+.ai-sentence-list {
+  list-style: none;
+  padding: 2px 0 2px 16px;
+  margin: 0;
+  font-size: 11px;
+  color: #5a4a3a;
+}
+
+.ai-sentence-item {
+  padding: 1px 0;
+}
+
+.ai-result-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+/* Drag-and-drop for annotation list */
+.annotation-list-item.dragging {
+  opacity: 0.4;
+}
+
+.annotation-list-item.drag-over {
+  background: #c8dfc8;
+  outline: 2px dashed #28a745;
+  outline-offset: -2px;
+}
+
+/* Region controls */
+.region-controls {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.btn-add-region {
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--card);
+  color: var(--ink);
+}
+
+.btn-add-region.active {
+  background: #e3f2fd;
+  border-color: #1565c0;
+  color: #1565c0;
+}
+
+.region-tip {
+  font-size: 11px;
+  color: #1565c0;
+  margin: 6px 0 0;
+}
+
+.region-list {
+  margin-top: 6px;
+}
+
+.region-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.region-item.current-page {
+  background: #e8f5e9;
+}
