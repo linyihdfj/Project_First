@@ -996,3 +996,149 @@ textarea {
     flex-wrap: wrap;
   }
 }
+
+/* ── AI 识别功能样式 ── */
+
+#toolbar-ai-controls {
+  border-left: 2px solid #2196F3;
+  padding-left: 10px;
+}
+
+#toolbar-ai-controls label {
+  color: #1565C0;
+  font-weight: 600;
+}
+
+#btn-ai-ocr-region,
+#btn-ai-detect-layout {
+  background: #2196F3;
+  color: #fff;
+  border: none;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+#btn-ai-ocr-region:hover:not(:disabled),
+#btn-ai-detect-layout:hover:not(:disabled) {
+  background: #1976D2;
+}
+
+#btn-ai-ocr-region:disabled,
+#btn-ai-detect-layout:disabled {
+  background: #90CAF9;
+  cursor: not-allowed;
+}
+
+.ai-results-section {
+  margin-top: 12px;
+  border-top: 2px solid #2196F3;
+  padding-top: 8px;
+}
+
+.ai-results-section h2 {
+  color: #1565C0;
+}
+
+.ai-results-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+#ai-results-count {
+  font-size: 13px;
+  color: #555;
+}
+
+.ai-btn {
+  border: none;
+  padding: 4px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.ai-btn.accept {
+  background: #43A047;
+  color: #fff;
+}
+
+.ai-btn.accept:hover {
+  background: #388E3C;
+}
+
+.ai-btn.reject {
+  background: #E53935;
+  color: #fff;
+}
+
+.ai-btn.reject:hover {
+  background: #C62828;
+}
+
+.ai-results-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.ai-result-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-bottom: 1px solid #eee;
+  font-size: 13px;
+}
+
+.ai-result-item:hover {
+  background: #E3F2FD;
+}
+
+.ai-result-text {
+  flex: 1;
+  font-weight: 500;
+}
+
+.ai-result-conf {
+  color: #888;
+  font-size: 12px;
+  min-width: 36px;
+  text-align: right;
+}
+
+.ai-btn-sm {
+  border: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 24px;
+  text-align: center;
+  padding: 0;
+}
+
+.ai-btn-sm.accept {
+  background: #C8E6C9;
+  color: #2E7D32;
+}
+
+.ai-btn-sm.accept:hover {
+  background: #A5D6A7;
+}
+
+.ai-btn-sm.reject {
+  background: #FFCDD2;
+  color: #C62828;
+}
+
+.ai-btn-sm.reject:hover {
+  background: #EF9A9A;
+}

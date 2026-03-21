@@ -1,0 +1,7 @@
+{
+  "provider": "baidu",
+  "baidu": {
+    "apiKey": "",
+    "secretKey": ""
+  }
+}

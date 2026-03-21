@@ -4,6 +4,8 @@ const express = require("express");
 const { Server: SocketServer } = require("socket.io");
 const { generateXmlFromSnapshot } = require("./xml");
 
+const { getProvider, cropImage, readImageBuffer } = require("./ocr");
+
 const {
   initDatabase,
   getArticle,
@@ -11,6 +13,7 @@ const {
   upsertArticle,
   createPages,
   clearPagesByArticle,
+  getPageRow,
   createAnnotation,
   updateAnnotation,
   deleteAnnotation,
@@ -412,6 +415,78 @@ app.delete("/api/annotations/:annotationId", requireAuth, requireRole("admin", "
     if (result && result.pageId) {
       broadcastToPage(req, `page:${result.pageId}`, "annotation:deleted", { annotationId: req.params.annotationId, pageId: result.pageId });
     }
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ── OCR / AI 识别端点 ──
+
+app.post("/api/ocr/recognize", requireAuth, requireRole("admin", "editor"), async (req, res) => {
+  try {
+    const provider = getProvider();
+    if (!provider) {
+      return sendError(res, new Error("OCR 服务未配置，请在 server/ocr-config.json 中设置 API 密钥"));
+    }
+    const { pageId, x, y, width, height } = req.body || {};
+    if (!pageId) {
+      return sendError(res, new Error("缺少 pageId"));
+    }
+    const page = await getPageRow(pageId);
+    if (!page) {
+      return sendError(res, new Error("页面不存在"), 404);
+    }
+    const imagePath = path.join(PROJECT_ROOT, page.src.replace(/^\//, ""));
+    let imageBuffer;
+    if (x != null && y != null && width && height) {
+      imageBuffer = await cropImage(imagePath, { x, y, width, height });
+    } else {
+      imageBuffer = await readImageBuffer(imagePath);
+    }
+    const results = await provider.recognizeRegion(imageBuffer);
+    res.json({ ok: true, results });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+app.post("/api/ocr/layout-detect", requireAuth, requireRole("admin", "editor"), async (req, res) => {
+  try {
+    const provider = getProvider();
+    if (!provider) {
+      return sendError(res, new Error("OCR 服务未配置，请在 server/ocr-config.json 中设置 API 密钥"));
+    }
+    const { pageId, level } = req.body || {};
+    if (!pageId) {
+      return sendError(res, new Error("缺少 pageId"));
+    }
+    const page = await getPageRow(pageId);
+    if (!page) {
+      return sendError(res, new Error("页面不存在"), 404);
+    }
+    const imagePath = path.join(PROJECT_ROOT, page.src.replace(/^\//, ""));
+    const imageBuffer = await readImageBuffer(imagePath);
+    const regions = await provider.detectLayout(imageBuffer, level || "line");
+    res.json({ ok: true, regions });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+app.post("/api/pages/:pageId/annotations/batch", requireAuth, requireRole("admin", "editor"), async (req, res) => {
+  try {
+    const { annotations: items } = req.body || {};
+    if (!Array.isArray(items) || !items.length) {
+      return sendError(res, new Error("annotations 不能为空"));
+    }
+    const pageId = req.params.pageId;
+    const created = [];
+    for (const item of items) {
+      const annotation = await createAnnotation(pageId, item);
+      created.push(annotation);
+      broadcastToPage(req, `page:${annotation.pageId}`, "annotation:created", { annotation, pageId: annotation.pageId });
+    }
+    res.json({ ok: true, annotations: created, count: created.length });
   } catch (error) {
     sendError(res, error);
   }

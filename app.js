@@ -42,6 +42,8 @@ const state = {
   articleList: [],
   accessArticleId: null,
   presenceUsers: [],
+  aiDetectedRegions: [],
+  aiDetectionInProgress: false,
 };
 
 const refs = {
@@ -151,6 +153,15 @@ const refs = {
   accessUserSelect: document.getElementById("access-user-select"),
   btnGrantAccess: document.getElementById("btn-grant-access"),
   accessUserList: document.getElementById("access-user-list"),
+  // AI controls
+  btnAiOcrRegion: document.getElementById("btn-ai-ocr-region"),
+  btnAiDetectLayout: document.getElementById("btn-ai-detect-layout"),
+  aiDetectLevel: document.getElementById("ai-detect-level"),
+  aiResultsSection: document.getElementById("ai-results-section"),
+  aiResultsCount: document.getElementById("ai-results-count"),
+  btnAiAcceptAll: document.getElementById("btn-ai-accept-all"),
+  btnAiRejectAll: document.getElementById("btn-ai-reject-all"),
+  aiResultsList: document.getElementById("ai-results-list"),
 };
 
 const PDF_JS_SOURCES = [
@@ -1764,6 +1775,43 @@ function drawOverlay() {
     shape.setAttribute("stroke-dasharray", "8 4");
     refs.annotationSvg.appendChild(shape);
   }
+
+  // AI detected regions preview
+  if (state.aiDetectedRegions.length > 0) {
+    const scaleX = refs.annotationSvg.clientWidth / page.width;
+    const scaleY = refs.annotationSvg.clientHeight / page.height;
+    state.aiDetectedRegions.forEach((region) => {
+      const rx = region.x * scaleX;
+      const ry = region.y * scaleY;
+      const rw = region.width * scaleX;
+      const rh = region.height * scaleY;
+      const rect = document.createElementNS(NS_SVG, "rect");
+      rect.setAttribute("x", String(rx));
+      rect.setAttribute("y", String(ry));
+      rect.setAttribute("width", String(rw));
+      rect.setAttribute("height", String(rh));
+      rect.setAttribute("rx", "2");
+      rect.setAttribute("ry", "2");
+      rect.setAttribute("stroke", "#2196F3");
+      rect.setAttribute("stroke-width", "2");
+      rect.setAttribute("stroke-dasharray", "6 3");
+      rect.setAttribute("fill", "rgba(33,150,243,0.08)");
+      rect.style.cursor = "pointer";
+      refs.annotationSvg.appendChild(rect);
+
+      // Text label
+      if (region.text) {
+        const label = document.createElementNS(NS_SVG, "text");
+        label.setAttribute("x", String(rx + 2));
+        label.setAttribute("y", String(ry - 4 > 10 ? ry - 4 : ry + rh + 14));
+        label.setAttribute("font-size", "12");
+        label.setAttribute("fill", "#1565C0");
+        label.setAttribute("pointer-events", "none");
+        label.textContent = region.text;
+        refs.annotationSvg.appendChild(label);
+      }
+    });
+  }
 }
 
 function renderPage() {
@@ -2581,6 +2629,20 @@ function bindEvents() {
     refs.btnReviewReject.addEventListener("click", () => setReviewStatus("rejected"));
   }
 
+  // AI events
+  if (refs.btnAiOcrRegion) {
+    refs.btnAiOcrRegion.addEventListener("click", () => aiRecognizeSelected());
+  }
+  if (refs.btnAiDetectLayout) {
+    refs.btnAiDetectLayout.addEventListener("click", () => aiDetectLayout());
+  }
+  if (refs.btnAiAcceptAll) {
+    refs.btnAiAcceptAll.addEventListener("click", () => aiAcceptAll());
+  }
+  if (refs.btnAiRejectAll) {
+    refs.btnAiRejectAll.addEventListener("click", () => aiRejectAll());
+  }
+
   refs.tabs.forEach((tab) => {
     tab.addEventListener("click", () => {
       setActiveTab(tab.dataset.tab);
@@ -2703,6 +2765,206 @@ function bindEvents() {
   });
 }
 
+// ── AI 识别功能 ──
+
+function updateAiButtonStates() {
+  if (refs.btnAiOcrRegion) {
+    refs.btnAiOcrRegion.disabled = !state.selectedAnnotationId || state.aiDetectionInProgress;
+  }
+  if (refs.btnAiDetectLayout) {
+    refs.btnAiDetectLayout.disabled = !getCurrentPage() || state.aiDetectionInProgress;
+  }
+}
+
+async function aiRecognizeSelected() {
+  const page = getCurrentPage();
+  const ann = getSelectedAnnotation();
+  if (!page || !ann) return;
+
+  refs.btnAiOcrRegion.disabled = true;
+  refs.btnAiOcrRegion.textContent = "识别中...";
+  try {
+    const payload = await apiRequest("/ocr/recognize", {
+      method: "POST",
+      body: {
+        pageId: page.id,
+        x: ann.x,
+        y: ann.y,
+        width: ann.width,
+        height: ann.height,
+      },
+    });
+    const texts = (payload.results || []).map((r) => r.text).join("");
+    if (texts) {
+      ann.originalText = texts;
+      ann.simplifiedText = texts;
+      renderAnnotationForm();
+      scheduleAnnotationPersist(ann);
+    }
+  } catch (error) {
+    alert("识别失败：" + error.message);
+  } finally {
+    refs.btnAiOcrRegion.textContent = "识别文字";
+    updateAiButtonStates();
+  }
+}
+
+async function aiDetectLayout() {
+  const page = getCurrentPage();
+  if (!page) return;
+
+  state.aiDetectionInProgress = true;
+  state.aiDetectedRegions = [];
+  refs.btnAiDetectLayout.disabled = true;
+  refs.btnAiDetectLayout.textContent = "检测中...";
+  refs.canvasMeta.textContent = "AI 检测中...";
+
+  try {
+    const level = refs.aiDetectLevel ? refs.aiDetectLevel.value : "line";
+    const payload = await apiRequest("/ocr/layout-detect", {
+      method: "POST",
+      body: { pageId: page.id, level },
+    });
+    state.aiDetectedRegions = (payload.regions || []).map((r, i) => ({
+      ...r,
+      _index: i,
+    }));
+    drawOverlay();
+    renderAiResultsPanel();
+  } catch (error) {
+    alert("检测失败：" + error.message);
+  } finally {
+    state.aiDetectionInProgress = false;
+    refs.btnAiDetectLayout.textContent = "自动标注";
+    updateAiButtonStates();
+    const page2 = getCurrentPage();
+    if (page2) {
+      refs.canvasMeta.textContent = `${page2.name} (${page2.width}x${page2.height})`;
+    }
+  }
+}
+
+function renderAiResultsPanel() {
+  if (!refs.aiResultsSection) return;
+  const regions = state.aiDetectedRegions;
+  if (!regions.length) {
+    refs.aiResultsSection.hidden = true;
+    return;
+  }
+  refs.aiResultsSection.hidden = false;
+  refs.aiResultsCount.textContent = `检测到 ${regions.length} 个区域`;
+
+  const html = regions.map((r, i) => {
+    const conf = r.confidence != null ? `${Math.round(r.confidence * 100)}%` : "";
+    return `<li class="ai-result-item" data-ai-index="${i}">
+      <span class="ai-result-text">${escapeHtml(r.text || "")}</span>
+      <span class="ai-result-conf">${conf}</span>
+      <button class="ai-btn-sm accept" data-action="accept" data-index="${i}">&#10003;</button>
+      <button class="ai-btn-sm reject" data-action="reject" data-index="${i}">&#10005;</button>
+    </li>`;
+  }).join("");
+  refs.aiResultsList.innerHTML = html;
+
+  refs.aiResultsList.onclick = (evt) => {
+    const btn = evt.target.closest("button[data-action]");
+    if (!btn) return;
+    const idx = Number(btn.dataset.index);
+    if (btn.dataset.action === "accept") {
+      aiAcceptRegion(idx).catch((e) => alert(e.message));
+    } else {
+      aiRejectRegion(idx);
+    }
+  };
+}
+
+function aiDetectLevelToAnnotationLevel() {
+  const detectLevel = refs.aiDetectLevel ? refs.aiDetectLevel.value : "line";
+  return detectLevel === "char" ? "char" : "sentence";
+}
+
+async function aiAcceptAll() {
+  const page = getCurrentPage();
+  if (!page || !state.aiDetectedRegions.length) return;
+
+  const annLevel = aiDetectLevelToAnnotationLevel();
+  const annotations = state.aiDetectedRegions.map((r) => ({
+    id: uid("ann"),
+    charId: uid("char"),
+    level: annLevel,
+    style: refs.annotationStyle ? refs.annotationStyle.value : "box",
+    color: refs.annotationColor ? refs.annotationColor.value : "#d5533f",
+    originalText: r.text || "",
+    simplifiedText: r.text || "",
+    note: "",
+    noteType: "1",
+    charCode: "",
+    glyphRef: "",
+    x: Math.round(r.x),
+    y: Math.round(r.y),
+    width: Math.round(r.width),
+    height: Math.round(r.height),
+  }));
+
+  try {
+    const payload = await apiRequest(
+      `/pages/${encodeURIComponent(page.id)}/annotations/batch`,
+      { method: "POST", body: { annotations } },
+    );
+    (payload.annotations || []).forEach((ann) => page.annotations.push(ann));
+    state.aiDetectedRegions = [];
+    renderAiResultsPanel();
+    renderAll();
+  } catch (error) {
+    alert("批量创建失败：" + error.message);
+  }
+}
+
+function aiRejectAll() {
+  state.aiDetectedRegions = [];
+  renderAiResultsPanel();
+  drawOverlay();
+}
+
+async function aiAcceptRegion(index) {
+  const page = getCurrentPage();
+  const region = state.aiDetectedRegions.find((r) => r._index === index);
+  if (!page || !region) return;
+
+  const annLevel = aiDetectLevelToAnnotationLevel();
+  const draft = {
+    id: uid("ann"),
+    charId: uid("char"),
+    level: annLevel,
+    style: refs.annotationStyle ? refs.annotationStyle.value : "box",
+    color: refs.annotationColor ? refs.annotationColor.value : "#d5533f",
+    originalText: region.text || "",
+    simplifiedText: region.text || "",
+    note: "",
+    noteType: "1",
+    charCode: "",
+    glyphRef: "",
+    x: Math.round(region.x),
+    y: Math.round(region.y),
+    width: Math.round(region.width),
+    height: Math.round(region.height),
+  };
+
+  const payload = await apiRequest(
+    `/pages/${encodeURIComponent(page.id)}/annotations`,
+    { method: "POST", body: draft },
+  );
+  page.annotations.push(payload.annotation);
+  state.aiDetectedRegions = state.aiDetectedRegions.filter((r) => r._index !== index);
+  renderAiResultsPanel();
+  renderAll();
+}
+
+function aiRejectRegion(index) {
+  state.aiDetectedRegions = state.aiDetectedRegions.filter((r) => r._index !== index);
+  renderAiResultsPanel();
+  drawOverlay();
+}
+
 function renderAll() {
   renderPage();
   renderHeadingAddTip();
@@ -2711,6 +2973,7 @@ function renderAll() {
   renderReviewStatus();
   buildAnnotationList();
   renderGlyphList();
+  updateAiButtonStates();
 }
 
 // ── Socket.IO 实时协作 ──

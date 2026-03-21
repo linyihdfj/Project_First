@@ -11,7 +11,8 @@
       "Bash(kill %1)",
       "Bash(wait)",
       "Bash(grep -E \"\\\\.\\(js|json\\)$\")",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(find ./server -type f -name *.js)"
     ]
   }
 }

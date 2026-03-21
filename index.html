@@ -113,6 +113,16 @@
             <label>标记颜色</label>
             <input id="annotation-color" type="color" value="#d5533f" />
           </div>
+
+          <div class="toolbar-group" id="toolbar-ai-controls">
+            <label>AI 识别</label>
+            <button id="btn-ai-ocr-region" disabled title="识别选中标注区域的文字">识别文字</button>
+            <button id="btn-ai-detect-layout" title="自动检测当前页面文字区域">自动标注</button>
+            <select id="ai-detect-level">
+              <option value="char">逐字</option>
+              <option value="line">逐行</option>
+            </select>
+          </div>
         </div>
 
         <div class="layout">
@@ -193,6 +203,17 @@
                 <button id="btn-review-approve" class="review-btn approve">通过</button>
                 <button id="btn-review-reject" class="review-btn reject">驳回</button>
               </div>
+            </div>
+
+            <!-- AI 识别结果区域 -->
+            <div id="ai-results-section" class="ai-results-section" hidden>
+              <h2>AI 识别结果</h2>
+              <div class="ai-results-actions">
+                <span id="ai-results-count"></span>
+                <button id="btn-ai-accept-all" class="ai-btn accept">全部接受</button>
+                <button id="btn-ai-reject-all" class="ai-btn reject">全部拒绝</button>
+              </div>
+              <ul id="ai-results-list" class="ai-results-list"></ul>
             </div>
 
             <h2>本页标注列表</h2>

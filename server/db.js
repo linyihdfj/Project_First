@@ -775,6 +775,10 @@ async function clearPagesByArticle(articleId) {
   });
 }
 
+async function getPageRow(pageId) {
+  return get("SELECT * FROM pages WHERE id = ?", [pageId]);
+}
+
 async function createAnnotation(pageId, payload) {
   const page = await get("SELECT * FROM pages WHERE id = ?", [pageId]);
   if (!page) {
@@ -1407,6 +1411,7 @@ module.exports = {
   upsertArticle,
   createPages,
   clearPagesByArticle,
+  getPageRow,
   createAnnotation,
   updateAnnotation,
   deleteAnnotation,

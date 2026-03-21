@@ -8,3 +8,4 @@ uploads/pages/*
 uploads/glyphs/*
 !uploads/pages/.gitkeep
 !uploads/glyphs/.gitkeep
+server/ocr-config.json
