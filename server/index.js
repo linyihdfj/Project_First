@@ -23,10 +23,13 @@ const {
   getRegionsByPage,
   getRegionsByAnnotation,
   deleteAnnotationRegion,
+  reorderAnnotationRegions,
   createHeading,
   updateHeadingParent,
   reorderHeadings,
   deleteHeading,
+  getHeadingsByArticle,
+  getPageIdsByArticle,
   getGlyphsByArticle,
   createGlyph,
   importGlyph,
@@ -393,7 +396,11 @@ app.put("/api/annotations/:annotationId", requireAuth, requireRole("admin", "edi
       req.body || {},
     );
     res.json({ ok: true, annotation });
-    broadcastToPage(req, `page:${annotation.pageId}`, "annotation:updated", { annotation, pageId: annotation.pageId });
+    // 广播到所有相关页面（跨页标注可能出现在多个页面）
+    const allPageIds = new Set([annotation.pageId, ...(annotation.pageIds || [])]);
+    for (const pid of allPageIds) {
+      broadcastToPage(req, `page:${pid}`, "annotation:updated", { annotation, pageId: pid });
+    }
   } catch (error) {
     sendError(res, error);
   }
@@ -408,7 +415,10 @@ app.patch("/api/annotations/:annotationId", requireAuth, requireRole("admin", "r
       { reviewStatus, reviewedBy },
     );
     res.json({ ok: true, annotation });
-    broadcastToPage(req, `page:${annotation.pageId}`, "annotation:updated", { annotation, pageId: annotation.pageId });
+    const allPageIds = new Set([annotation.pageId, ...(annotation.pageIds || [])]);
+    for (const pid of allPageIds) {
+      broadcastToPage(req, `page:${pid}`, "annotation:updated", { annotation, pageId: pid });
+    }
   } catch (error) {
     sendError(res, error);
   }
@@ -418,8 +428,11 @@ app.delete("/api/annotations/:annotationId", requireAuth, requireRole("admin", "
   try {
     const result = await deleteAnnotation(req.params.annotationId);
     res.json({ ok: true });
-    if (result && result.pageId) {
-      broadcastToPage(req, `page:${result.pageId}`, "annotation:deleted", { annotationId: req.params.annotationId, pageId: result.pageId });
+    if (result) {
+      const allPageIds = new Set([result.pageId, ...(result.pageIds || [])].filter(Boolean));
+      for (const pid of allPageIds) {
+        broadcastToPage(req, `page:${pid}`, "annotation:deleted", { annotationId: req.params.annotationId, pageId: pid });
+      }
     }
   } catch (error) {
     sendError(res, error);
@@ -557,6 +570,20 @@ app.get("/api/pages/:pageId/annotations", requireAuth, async (req, res) => {
 app.delete("/api/annotation-regions/:regionId", requireAuth, requireRole("admin", "editor"), async (req, res) => {
   try {
     await deleteAnnotationRegion(req.params.regionId);
+    res.json({ ok: true });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+app.put("/api/annotations/:annotationId/regions/reorder", requireAuth, requireRole("admin", "editor"), async (req, res) => {
+  try {
+    const { annotationId } = req.params;
+    const { regionIds } = req.body || {};
+    if (!Array.isArray(regionIds)) {
+      return sendError(res, new Error("缺少 regionIds 数组"));
+    }
+    await reorderAnnotationRegions(annotationId, regionIds);
     res.json({ ok: true });
   } catch (error) {
     sendError(res, error);

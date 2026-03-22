@@ -77,7 +77,7 @@
         <div class="toolbar card">
           <div class="toolbar-group" id="toolbar-edit-controls">
             <label class="file-btn" for="image-upload"
-              >导入扫描页（图片/PDF，多选）</label
+              >导入古籍</label
             >
             <input
               id="image-upload"
@@ -85,7 +85,6 @@
               accept="image/*,.pdf,application/pdf"
               multiple
             />
-            <button id="btn-load-samples">加载示例图片</button>
             <button id="btn-clear-pages" class="danger">清空页面</button>
           </div>
 
@@ -103,23 +102,11 @@
               <option value="paragraph">段</option>
             </select>
 
-            <label class="checkbox-label"><input type="checkbox" id="show-all-annotations"> 显示全部标注</label>
-
-            <label>标记方式</label>
-            <select id="annotation-style">
-              <option value="highlight">颜色高亮</option>
-              <option value="box">画框</option>
-              <option value="underline">划线</option>
-            </select>
-
-            <label>标记颜色</label>
-            <input id="annotation-color" type="color" value="#d5533f" />
           </div>
 
           <div class="toolbar-group" id="toolbar-ai-controls">
             <label>AI 识别</label>
             <button id="btn-ai-ocr-region" disabled title="识别选中标注区域的文字">识别文字</button>
-            <button id="btn-ai-detect-layout" title="自动检测当前页面文字区域（逐字）">自动标注</button>
           </div>
         </div>
 
@@ -169,54 +156,46 @@
             </div>
           </section>
 
-          <aside class="properties card">
-            <h2>文章信息</h2>
-            <div class="form-grid meta-grid" id="meta-form">
-              <label
-                >文章ID<input id="meta-article-id" value="article-1"
-              /></label>
-              <label>标题原文<input id="meta-title" value="周易注" /></label>
-              <label>子标题<input id="meta-subtitle" value="卷一" /></label>
-              <label>作者<input id="meta-author" value="王弼" /></label>
-              <label>书名<input id="meta-book" value="周易注" /></label>
-              <label>卷<input id="meta-volume" value="卷一" /></label>
-              <label
-                >出版年<input id="meta-publish-year" value="AD249"
-              /></label>
-              <label
-                >创作年<input id="meta-writing-year" value="AD240"
-              /></label>
-            </div>
-
-            <h2>当前标注属性</h2>
-            <div id="annotation-form" class="form-grid">
-              <p class="empty-tip">当前未选中标注。</p>
-            </div>
-
-            <!-- 审批状态区域 -->
-            <div id="review-status-section" class="review-status-section" hidden>
-              <h2>审批状态</h2>
-              <div id="review-status-display" class="review-status-display"></div>
-              <div id="review-actions" class="review-actions" hidden>
-                <button id="btn-review-approve" class="review-btn approve">通过</button>
-                <button id="btn-review-reject" class="review-btn reject">驳回</button>
+          <div class="right-sidebar">
+            <aside class="properties card">
+              <h2>当前标注属性</h2>
+              <div id="annotation-form" class="form-grid">
+                <p class="empty-tip">当前未选中标注。</p>
               </div>
-            </div>
 
-            <!-- AI 识别结果区域 -->
-            <div id="ai-results-section" class="ai-results-section" hidden>
-              <h2>AI 识别结果</h2>
-              <div class="ai-results-actions">
-                <span id="ai-results-count"></span>
-                <button id="btn-ai-accept-all" class="ai-btn accept">全部接受</button>
-                <button id="btn-ai-reject-all" class="ai-btn reject">全部拒绝</button>
+              <!-- 审批状态区域 -->
+              <div id="review-status-section" class="review-status-section" hidden>
+                <h2>审批状态</h2>
+                <div id="review-status-display" class="review-status-display"></div>
               </div>
-              <ul id="ai-results-list" class="ai-results-list"></ul>
-            </div>
 
-            <h2>本页标注列表</h2>
-            <ul id="annotation-list" class="annotation-list"></ul>
-          </aside>
+              <h2>本页标注列表</h2>
+              <ul id="annotation-list" class="annotation-list"></ul>
+            </aside>
+
+            <aside class="article-info card">
+              <h2>文章信息</h2>
+              <div class="form-grid meta-grid" id="meta-form">
+                <label
+                  >文章ID<input id="meta-article-id" value="article-1"
+                /></label>
+                <label>标题原文<input id="meta-title" value="周易注" /></label>
+                <label>子标题<input id="meta-subtitle" value="卷一" /></label>
+                <label>作者<input id="meta-author" value="王弼" /></label>
+                <label>书名<input id="meta-book" value="周易注" /></label>
+                <label>卷<input id="meta-volume" value="卷一" /></label>
+                <label
+                  >出版年<input id="meta-publish-year" value="AD249"
+                /></label>
+                <label
+                  >创作年<input id="meta-writing-year" value="AD240"
+                /></label>
+              </div>
+              <div class="article-info-actions">
+                <button id="btn-export-xml" class="primary">导出 XML</button>
+              </div>
+            </aside>
+          </div>
         </div>
       </section>
 

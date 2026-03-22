@@ -410,6 +410,14 @@ async function initDatabase() {
     )
   `);
 
+  // 迁移：为 annotation_regions 添加 order_index 列
+  try {
+    const regionCols = await all("PRAGMA table_info(annotation_regions)");
+    if (!regionCols.some((col) => col.name === "order_index")) {
+      await run("ALTER TABLE annotation_regions ADD COLUMN order_index INTEGER NOT NULL DEFAULT 0");
+    }
+  } catch (e) {}
+
   // 用户-文章关联表
   await run(`
     CREATE TABLE IF NOT EXISTS user_articles (
@@ -743,6 +751,11 @@ async function upsertArticle(article) {
   return ensureArticle(article.id);
 }
 
+async function getPageIdsByArticle(articleId) {
+  const rows = await all("SELECT id FROM pages WHERE article_id = ?", [articleId]);
+  return rows.map((r) => r.id);
+}
+
 async function getPagesByArticle(articleId) {
   const pageRows = await all(
     "SELECT * FROM pages WHERE article_id = ? ORDER BY page_no ASC",
@@ -1003,6 +1016,13 @@ async function updateAnnotation(annotationId, payload) {
     throw new Error("标注不存在");
   }
 
+  // 收集该标注所有 region 所在的页面（用于跨页广播）
+  const regionRows = await all(
+    "SELECT DISTINCT page_id FROM annotation_regions WHERE annotation_id = ?",
+    [annotationId],
+  );
+  const pageIds = regionRows.map((r) => r.page_id);
+
   const merged = {
     charId: payload.charId || row.char_id,
     level: payload.level || row.level,
@@ -1055,6 +1075,7 @@ async function updateAnnotation(annotationId, payload) {
   return {
     id: annotationId,
     pageId: row.page_id,
+    pageIds,
     ...merged,
   };
 }
@@ -1233,7 +1254,7 @@ async function getRegionsByPage(pageId) {
 
 async function getRegionsByAnnotation(annotationId) {
   const rows = await all(
-    "SELECT * FROM annotation_regions WHERE annotation_id = ? ORDER BY created_at ASC",
+    "SELECT * FROM annotation_regions WHERE annotation_id = ? ORDER BY order_index ASC, created_at ASC",
     [annotationId],
   );
   return rows.map((row) => ({
@@ -1244,12 +1265,22 @@ async function getRegionsByAnnotation(annotationId) {
     y: row.y,
     width: row.width,
     height: row.height,
+    orderIndex: row.order_index || 0,
     createdAt: row.created_at,
   }));
 }
 
 async function deleteAnnotationRegion(regionId) {
   await run("DELETE FROM annotation_regions WHERE id = ?", [regionId]);
+}
+
+async function reorderAnnotationRegions(annotationId, regionIds) {
+  for (let i = 0; i < regionIds.length; i++) {
+    await run(
+      "UPDATE annotation_regions SET order_index = ? WHERE id = ? AND annotation_id = ?",
+      [i, regionIds[i], annotationId],
+    );
+  }
 }
 
 async function getHeadingsByArticle(articleId) {
@@ -1769,7 +1800,9 @@ module.exports = {
   getRegionsByPage,
   getRegionsByAnnotation,
   deleteAnnotationRegion,
+  reorderAnnotationRegions,
   getHeadingsByArticle,
+  getPageIdsByArticle,
   createHeading,
   updateHeadingParent,
   reorderHeadings,

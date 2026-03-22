@@ -13,7 +13,8 @@
       "Bash(grep -E \"\\\\.\\(js|json\\)$\")",
       "Bash(npm install:*)",
       "Bash(find ./server -type f -name *.js)",
-      "Bash(find /c/Users/13702/Desktop/project_first -maxdepth 2 -name *.md -o -name *.txt -o -name *.docx)"
+      "Bash(find /c/Users/13702/Desktop/project_first -maxdepth 2 -name *.md -o -name *.txt -o -name *.docx)",
+      "Bash(wc:*)"
     ]
   }
 }
