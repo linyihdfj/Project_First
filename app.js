@@ -73,7 +73,9 @@ const refs = {
   reviewStatusDisplay: document.getElementById("review-status-display"),
   // Edit controls (for permission hiding)
   toolbarEditControls: document.getElementById("toolbar-edit-controls"),
-  toolbarAnnotationControls: document.getElementById("toolbar-annotation-controls"),
+  toolbarAnnotationControls: document.getElementById(
+    "toolbar-annotation-controls",
+  ),
   headingAddSection: document.getElementById("heading-add-section"),
   metaForm: document.getElementById("meta-form"),
   // Tabs and panes
@@ -689,9 +691,12 @@ async function handleImageUpload(event) {
   // 清空旧文件的所有页面和关联数据（不删除整个文章）
   if (state.pages.length > 0) {
     // 删除数据库中的所有页面、标注、标题
-    await apiRequest(`/articles/${encodeURIComponent(state.article.id)}/pages`, {
-      method: "DELETE",
-    });
+    await apiRequest(
+      `/articles/${encodeURIComponent(state.article.id)}/pages`,
+      {
+        method: "DELETE",
+      },
+    );
   }
 
   // 清空内存中的旧数据
@@ -804,7 +809,11 @@ function resetCanvasView() {
 
 function setCanvasZoom(nextZoom, anchorClientX, anchorClientY) {
   const oldZoom = state.canvasView.zoom;
-  const zoom = clampValue(nextZoom, state.canvasView.minZoom, state.canvasView.maxZoom);
+  const zoom = clampValue(
+    nextZoom,
+    state.canvasView.minZoom,
+    state.canvasView.maxZoom,
+  );
   if (Math.abs(zoom - oldZoom) < 0.001) {
     return;
   }
@@ -985,16 +994,19 @@ async function finishDraw() {
   // Add region mode
   if (state.addingRegionForAnnotation) {
     try {
-      await apiRequest(`/annotations/${encodeURIComponent(state.addingRegionForAnnotation)}/regions`, {
-        method: "POST",
-        body: {
-          pageId: page.id,
-          x: Math.round(x),
-          y: Math.round(y),
-          width: Math.round(width),
-          height: Math.round(height),
+      await apiRequest(
+        `/annotations/${encodeURIComponent(state.addingRegionForAnnotation)}/regions`,
+        {
+          method: "POST",
+          body: {
+            pageId: page.id,
+            x: Math.round(x),
+            y: Math.round(y),
+            width: Math.round(width),
+            height: Math.round(height),
+          },
         },
-      });
+      );
       state.addingRegionForAnnotation = null;
       // 重新加载当前页的标注列表（以获取新添加的跨页标注）
       await reloadPageAnnotations(page);
@@ -1077,9 +1089,16 @@ async function removeSelectedAnnotation() {
       method: "DELETE",
     },
   );
-  page.annotations = page.annotations.filter(
-    (ann) => ann.id !== state.selectedAnnotationId,
-  );
+  // 同一标注可能因跨页父子关系出现在多个页面副本中，删除时需全局移除
+  for (const p of state.pages) {
+    p.annotations = p.annotations.filter(
+      (ann) => ann.id !== removedAnnotationId,
+    );
+  }
+  if (annotationSaveTimers.has(removedAnnotationId)) {
+    clearTimeout(annotationSaveTimers.get(removedAnnotationId));
+    annotationSaveTimers.delete(removedAnnotationId);
+  }
   state.headings.forEach((heading) => {
     if (heading.annotationId === removedAnnotationId) {
       heading.annotationId = null;
@@ -1101,7 +1120,7 @@ async function removeSelectedAnnotation() {
     // 找到句的父段（如果有）
     let cur = null;
     for (const p of state.pages) {
-      cur = p.annotations.find(a => a.id === parentId);
+      cur = p.annotations.find((a) => a.id === parentId);
       if (cur) break;
     }
     if (cur && cur.parentId) idsToFlush.push(cur.parentId);
@@ -1112,7 +1131,7 @@ async function removeSelectedAnnotation() {
       }
       let flushAnn = null;
       for (const p of state.pages) {
-        flushAnn = p.annotations.find(a => a.id === flushId);
+        flushAnn = p.annotations.find((a) => a.id === flushId);
         if (flushAnn) break;
       }
       if (flushAnn) {
@@ -1258,7 +1277,11 @@ function buildAnnotationList() {
         badgeEl.classList.add("clickable");
         badgeEl.addEventListener("click", (evt) => {
           evt.stopPropagation();
-          const cycle = { pending: "approved", approved: "rejected", rejected: "pending" };
+          const cycle = {
+            pending: "approved",
+            approved: "rejected",
+            rejected: "pending",
+          };
           const next = cycle[ann.reviewStatus || "pending"];
           setReviewStatus(ann.id, next);
         });
@@ -1275,7 +1298,7 @@ function buildAnnotationList() {
         if (!ann.regions || !ann.regions.length) {
           for (let i = 0; i < state.pages.length; i++) {
             const found = state.pages[i].annotations.find(
-              a => a.id === ann.id && a.regions && a.regions.length > 0
+              (a) => a.id === ann.id && a.regions && a.regions.length > 0,
             );
             if (found && i !== state.currentPageIndex) {
               state.currentPageIndex = i;
@@ -1349,8 +1372,8 @@ async function reparentAnnotation(childId, newParentId) {
 async function reorderAnnotation(draggedId, targetId, position) {
   const page = getCurrentPage();
   if (!page) return;
-  const dragged = page.annotations.find(a => a.id === draggedId);
-  const target = page.annotations.find(a => a.id === targetId);
+  const dragged = page.annotations.find((a) => a.id === draggedId);
+  const target = page.annotations.find((a) => a.id === targetId);
   if (!dragged || !target) return;
 
   // 将拖拽项移到与目标相同的父级
@@ -1359,10 +1382,10 @@ async function reorderAnnotation(draggedId, targetId, position) {
 
   // 获取同级兄弟（排除拖拽项自身），按orderIndex排序
   const siblings = page.annotations
-    .filter(a => a.parentId === target.parentId && a.id !== draggedId)
+    .filter((a) => a.parentId === target.parentId && a.id !== draggedId)
     .sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
 
-  const targetIdx = siblings.findIndex(a => a.id === targetId);
+  const targetIdx = siblings.findIndex((a) => a.id === targetId);
   if (position === "before") {
     siblings.splice(targetIdx, 0, dragged);
   } else {
@@ -1402,11 +1425,14 @@ async function reorderAnnotation(draggedId, targetId, position) {
     }
     let fAnn = null;
     for (const p of state.pages) {
-      fAnn = p.annotations.find(a => a.id === fid);
+      fAnn = p.annotations.find((a) => a.id === fid);
       if (fAnn) break;
     }
     if (fAnn) {
-      await apiRequest(`/annotations/${encodeURIComponent(fid)}`, { method: "PUT", body: fAnn });
+      await apiRequest(`/annotations/${encodeURIComponent(fid)}`, {
+        method: "PUT",
+        body: fAnn,
+      });
     }
   }
 
@@ -1418,10 +1444,11 @@ function recalcParentTextFromChildren(parentId) {
   // 在所有页面中查找父标注
   let parent = null;
   for (const p of state.pages) {
-    parent = p.annotations.find(a => a.id === parentId);
+    parent = p.annotations.find((a) => a.id === parentId);
     if (parent) break;
   }
-  if (!parent || (parent.level !== "paragraph" && parent.level !== "sentence")) return;
+  if (!parent || (parent.level !== "paragraph" && parent.level !== "sentence"))
+    return;
 
   // 从所有页面收集子标注（按 ID 去重，同一标注可能出现在多个页面）
   const childrenMap = new Map();
@@ -1436,8 +1463,8 @@ function recalcParentTextFromChildren(parentId) {
   children.sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
 
   // 先清空再拼接，确保删除的子标注不残留
-  parent.originalText = children.map(c => c.originalText || "").join("");
-  parent.simplifiedText = children.map(c => c.simplifiedText || "").join("");
+  parent.originalText = children.map((c) => c.originalText || "").join("");
+  parent.simplifiedText = children.map((c) => c.simplifiedText || "").join("");
   scheduleAnnotationPersist(parent);
   // 递归向上传播（句→段）
   if (parent.parentId) {
@@ -1482,9 +1509,15 @@ async function addHeadingFromSelection() {
   const selectedAnn = getSelectedAnnotation();
   const level = 1;
 
-  let titleText = refs.headingTitleInput ? refs.headingTitleInput.value.trim() : "";
+  let titleText = refs.headingTitleInput
+    ? refs.headingTitleInput.value.trim()
+    : "";
   if (!titleText && selectedAnn) {
-    titleText = (selectedAnn.originalText || selectedAnn.simplifiedText || "").trim();
+    titleText = (
+      selectedAnn.originalText ||
+      selectedAnn.simplifiedText ||
+      ""
+    ).trim();
   }
   if (!titleText) {
     alert("请输入标题文本，或先选中一个含文本的标注");
@@ -1501,7 +1534,9 @@ async function addHeadingFromSelection() {
         annotationId: selectedAnn ? selectedAnn.id : null,
         titleText,
         level,
-        y: selectedAnn ? Number(((selectedAnn.regions || [])[0] || {}).y || 0) : 0,
+        y: selectedAnn
+          ? Number(((selectedAnn.regions || [])[0] || {}).y || 0)
+          : 0,
       },
     },
   );
@@ -1593,7 +1628,10 @@ async function moveHeading(headingId, newParentId, newOrderIndex) {
 
   // Reorder siblings
   const siblings = state.headings
-    .filter((h) => (h.parentId || null) === (newParentId || null) && h.id !== headingId)
+    .filter(
+      (h) =>
+        (h.parentId || null) === (newParentId || null) && h.id !== headingId,
+    )
     .sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
 
   siblings.splice(newOrderIndex, 0, heading);
@@ -1632,7 +1670,9 @@ function jumpToHeading(heading) {
 
   if (heading.annotationId) {
     const page = state.pages[pageIndex];
-    const ann = page.annotations.find((item) => item.id === heading.annotationId);
+    const ann = page.annotations.find(
+      (item) => item.id === heading.annotationId,
+    );
     state.selectedAnnotationId = ann ? ann.id : null;
   } else {
     state.selectedAnnotationId = null;
@@ -1647,7 +1687,9 @@ function renderHeadingIndex() {
   }
 
   refs.headingIndexList.innerHTML = "";
-  const pageNoMap = new Map(state.pages.map((page) => [page.id, page.pageNo || 0]));
+  const pageNoMap = new Map(
+    state.pages.map((page) => [page.id, page.pageNo || 0]),
+  );
 
   // 构建父子关系的树形结构
   const tree = {};
@@ -1693,7 +1735,9 @@ function renderHeadingIndex() {
       if (state.headingDragState.draggedHeadingId) {
         const draggedId = state.headingDragState.draggedHeadingId;
         const rootChildren = state.headings.filter((h) => !h.parentId).length;
-        moveHeading(draggedId, null, rootChildren).catch((error) => alert(error.message));
+        moveHeading(draggedId, null, rootChildren).catch((error) =>
+          alert(error.message),
+        );
       }
     });
   }
@@ -1775,9 +1819,11 @@ function renderHeadingIndex() {
         });
         link.addEventListener("dragend", () => {
           state.headingDragState.draggedHeadingId = null;
-          document.querySelectorAll(".drop-before,.drop-after,.drop-child").forEach((el) => {
-            el.classList.remove("drop-before", "drop-after", "drop-child");
-          });
+          document
+            .querySelectorAll(".drop-before,.drop-after,.drop-child")
+            .forEach((el) => {
+              el.classList.remove("drop-before", "drop-after", "drop-child");
+            });
           item.classList.remove("dragging");
         });
 
@@ -1786,11 +1832,17 @@ function renderHeadingIndex() {
           evt.preventDefault();
           evt.dataTransfer.dropEffect = "move";
 
-          if (!state.headingDragState.draggedHeadingId || state.headingDragState.draggedHeadingId === heading.id) return;
+          if (
+            !state.headingDragState.draggedHeadingId ||
+            state.headingDragState.draggedHeadingId === heading.id
+          )
+            return;
 
-          document.querySelectorAll(".drop-before,.drop-after,.drop-child").forEach((el) => {
-            el.classList.remove("drop-before", "drop-after", "drop-child");
-          });
+          document
+            .querySelectorAll(".drop-before,.drop-after,.drop-child")
+            .forEach((el) => {
+              el.classList.remove("drop-before", "drop-after", "drop-child");
+            });
 
           const rect = item.getBoundingClientRect();
           const ratio = (evt.clientY - rect.top) / rect.height;
@@ -1822,12 +1874,18 @@ function renderHeadingIndex() {
           const targetParentId = heading.parentId || null;
 
           if (ratio < 0.25) {
-            moveHeading(draggedId, targetParentId, index).catch((error) => alert(error.message));
+            moveHeading(draggedId, targetParentId, index).catch((error) =>
+              alert(error.message),
+            );
           } else if (ratio > 0.75) {
-            moveHeading(draggedId, targetParentId, index + 1).catch((error) => alert(error.message));
+            moveHeading(draggedId, targetParentId, index + 1).catch((error) =>
+              alert(error.message),
+            );
           } else {
             const childCount = (tree[heading.id] || []).length;
-            moveHeading(draggedId, heading.id, childCount).catch((error) => alert(error.message));
+            moveHeading(draggedId, heading.id, childCount).catch((error) =>
+              alert(error.message),
+            );
           }
         });
       }
@@ -1859,7 +1917,8 @@ function renderHeadingIndex() {
   if (!state.headings.length) {
     const empty = document.createElement("li");
     empty.className = "index-list-item";
-    empty.innerHTML = '<button type="button" class="index-link" disabled>暂无标题</button>';
+    empty.innerHTML =
+      '<button type="button" class="index-link" disabled>暂无标题</button>';
     refs.headingIndexList.appendChild(empty);
     return;
   }
@@ -1904,19 +1963,41 @@ function renderAnnotationForm() {
 
   // 根据标注级别移除不需要的字段
   const hideFields = {
-    paragraph: ['charCode', 'glyphRef', 'x', 'y', 'width', 'height', 'style', 'color'],
-    sentence:  ['charCode', 'glyphRef', 'x', 'y', 'width', 'height', 'style', 'color'],
-    char:      ['x', 'y', 'width', 'height', 'style', 'color'],
+    paragraph: [
+      "charCode",
+      "glyphRef",
+      "x",
+      "y",
+      "width",
+      "height",
+      "style",
+      "color",
+    ],
+    sentence: [
+      "charCode",
+      "glyphRef",
+      "x",
+      "y",
+      "width",
+      "height",
+      "style",
+      "color",
+    ],
+    char: ["x", "y", "width", "height", "style", "color"],
   };
   const toHide = new Set(hideFields[ann.level] || []);
-  fragment.querySelectorAll('[data-field]').forEach(el => {
-    if (toHide.has(el.dataset.field)) el.closest('label').remove();
+  fragment.querySelectorAll("[data-field]").forEach((el) => {
+    if (toHide.has(el.dataset.field)) el.closest("label").remove();
   });
   // 段/句标注的原文/简体为自动拼接，设为只读
-  if (ann.level === 'paragraph' || ann.level === 'sentence') {
-    fragment.querySelectorAll('[data-field="originalText"], [data-field="simplifiedText"]').forEach(el => {
-      el.disabled = true;
-    });
+  if (ann.level === "paragraph" || ann.level === "sentence") {
+    fragment
+      .querySelectorAll(
+        '[data-field="originalText"], [data-field="simplifiedText"]',
+      )
+      .forEach((el) => {
+        el.disabled = true;
+      });
   }
 
   const fieldElements = fragment.querySelectorAll("[data-field]");
@@ -1933,7 +2014,10 @@ function renderAnnotationForm() {
         drawOverlay();
         scheduleAnnotationPersist(ann);
         // 子标注文本变化时，自动更新父标注的文本（字→句、句→段）
-        if (ann.parentId && (field === "originalText" || field === "simplifiedText")) {
+        if (
+          ann.parentId &&
+          (field === "originalText" || field === "simplifiedText")
+        ) {
           recalcParentTextFromChildren(ann.parentId);
         }
         // 在 recalc 之后重建列表，确保父标注文本已更新
@@ -1988,7 +2072,8 @@ function renderAnnotationForm() {
       if (state.addingRegionForAnnotation === ann.id) {
         const tip = document.createElement("p");
         tip.className = "region-tip";
-        tip.textContent = "请在当前页面或切换到目标页面后，在 canvas 上画框标记该标注的区域。";
+        tip.textContent =
+          "请在当前页面或切换到目标页面后，在 canvas 上画框标记该标注的区域。";
         crossDiv.appendChild(tip);
       }
     }
@@ -2007,7 +2092,9 @@ function renderAnnotationForm() {
 
 async function loadAnnotationRegions(annotationId, container) {
   try {
-    const payload = await apiRequest(`/annotations/${encodeURIComponent(annotationId)}/regions`);
+    const payload = await apiRequest(
+      `/annotations/${encodeURIComponent(annotationId)}/regions`,
+    );
     const regions = payload.regions || [];
     if (!regions.length) {
       container.innerHTML = "<p class='empty-tip'>无区域</p>";
@@ -2020,9 +2107,10 @@ async function loadAnnotationRegions(annotationId, container) {
     regions.forEach((r, idx) => {
       const div = document.createElement("div");
       const isSelected = state.selectedRegionId === r.id;
-      div.className = "region-item"
-        + (currentPage && r.pageId === currentPage.id ? " current-page" : "")
-        + (isSelected ? " region-selected" : "");
+      div.className =
+        "region-item" +
+        (currentPage && r.pageId === currentPage.id ? " current-page" : "") +
+        (isSelected ? " region-selected" : "");
       div.draggable = editable;
       div.dataset.regionId = r.id;
       div.dataset.regionIdx = idx;
@@ -2030,17 +2118,23 @@ async function loadAnnotationRegions(annotationId, container) {
       const pageName = state.pages.find((p) => p.id === r.pageId);
       const label = pageName ? pageName.name : r.pageId;
       const isCurrent = currentPage && r.pageId === currentPage.id;
-      const handleHtml = editable ? '<span class="region-drag-handle">⠿</span>' : '';
+      const handleHtml = editable
+        ? '<span class="region-drag-handle">⠿</span>'
+        : "";
       const deleteHtml = editable
         ? `<button class="ai-btn-sm reject" data-region-id="${escapeHtml(r.id)}">×</button>`
-        : '';
+        : "";
       div.innerHTML = `${handleHtml}
         <span class="region-label">${escapeHtml(label)} (${r.x},${r.y} ${r.width}x${r.height})${isCurrent ? " ★" : ""}</span>
         ${deleteHtml}`;
 
       // 点击区域项：选中该区域并跳转到对应页面（编辑者和审阅者都可）
       div.addEventListener("click", (evt) => {
-        if (evt.target.closest("button[data-region-id]") || evt.target.closest(".region-drag-handle")) return;
+        if (
+          evt.target.closest("button[data-region-id]") ||
+          evt.target.closest(".region-drag-handle")
+        )
+          return;
         if (state.selectedRegionId === r.id) {
           state.selectedRegionId = null;
         } else {
@@ -2051,7 +2145,10 @@ async function loadAnnotationRegions(annotationId, container) {
           }
         }
         container.querySelectorAll(".region-item").forEach((el) => {
-          el.classList.toggle("region-selected", el.dataset.regionId === state.selectedRegionId);
+          el.classList.toggle(
+            "region-selected",
+            el.dataset.regionId === state.selectedRegionId,
+          );
         });
         renderAll({ skipFormRebuild: true });
       });
@@ -2076,7 +2173,9 @@ async function loadAnnotationRegions(annotationId, container) {
             div.classList.add("drop-after");
           }
         });
-        div.addEventListener("dragleave", () => div.classList.remove("drop-before", "drop-after"));
+        div.addEventListener("dragleave", () =>
+          div.classList.remove("drop-before", "drop-after"),
+        );
         div.addEventListener("drop", (evt) => {
           evt.preventDefault();
           div.classList.remove("drop-before", "drop-after");
@@ -2085,19 +2184,31 @@ async function loadAnnotationRegions(annotationId, container) {
           const rect = div.getBoundingClientRect();
           const relY = evt.clientY - rect.top;
           const position = relY < rect.height / 2 ? "before" : "after";
-          reorderRegions(annotationId, regions, draggedId, r.id, position, container);
+          reorderRegions(
+            annotationId,
+            regions,
+            draggedId,
+            r.id,
+            position,
+            container,
+          );
         });
 
         // Delete button (editors only)
-        div.querySelector("button[data-region-id]").addEventListener("click", async () => {
-          await apiRequest(`/annotation-regions/${encodeURIComponent(r.id)}`, { method: "DELETE" });
-          const ann = getSelectedAnnotation();
-          if (ann && ann.regions) {
-            ann.regions = ann.regions.filter((reg) => reg.id !== r.id);
-          }
-          renderAnnotationForm();
-          drawOverlay();
-        });
+        div
+          .querySelector("button[data-region-id]")
+          .addEventListener("click", async () => {
+            await apiRequest(
+              `/annotation-regions/${encodeURIComponent(r.id)}`,
+              { method: "DELETE" },
+            );
+            const ann = getSelectedAnnotation();
+            if (ann && ann.regions) {
+              ann.regions = ann.regions.filter((reg) => reg.id !== r.id);
+            }
+            renderAnnotationForm();
+            drawOverlay();
+          });
       }
 
       container.appendChild(div);
@@ -2107,7 +2218,14 @@ async function loadAnnotationRegions(annotationId, container) {
   }
 }
 
-async function reorderRegions(annotationId, regions, draggedId, targetId, position, container) {
+async function reorderRegions(
+  annotationId,
+  regions,
+  draggedId,
+  targetId,
+  position,
+  container,
+) {
   const ids = regions.map((r) => r.id).filter((id) => id !== draggedId);
   const targetIdx = ids.indexOf(targetId);
   if (position === "before") {
@@ -2116,10 +2234,13 @@ async function reorderRegions(annotationId, regions, draggedId, targetId, positi
     ids.splice(targetIdx + 1, 0, draggedId);
   }
   try {
-    await apiRequest(`/annotations/${encodeURIComponent(annotationId)}/regions/reorder`, {
-      method: "PUT",
-      body: { regionIds: ids },
-    });
+    await apiRequest(
+      `/annotations/${encodeURIComponent(annotationId)}/regions/reorder`,
+      {
+        method: "PUT",
+        body: { regionIds: ids },
+      },
+    );
     // 更新本地 regions 顺序
     const ann = getSelectedAnnotation();
     if (ann && ann.regions) {
@@ -2214,33 +2335,42 @@ function drawOverlay() {
   const visibleIds = getVisibleAnnotationIds();
 
   // Render annotations via their regions on this page
-  page.annotations.filter((ann) => visibleIds.has(ann.id)).forEach((ann) => {
-    const selected = ann.id === state.selectedAnnotationId;
-    const regions = ann.regions || [];
-    regions.forEach((region) => {
-      // 如果选中了某个区域，只显示该区域
-      if (state.selectedRegionId && region.id !== state.selectedRegionId) return;
-      const regionAnn = { ...ann, x: region.x, y: region.y, width: region.width, height: region.height };
-      const shape = buildShapeElement(regionAnn, page, selected);
-      shape.dataset.annId = ann.id;
-      shape.style.cursor = "pointer";
-      shape.addEventListener("mousedown", (evt) => {
-        evt.stopPropagation();
+  page.annotations
+    .filter((ann) => visibleIds.has(ann.id))
+    .forEach((ann) => {
+      const selected = ann.id === state.selectedAnnotationId;
+      const regions = ann.regions || [];
+      regions.forEach((region) => {
+        // 如果选中了某个区域，只显示该区域
+        if (state.selectedRegionId && region.id !== state.selectedRegionId)
+          return;
+        const regionAnn = {
+          ...ann,
+          x: region.x,
+          y: region.y,
+          width: region.width,
+          height: region.height,
+        };
+        const shape = buildShapeElement(regionAnn, page, selected);
+        shape.dataset.annId = ann.id;
+        shape.style.cursor = "pointer";
+        shape.addEventListener("mousedown", (evt) => {
+          evt.stopPropagation();
+        });
+        shape.addEventListener("click", (evt) => {
+          evt.stopPropagation();
+          if (state.selectedAnnotationId === ann.id) {
+            state.selectedAnnotationId = null;
+          } else {
+            state.selectedAnnotationId = ann.id;
+          }
+          state.selectedHeadingId = null;
+          state.selectedRegionId = null;
+          renderAll();
+        });
+        refs.annotationSvg.appendChild(shape);
       });
-      shape.addEventListener("click", (evt) => {
-        evt.stopPropagation();
-        if (state.selectedAnnotationId === ann.id) {
-          state.selectedAnnotationId = null;
-        } else {
-          state.selectedAnnotationId = ann.id;
-        }
-        state.selectedHeadingId = null;
-        state.selectedRegionId = null;
-        renderAll();
-      });
-      refs.annotationSvg.appendChild(shape);
     });
-  });
 
   if (state.drawing) {
     const tempAnn = {
@@ -2255,14 +2385,15 @@ function drawOverlay() {
     shape.setAttribute("stroke-dasharray", "8 4");
     refs.annotationSvg.appendChild(shape);
   }
-
 }
 
 // 重新加载指定页面的标注列表（从服务器获取最新数据）
 async function reloadPageAnnotations(page) {
   if (!page) return;
   try {
-    const payload = await apiRequest(`/pages/${encodeURIComponent(page.id)}/annotations`);
+    const payload = await apiRequest(
+      `/pages/${encodeURIComponent(page.id)}/annotations`,
+    );
     page.annotations = payload.annotations || [];
   } catch (e) {
     // 加载失败时保留现有数据
@@ -2411,20 +2542,32 @@ function showArticleSelect() {
   // Update user info on select page
   if (state.currentUser) {
     if (refs.selectUserDisplayName) {
-      refs.selectUserDisplayName.textContent = state.currentUser.displayName || state.currentUser.username;
+      refs.selectUserDisplayName.textContent =
+        state.currentUser.displayName || state.currentUser.username;
     }
     if (refs.selectUserRoleBadge) {
-      const roleLabels = { admin: "管理员", editor: "编辑者", reviewer: "审校者" };
-      refs.selectUserRoleBadge.textContent = roleLabels[state.currentUser.role] || state.currentUser.role;
+      const roleLabels = {
+        admin: "管理员",
+        editor: "编辑者",
+        reviewer: "审校者",
+      };
+      refs.selectUserRoleBadge.textContent =
+        roleLabels[state.currentUser.role] || state.currentUser.role;
       refs.selectUserRoleBadge.className = `role-badge ${state.currentUser.role}`;
     }
   }
   // Show create section for admin/editor
   if (refs.articleCreateSection) {
-    refs.articleCreateSection.hidden = !(state.currentUser && (state.currentUser.role === "admin" || state.currentUser.role === "editor"));
+    refs.articleCreateSection.hidden = !(
+      state.currentUser &&
+      (state.currentUser.role === "admin" ||
+        state.currentUser.role === "editor")
+    );
   }
   if (refs.btnSelectUserManage) {
-    refs.btnSelectUserManage.hidden = !(state.currentUser && state.currentUser.role === "admin");
+    refs.btnSelectUserManage.hidden = !(
+      state.currentUser && state.currentUser.role === "admin"
+    );
   }
   loadArticleList().catch((e) => alert(e.message));
 }
@@ -2449,7 +2592,8 @@ function renderArticleGrid() {
   refs.articleGrid.innerHTML = "";
 
   if (!state.articleList.length) {
-    refs.articleGrid.innerHTML = '<p style="color:#7f6348;grid-column:1/-1">暂无可访问的文章</p>';
+    refs.articleGrid.innerHTML =
+      '<p style="color:#7f6348;grid-column:1/-1">暂无可访问的文章</p>';
     return;
   }
 
@@ -2516,8 +2660,12 @@ function backToArticleSelect() {
 
 async function createNewArticle() {
   const title = refs.newArticleTitle ? refs.newArticleTitle.value.trim() : "";
-  const subtitle = refs.newArticleSubtitle ? refs.newArticleSubtitle.value.trim() : "";
-  const author = refs.newArticleAuthor ? refs.newArticleAuthor.value.trim() : "";
+  const subtitle = refs.newArticleSubtitle
+    ? refs.newArticleSubtitle.value.trim()
+    : "";
+  const author = refs.newArticleAuthor
+    ? refs.newArticleAuthor.value.trim()
+    : "";
   if (!title) {
     alert("请输入文章标题");
     return;
@@ -2537,9 +2685,12 @@ async function createNewArticle() {
 }
 
 async function deleteArticleById(articleId, title) {
-  if (!confirm(`确定删除文章「${title || articleId}」？此操作不可恢复。`)) return;
+  if (!confirm(`确定删除文章「${title || articleId}」？此操作不可恢复。`))
+    return;
   try {
-    await apiRequest(`/articles/${encodeURIComponent(articleId)}`, { method: "DELETE" });
+    await apiRequest(`/articles/${encodeURIComponent(articleId)}`, {
+      method: "DELETE",
+    });
     await loadArticleList();
   } catch (e) {
     alert(e.message);
@@ -2549,9 +2700,12 @@ async function deleteArticleById(articleId, title) {
 async function exportArticleXml(articleId, title) {
   try {
     const token = getAuthToken();
-    const response = await fetch(apiPath(`/articles/${encodeURIComponent(articleId)}/export-xml`), {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const response = await fetch(
+      apiPath(`/articles/${encodeURIComponent(articleId)}/export-xml`),
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    );
     if (!response.ok) {
       const data = await response.json().catch(() => null);
       throw new Error(data && data.message ? data.message : "导出失败");
@@ -2574,7 +2728,8 @@ async function exportArticleXml(articleId, title) {
 
 async function showAccessDialog(articleId, title) {
   state.accessArticleId = articleId;
-  if (refs.accessArticleTitle) refs.accessArticleTitle.textContent = title || articleId;
+  if (refs.accessArticleTitle)
+    refs.accessArticleTitle.textContent = title || articleId;
   if (refs.articleAccessDialog) refs.articleAccessDialog.hidden = false;
 
   // Load all users for the dropdown
@@ -2603,7 +2758,9 @@ function hideAccessDialog() {
 
 async function loadAccessList(articleId) {
   try {
-    const data = await apiRequest(`/articles/${encodeURIComponent(articleId)}/access`);
+    const data = await apiRequest(
+      `/articles/${encodeURIComponent(articleId)}/access`,
+    );
     renderAccessList(data.users || []);
   } catch (e) {
     renderAccessList([]);
@@ -2615,7 +2772,8 @@ function renderAccessList(users) {
   refs.accessUserList.innerHTML = "";
 
   if (!users.length) {
-    refs.accessUserList.innerHTML = '<p style="color:#7f6348;font-size:13px">暂无已授权用户</p>';
+    refs.accessUserList.innerHTML =
+      '<p style="color:#7f6348;font-size:13px">暂无已授权用户</p>';
     return;
   }
 
@@ -2645,10 +2803,13 @@ async function grantAccess() {
   const userId = refs.accessUserSelect.value;
   if (!userId) return;
   try {
-    await apiRequest(`/articles/${encodeURIComponent(state.accessArticleId)}/access`, {
-      method: "POST",
-      body: { userId },
-    });
+    await apiRequest(
+      `/articles/${encodeURIComponent(state.accessArticleId)}/access`,
+      {
+        method: "POST",
+        body: { userId },
+      },
+    );
     await loadAccessList(state.accessArticleId);
   } catch (e) {
     alert(e.message);
@@ -2658,9 +2819,12 @@ async function grantAccess() {
 async function revokeAccess(userId) {
   if (!state.accessArticleId) return;
   try {
-    await apiRequest(`/articles/${encodeURIComponent(state.accessArticleId)}/access/${encodeURIComponent(userId)}`, {
-      method: "DELETE",
-    });
+    await apiRequest(
+      `/articles/${encodeURIComponent(state.accessArticleId)}/access/${encodeURIComponent(userId)}`,
+      {
+        method: "DELETE",
+      },
+    );
     await loadAccessList(state.accessArticleId);
   } catch (e) {
     alert(e.message);
@@ -2713,7 +2877,10 @@ async function doLogin() {
 }
 
 function doLogout() {
-  if (socket) { socket.disconnect(); socket = null; }
+  if (socket) {
+    socket.disconnect();
+    socket = null;
+  }
   removeAuthToken();
   state.currentUser = null;
   hideArticleSelect();
@@ -2750,9 +2917,11 @@ function updateUserBar() {
     return;
   }
   refs.userBar.hidden = false;
-  refs.userDisplayName.textContent = state.currentUser.displayName || state.currentUser.username;
+  refs.userDisplayName.textContent =
+    state.currentUser.displayName || state.currentUser.username;
   const roleLabels = { admin: "管理员", editor: "编辑者", reviewer: "审校者" };
-  refs.userRoleBadge.textContent = roleLabels[state.currentUser.role] || state.currentUser.role;
+  refs.userRoleBadge.textContent =
+    roleLabels[state.currentUser.role] || state.currentUser.role;
   refs.userRoleBadge.className = `role-badge ${state.currentUser.role}`;
   if (refs.btnUserManage) {
     refs.btnUserManage.hidden = state.currentUser.role !== "admin";
@@ -2762,7 +2931,10 @@ function updateUserBar() {
 // ── 权限控制 ──
 
 function isEditor() {
-  return state.currentUser && (state.currentUser.role === "admin" || state.currentUser.role === "editor");
+  return (
+    state.currentUser &&
+    (state.currentUser.role === "admin" || state.currentUser.role === "editor")
+  );
 }
 
 function isAdmin() {
@@ -2770,16 +2942,23 @@ function isAdmin() {
 }
 
 function canReview() {
-  return state.currentUser && (state.currentUser.role === "admin" || state.currentUser.role === "reviewer");
+  return (
+    state.currentUser &&
+    (state.currentUser.role === "admin" ||
+      state.currentUser.role === "reviewer")
+  );
 }
 
 function applyPermissions() {
   const editable = isEditor();
-  if (refs.toolbarEditControls) refs.toolbarEditControls.style.display = editable ? "" : "none";
-  if (refs.toolbarAnnotationControls) refs.toolbarAnnotationControls.style.display = editable ? "" : "none";
+  if (refs.toolbarEditControls)
+    refs.toolbarEditControls.style.display = editable ? "" : "none";
+  if (refs.toolbarAnnotationControls)
+    refs.toolbarAnnotationControls.style.display = editable ? "" : "none";
   const aiControls = document.getElementById("toolbar-ai-controls");
   if (aiControls) aiControls.style.display = editable ? "" : "none";
-  if (refs.headingAddSection) refs.headingAddSection.style.display = editable ? "" : "none";
+  if (refs.headingAddSection)
+    refs.headingAddSection.style.display = editable ? "" : "none";
   if (refs.metaForm) {
     refs.metaForm.querySelectorAll("input").forEach((input) => {
       input.disabled = !editable;
@@ -2824,7 +3003,7 @@ async function setReviewStatus(annotationIdOrStatus, statusArg) {
   // 在所有页面中查找该标注
   let ann = null;
   for (const p of state.pages) {
-    ann = p.annotations.find(a => a.id === annId);
+    ann = p.annotations.find((a) => a.id === annId);
     if (ann) break;
   }
   if (!ann) return;
@@ -2839,7 +3018,7 @@ async function setReviewStatus(annotationIdOrStatus, statusArg) {
     });
     // 更新所有页面中同 ID 标注的审核状态（同一标注可能作为后代出现在多个页面）
     for (const p of state.pages) {
-      const copy = p.annotations.find(a => a.id === annId);
+      const copy = p.annotations.find((a) => a.id === annId);
       if (copy) {
         copy.reviewStatus = data.annotation.reviewStatus;
         copy.reviewedBy = data.annotation.reviewedBy;
@@ -2874,7 +3053,11 @@ async function loadUserList() {
     (data.users || []).forEach((user) => {
       const div = document.createElement("div");
       div.className = "user-item";
-      const roleLabels = { admin: "管理员", editor: "编辑者", reviewer: "审校者" };
+      const roleLabels = {
+        admin: "管理员",
+        editor: "编辑者",
+        reviewer: "审校者",
+      };
       div.innerHTML = `
         <div class="user-item-info">
           <strong>${escapeHtml(user.displayName || user.username)}</strong>
@@ -2911,7 +3094,8 @@ async function loadUserList() {
         delBtn.textContent = "删除";
         delBtn.className = "danger";
         delBtn.addEventListener("click", () => {
-          if (confirm(`确定删除用户 ${user.username}？`)) deleteUserById(user.id);
+          if (confirm(`确定删除用户 ${user.username}？`))
+            deleteUserById(user.id);
         });
         actions.appendChild(delBtn);
       }
@@ -2972,7 +3156,9 @@ async function resetUserPassword(userId, password) {
 
 async function deleteUserById(userId) {
   try {
-    await apiRequest(`/users/${encodeURIComponent(userId)}`, { method: "DELETE" });
+    await apiRequest(`/users/${encodeURIComponent(userId)}`, {
+      method: "DELETE",
+    });
     loadUserList();
   } catch (e) {
     alert(e.message);
@@ -3005,7 +3191,11 @@ async function importGlyphJson(event) {
   try {
     const text = await file.text();
     const data = JSON.parse(text);
-    const glyphs = Array.isArray(data.glyphs) ? data.glyphs : Array.isArray(data) ? data : [];
+    const glyphs = Array.isArray(data.glyphs)
+      ? data.glyphs
+      : Array.isArray(data)
+        ? data
+        : [];
     if (!glyphs.length) {
       alert("导入文件中没有造字数据");
       return;
@@ -3253,7 +3443,9 @@ async function aiRecognizeSelected() {
   // 对于句/段级别，从 API 获取完整的跨页区域列表
   if (ann.level === "sentence" || ann.level === "paragraph") {
     try {
-      const regionPayload = await apiRequest(`/annotations/${encodeURIComponent(ann.id)}/regions`);
+      const regionPayload = await apiRequest(
+        `/annotations/${encodeURIComponent(ann.id)}/regions`,
+      );
       allRegions = regionPayload.regions || allRegions;
     } catch (e) {
       // 获取失败则回退到本地 regions
@@ -3301,8 +3493,12 @@ async function aiRecognizeSelected() {
           }
         }
         for (const { annotation: child, page: childPage } of childChars) {
-          await apiRequest(`/annotations/${encodeURIComponent(child.id)}`, { method: "DELETE" });
-          childPage.annotations = childPage.annotations.filter((a) => a.id !== child.id);
+          await apiRequest(`/annotations/${encodeURIComponent(child.id)}`, {
+            method: "DELETE",
+          });
+          childPage.annotations = childPage.annotations.filter(
+            (a) => a.id !== child.id,
+          );
         }
       }
 
@@ -3313,11 +3509,19 @@ async function aiRecognizeSelected() {
         const regionPageId = region.pageId || page.id;
         const payload = await apiRequest("/ocr/layout-detect", {
           method: "POST",
-          body: { pageId: regionPageId, level: "char", x: region.x, y: region.y, width: region.width, height: region.height },
+          body: {
+            pageId: regionPageId,
+            level: "char",
+            x: region.x,
+            y: region.y,
+            width: region.width,
+            height: region.height,
+          },
         });
         const detectedRegions = payload.regions || [];
         if (detectedRegions.length > 0) {
-          const regionPage = state.pages.find(p => p.id === regionPageId) || page;
+          const regionPage =
+            state.pages.find((p) => p.id === regionPageId) || page;
           const annotations = detectedRegions.map((r) => ({
             id: uid("ann"),
             charId: uid("char"),
@@ -3341,7 +3545,9 @@ async function aiRecognizeSelected() {
             `/pages/${encodeURIComponent(regionPageId)}/annotations/batch`,
             { method: "POST", body: { annotations } },
           );
-          (batchPayload.annotations || []).forEach((a) => regionPage.annotations.push(a));
+          (batchPayload.annotations || []).forEach((a) =>
+            regionPage.annotations.push(a),
+          );
           allOriginalText += detectedRegions.map((r) => r.text || "").join("");
         }
       }
@@ -3367,7 +3573,7 @@ async function aiRecognizeSelected() {
           }
           let parent = null;
           for (const p of state.pages) {
-            parent = p.annotations.find(a => a.id === ann.parentId);
+            parent = p.annotations.find((a) => a.id === ann.parentId);
             if (parent) break;
           }
           if (parent) {
@@ -3389,7 +3595,6 @@ async function aiRecognizeSelected() {
   }
 }
 
-
 function renderAll(opts = {}) {
   renderPage();
   renderHeadingAddTip();
@@ -3408,7 +3613,12 @@ function initSocket() {
   const token = getAuthToken();
   if (!token) return;
 
-  socket = io({ auth: { token }, reconnection: true, reconnectionDelay: 1000, reconnectionDelayMax: 5000 });
+  socket = io({
+    auth: { token },
+    reconnection: true,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
+  });
 
   socket.on("connect", () => {
     joinCurrentPageRoom();
@@ -3445,7 +3655,9 @@ async function refreshCurrentPageAnnotations() {
   const page = getCurrentPage();
   if (!page || !state.article) return;
   try {
-    const snapshot = await apiRequest(`/articles/${encodeURIComponent(state.article.id)}/snapshot`);
+    const snapshot = await apiRequest(
+      `/articles/${encodeURIComponent(state.article.id)}/snapshot`,
+    );
     const freshPage = (snapshot.pages || []).find((p) => p.id === page.id);
     if (freshPage) {
       page.annotations = freshPage.annotations;
@@ -3474,14 +3686,19 @@ function handleRemoteAnnotationCreated({ annotation, pageId }) {
 
 function handleRemoteAnnotationUpdated({ annotation, pageId }) {
   // 更新所有页面中同 ID 标注（同一标注可能作为后代出现在多个页面）
-  const isLocalEditing = state.selectedAnnotationId === annotation.id && annotationSaveTimers.has(annotation.id);
+  const isLocalEditing =
+    state.selectedAnnotationId === annotation.id &&
+    annotationSaveTimers.has(annotation.id);
   let updated = false;
   for (const p of state.pages) {
     const index = p.annotations.findIndex((a) => a.id === annotation.id);
     if (index === -1) continue;
     if (isLocalEditing) continue;
     // 保留每个页面副本自己的 regions（不同页面 regions 不同）
-    p.annotations[index] = { ...annotation, regions: p.annotations[index].regions };
+    p.annotations[index] = {
+      ...annotation,
+      regions: p.annotations[index].regions,
+    };
     updated = true;
   }
   if (!updated) return;
@@ -3496,9 +3713,14 @@ function handleRemoteAnnotationUpdated({ annotation, pageId }) {
 }
 
 function handleRemoteAnnotationDeleted({ annotationId, pageId }) {
-  const page = state.pages.find((p) => p.id === pageId);
-  if (!page) return;
-  page.annotations = page.annotations.filter((a) => a.id !== annotationId);
+  // 远端删除时同样全局清理，避免某些页面副本残留导致父文本重算错误
+  for (const p of state.pages) {
+    p.annotations = p.annotations.filter((a) => a.id !== annotationId);
+  }
+  if (annotationSaveTimers.has(annotationId)) {
+    clearTimeout(annotationSaveTimers.get(annotationId));
+    annotationSaveTimers.delete(annotationId);
+  }
   if (state.selectedAnnotationId === annotationId) {
     state.selectedAnnotationId = null;
   }
@@ -3527,7 +3749,9 @@ function handlePresenceLeave({ userId }) {
 }
 
 function handlePresenceMembers({ members }) {
-  state.presenceUsers = members.filter((m) => !state.currentUser || m.userId !== state.currentUser.id);
+  state.presenceUsers = members.filter(
+    (m) => !state.currentUser || m.userId !== state.currentUser.id,
+  );
   renderPresenceBar();
 }
 
@@ -3538,9 +3762,12 @@ function renderPresenceBar() {
     bar.innerHTML = "";
     return;
   }
-  const avatars = state.presenceUsers.map((u) =>
-    `<span class="presence-avatar" title="${escapeHtml(u.displayName)}">${escapeHtml((u.displayName || "?").charAt(0))}</span>`
-  ).join("");
+  const avatars = state.presenceUsers
+    .map(
+      (u) =>
+        `<span class="presence-avatar" title="${escapeHtml(u.displayName)}">${escapeHtml((u.displayName || "?").charAt(0))}</span>`,
+    )
+    .join("");
   bar.innerHTML = `<span class="presence-label">\u5728\u7EBF:</span> ${avatars}`;
 }
 
