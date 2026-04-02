@@ -317,9 +317,7 @@ async function initDatabase() {
 
   // 尝试为现有表添加 parent_id 和 order_index 列（如果还不存在）
   try {
-    const headingCols = await all(
-      "PRAGMA table_info(headings)",
-    );
+    const headingCols = await all("PRAGMA table_info(headings)");
     const hasParentId = headingCols.some((col) => col.name === "parent_id");
     const hasOrderIndex = headingCols.some((col) => col.name === "order_index");
 
@@ -331,7 +329,9 @@ async function initDatabase() {
     }
 
     if (!hasOrderIndex) {
-      await run("ALTER TABLE headings ADD COLUMN order_index INTEGER NOT NULL DEFAULT 0");
+      await run(
+        "ALTER TABLE headings ADD COLUMN order_index INTEGER NOT NULL DEFAULT 0",
+      );
     }
   } catch (e) {}
 
@@ -381,7 +381,9 @@ async function initDatabase() {
   try {
     const annCols = await all("PRAGMA table_info(annotations)");
     if (!annCols.some((col) => col.name === "review_status")) {
-      await run("ALTER TABLE annotations ADD COLUMN review_status TEXT DEFAULT 'pending'");
+      await run(
+        "ALTER TABLE annotations ADD COLUMN review_status TEXT DEFAULT 'pending'",
+      );
     }
     if (!annCols.some((col) => col.name === "reviewed_by")) {
       await run("ALTER TABLE annotations ADD COLUMN reviewed_by TEXT");
@@ -390,7 +392,9 @@ async function initDatabase() {
       await run("ALTER TABLE annotations ADD COLUMN parent_id TEXT");
     }
     if (!annCols.some((col) => col.name === "order_index")) {
-      await run("ALTER TABLE annotations ADD COLUMN order_index INTEGER NOT NULL DEFAULT 0");
+      await run(
+        "ALTER TABLE annotations ADD COLUMN order_index INTEGER NOT NULL DEFAULT 0",
+      );
     }
   } catch (e) {}
 
@@ -414,7 +418,9 @@ async function initDatabase() {
   try {
     const regionCols = await all("PRAGMA table_info(annotation_regions)");
     if (!regionCols.some((col) => col.name === "order_index")) {
-      await run("ALTER TABLE annotation_regions ADD COLUMN order_index INTEGER NOT NULL DEFAULT 0");
+      await run(
+        "ALTER TABLE annotation_regions ADD COLUMN order_index INTEGER NOT NULL DEFAULT 0",
+      );
     }
   } catch (e) {}
 
@@ -455,7 +461,16 @@ async function migrateAnnotationsToRegions() {
       await run(
         `INSERT INTO annotation_regions (id, annotation_id, page_id, x, y, width, height, created_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [uid("region"), row.id, row.page_id, row.x, row.y, row.width, row.height, now],
+        [
+          uid("region"),
+          row.id,
+          row.page_id,
+          row.x,
+          row.y,
+          row.width,
+          row.height,
+          now,
+        ],
       );
     }
     // 清零标记已迁移
@@ -483,12 +498,16 @@ function verifyPassword(password, hash) {
 }
 
 // ── JWT (HMAC-SHA256, 无外部依赖) ──
-const JWT_SECRET = process.env.JWT_SECRET || "sdudoc-secret-key-change-in-production";
+const JWT_SECRET =
+  process.env.JWT_SECRET || "sdudoc-secret-key-change-in-production";
 const JWT_EXPIRY = 7 * 24 * 60 * 60; // 7天
 
 function base64UrlEncode(data) {
-  return Buffer.from(data).toString("base64")
-    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  return Buffer.from(data)
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
 }
 
 function base64UrlDecode(str) {
@@ -499,16 +518,20 @@ function base64UrlDecode(str) {
 
 function createToken(userId, role) {
   const header = base64UrlEncode(JSON.stringify({ alg: "HS256", typ: "JWT" }));
-  const payload = base64UrlEncode(JSON.stringify({
-    userId,
-    role,
-    exp: Math.floor(Date.now() / 1000) + JWT_EXPIRY,
-  }));
+  const payload = base64UrlEncode(
+    JSON.stringify({
+      userId,
+      role,
+      exp: Math.floor(Date.now() / 1000) + JWT_EXPIRY,
+    }),
+  );
   const signature = crypto
     .createHmac("sha256", JWT_SECRET)
     .update(`${header}.${payload}`)
     .digest("base64")
-    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
   return `${header}.${payload}.${signature}`;
 }
 
@@ -520,7 +543,9 @@ function verifyToken(token) {
     .createHmac("sha256", JWT_SECRET)
     .update(`${header}.${payload}`)
     .digest("base64")
-    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
   if (expected !== signature) return null;
   try {
     const data = JSON.parse(base64UrlDecode(payload));
@@ -534,13 +559,23 @@ function verifyToken(token) {
 // ── 用户管理 ──
 
 async function ensureAdminUser() {
-  const existing = await get("SELECT id FROM users WHERE username = ?", ["admin"]);
+  const existing = await get("SELECT id FROM users WHERE username = ?", [
+    "admin",
+  ]);
   if (existing) return;
   const now = nowIso();
   await run(
     `INSERT INTO users (id, username, password_hash, display_name, role, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [uid("user"), "admin", hashPassword("admin123"), "管理员", "admin", now, now],
+    [
+      uid("user"),
+      "admin",
+      hashPassword("admin123"),
+      "管理员",
+      "admin",
+      now,
+      now,
+    ],
   );
 }
 
@@ -571,7 +606,9 @@ async function listUsers() {
 }
 
 async function createUser(username, password, displayName, role) {
-  const existing = await get("SELECT id FROM users WHERE username = ?", [username]);
+  const existing = await get("SELECT id FROM users WHERE username = ?", [
+    username,
+  ]);
   if (existing) throw new Error("用户名已存在");
   const now = nowIso();
   const user = {
@@ -585,7 +622,15 @@ async function createUser(username, password, displayName, role) {
   await run(
     `INSERT INTO users (id, username, password_hash, display_name, role, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [user.id, username, hashPassword(password), user.displayName, user.role, now, now],
+    [
+      user.id,
+      username,
+      hashPassword(password),
+      user.displayName,
+      user.role,
+      now,
+      now,
+    ],
   );
   return user;
 }
@@ -595,13 +640,23 @@ async function updateUser(userId, updates) {
   if (!row) throw new Error("用户不存在");
   const now = nowIso();
   if (updates.role) {
-    await run("UPDATE users SET role = ?, updated_at = ? WHERE id = ?", [updates.role, now, userId]);
+    await run("UPDATE users SET role = ?, updated_at = ? WHERE id = ?", [
+      updates.role,
+      now,
+      userId,
+    ]);
   }
   if (updates.displayName) {
-    await run("UPDATE users SET display_name = ?, updated_at = ? WHERE id = ?", [updates.displayName, now, userId]);
+    await run(
+      "UPDATE users SET display_name = ?, updated_at = ? WHERE id = ?",
+      [updates.displayName, now, userId],
+    );
   }
   if (updates.password) {
-    await run("UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?", [hashPassword(updates.password), now, userId]);
+    await run(
+      "UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?",
+      [hashPassword(updates.password), now, userId],
+    );
   }
   return getUserById(userId);
 }
@@ -659,7 +714,17 @@ async function createComment(articleId, userId, payload) {
   await run(
     `INSERT INTO comments (id, article_id, annotation_id, page_id, user_id, content, resolved, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [comment.id, comment.articleId, comment.annotationId, comment.pageId, comment.userId, comment.content, 0, now, now],
+    [
+      comment.id,
+      comment.articleId,
+      comment.annotationId,
+      comment.pageId,
+      comment.userId,
+      comment.content,
+      0,
+      now,
+      now,
+    ],
   );
   const row = await get(
     `SELECT c.*, u.username, u.display_name FROM comments c LEFT JOIN users u ON u.id = c.user_id WHERE c.id = ?`,
@@ -673,10 +738,18 @@ async function updateComment(commentId, updates) {
   if (!row) throw new Error("评论不存在");
   const now = nowIso();
   if (updates.content !== undefined) {
-    await run("UPDATE comments SET content = ?, updated_at = ? WHERE id = ?", [updates.content, now, commentId]);
+    await run("UPDATE comments SET content = ?, updated_at = ? WHERE id = ?", [
+      updates.content,
+      now,
+      commentId,
+    ]);
   }
   if (updates.resolved !== undefined) {
-    await run("UPDATE comments SET resolved = ?, updated_at = ? WHERE id = ?", [updates.resolved ? 1 : 0, now, commentId]);
+    await run("UPDATE comments SET resolved = ?, updated_at = ? WHERE id = ?", [
+      updates.resolved ? 1 : 0,
+      now,
+      commentId,
+    ]);
   }
   const updated = await get(
     `SELECT c.*, u.username, u.display_name FROM comments c LEFT JOIN users u ON u.id = c.user_id WHERE c.id = ?`,
@@ -752,7 +825,9 @@ async function upsertArticle(article) {
 }
 
 async function getPageIdsByArticle(articleId) {
-  const rows = await all("SELECT id FROM pages WHERE article_id = ?", [articleId]);
+  const rows = await all("SELECT id FROM pages WHERE article_id = ?", [
+    articleId,
+  ]);
   return rows.map((r) => r.id);
 }
 
@@ -861,7 +936,13 @@ async function getPagesByArticle(articleId) {
       const pageRegions = allRegions.filter((r) => r.pageId === page.id);
       annotations.push({
         ...ann,
-        regions: pageRegions.map((r) => ({ id: r.id, x: r.x, y: r.y, width: r.width, height: r.height })),
+        regions: pageRegions.map((r) => ({
+          id: r.id,
+          x: r.x,
+          y: r.y,
+          width: r.width,
+          height: r.height,
+        })),
       });
     }
 
@@ -999,12 +1080,27 @@ async function createAnnotation(pageId, payload) {
   const regionY = Number(payload.y) || 0;
   const regionW = Number(payload.width) || 0;
   const regionH = Number(payload.height) || 0;
-  const region = await addAnnotationRegion(ann.id, pageId, regionX, regionY, regionW, regionH);
+  const region = await addAnnotationRegion(
+    ann.id,
+    pageId,
+    regionX,
+    regionY,
+    regionW,
+    regionH,
+  );
 
   return {
     ...ann,
     pageId,
-    regions: [{ id: region.id, x: region.x, y: region.y, width: region.width, height: region.height }],
+    regions: [
+      {
+        id: region.id,
+        x: region.x,
+        y: region.y,
+        width: region.width,
+        height: region.height,
+      },
+    ],
   };
 }
 
@@ -1040,7 +1136,8 @@ async function updateAnnotation(annotationId, payload) {
     height: Number(payload.height ?? row.height),
     reviewStatus: payload.reviewStatus ?? row.review_status ?? "pending",
     reviewedBy: payload.reviewedBy ?? row.reviewed_by ?? "",
-    parentId: payload.parentId !== undefined ? payload.parentId : (row.parent_id || null),
+    parentId:
+      payload.parentId !== undefined ? payload.parentId : row.parent_id || null,
     orderIndex: Number(payload.orderIndex ?? row.order_index ?? 0),
   };
 
@@ -1087,12 +1184,17 @@ async function deleteAnnotation(annotationId) {
     [annotationId],
   );
   const pageIds = regionRows.map((r) => r.page_id);
-  const row = await get("SELECT page_id FROM annotations WHERE id = ?", [annotationId]);
+  const row = await get("SELECT page_id FROM annotations WHERE id = ?", [
+    annotationId,
+  ]);
   await transaction(async () => {
-    await run("UPDATE annotations SET parent_id = NULL WHERE parent_id = ?", [annotationId]);
-    await run("UPDATE headings SET annotation_id = NULL WHERE annotation_id = ?", [
+    await run("UPDATE annotations SET parent_id = NULL WHERE parent_id = ?", [
       annotationId,
     ]);
+    await run(
+      "UPDATE headings SET annotation_id = NULL WHERE annotation_id = ?",
+      [annotationId],
+    );
     await run("DELETE FROM annotations WHERE id = ?", [annotationId]);
   });
   return row ? { pageId: row.page_id, pageIds } : null;
@@ -1114,9 +1216,27 @@ async function addAnnotationRegion(annotationId, pageId, x, y, width, height) {
   await run(
     `INSERT INTO annotation_regions (id, annotation_id, page_id, x, y, width, height, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, annotationId, pageId, Math.round(x), Math.round(y), Math.round(width), Math.round(height), now],
+    [
+      id,
+      annotationId,
+      pageId,
+      Math.round(x),
+      Math.round(y),
+      Math.round(width),
+      Math.round(height),
+      now,
+    ],
   );
-  return { id, annotationId, pageId, x: Math.round(x), y: Math.round(y), width: Math.round(width), height: Math.round(height), createdAt: now };
+  return {
+    id,
+    annotationId,
+    pageId,
+    x: Math.round(x),
+    y: Math.round(y),
+    width: Math.round(width),
+    height: Math.round(height),
+    createdAt: now,
+  };
 }
 
 async function getAnnotationsForPage(pageId) {
@@ -1177,12 +1297,13 @@ async function getAnnotationsForPage(pageId) {
   }
 
   // 获取所有标注的全部 regions
-  const allRegionRows = allIds.size > 0
-    ? await all(
-        `SELECT * FROM annotation_regions WHERE annotation_id IN (${[...allIds].map(() => '?').join(',')})`,
-        [...allIds],
-      )
-    : [];
+  const allRegionRows =
+    allIds.size > 0
+      ? await all(
+          `SELECT * FROM annotation_regions WHERE annotation_id IN (${[...allIds].map(() => "?").join(",")})`,
+          [...allIds],
+        )
+      : [];
 
   const annotationRegionsMap = new Map();
   allRegionRows.forEach((row) => {
@@ -1207,7 +1328,13 @@ async function getAnnotationsForPage(pageId) {
     const pageRegions = allRegions.filter((r) => r.pageId === pageId);
     annotations.push({
       ...ann,
-      regions: pageRegions.map((r) => ({ id: r.id, x: r.x, y: r.y, width: r.width, height: r.height })),
+      regions: pageRegions.map((r) => ({
+        id: r.id,
+        x: r.x,
+        y: r.y,
+        width: r.width,
+        height: r.height,
+      })),
     });
   }
 
@@ -1303,7 +1430,9 @@ async function createHeading(articleId, payload) {
     throw new Error("请选择标题关联页面");
   }
 
-  const pageRow = await get("SELECT id, article_id FROM pages WHERE id = ?", [pageId]);
+  const pageRow = await get("SELECT id, article_id FROM pages WHERE id = ?", [
+    pageId,
+  ]);
   if (!pageRow) {
     throw new Error("页面不存在");
   }
@@ -1404,7 +1533,13 @@ async function deleteHeading(headingId) {
   await run("DELETE FROM headings WHERE id = ?", [headingId]);
 }
 
-async function updateHeadingParent(articleId, headingId, parentId, orderIndex = 0, level = null) {
+async function updateHeadingParent(
+  articleId,
+  headingId,
+  parentId,
+  orderIndex = 0,
+  level = null,
+) {
   const now = nowIso();
 
   if (parentId) {
@@ -1462,7 +1597,10 @@ async function updateChildLevelsDb(articleId, parentId, parentLevel) {
   );
   for (const child of children) {
     const childLevel = parentLevel + 1;
-    await run("UPDATE headings SET level = ? WHERE id = ?", [childLevel, child.id]);
+    await run("UPDATE headings SET level = ? WHERE id = ?", [
+      childLevel,
+      child.id,
+    ]);
     await updateChildLevelsDb(articleId, child.id, childLevel);
   }
 }
@@ -1592,7 +1730,7 @@ async function importGlyph(articleId, payload) {
 async function deleteGlyph(glyphId) {
   const glyph = await get("SELECT * FROM glyphs WHERE id = ?", [glyphId]);
   if (!glyph) {
-    return;
+    return null;
   }
 
   await transaction(async () => {
@@ -1608,6 +1746,20 @@ async function deleteGlyph(glyphId) {
       fs.unlinkSync(diskPath);
     }
   }
+
+  return {
+    ...mapGlyphRow(glyph),
+    articleId: glyph.article_id,
+  };
+}
+
+async function getPageSrcsByArticle(articleId, limit = 3) {
+  await ensureArticle(articleId);
+  const rows = await all(
+    "SELECT src FROM pages WHERE article_id = ? ORDER BY page_no ASC LIMIT ?",
+    [articleId, limit],
+  );
+  return rows.map((r) => r.src).filter(Boolean);
 }
 
 async function getSnapshot(articleId) {
@@ -1715,7 +1867,10 @@ async function assignArticleAccess(userId, articleId) {
 }
 
 async function removeArticleAccess(userId, articleId) {
-  await run("DELETE FROM user_articles WHERE user_id = ? AND article_id = ?", [userId, articleId]);
+  await run("DELETE FROM user_articles WHERE user_id = ? AND article_id = ?", [
+    userId,
+    articleId,
+  ]);
 }
 
 async function getArticleAccessUsers(articleId) {
@@ -1764,9 +1919,14 @@ async function createArticleRecord(payload) {
 
 async function deleteArticle(articleId) {
   // Collect page image paths before deletion
-  const pageRows = await all("SELECT src FROM pages WHERE article_id = ?", [articleId]);
+  const pageRows = await all("SELECT src FROM pages WHERE article_id = ?", [
+    articleId,
+  ]);
   // Collect glyph image paths
-  const glyphRows = await all("SELECT img_src FROM glyphs WHERE article_id = ?", [articleId]);
+  const glyphRows = await all(
+    "SELECT img_src FROM glyphs WHERE article_id = ?",
+    [articleId],
+  );
 
   await run("DELETE FROM articles WHERE id = ?", [articleId]);
 
@@ -1811,6 +1971,7 @@ module.exports = {
   createGlyph,
   importGlyph,
   deleteGlyph,
+  getPageSrcsByArticle,
   getSnapshot,
   // Auth
   hashPassword,

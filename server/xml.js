@@ -26,9 +26,16 @@ function charToXml(ann) {
                 </word>`;
 }
 
+function imageToXml(ann) {
+  const regions = ann.regions || [];
+  const r = regions.length > 0 ? regions[0] : { x: 0, y: 0, width: 0, height: 0 };
+  return `
+                <img id="img-${escapeXml(ann.id)}" src="${escapeXml(ann.originalText || '')}" x="${r.x}" y="${r.y}" width="${r.width}" height="${r.height}" note="${escapeXml(ann.note || '')}" />`;
+}
+
 function sentenceToXml(ann, charChildren) {
   const innerXml = charChildren.length > 0
-    ? charChildren.map(charToXml).join("")
+    ? charChildren.map((c) => c.level === "image" ? imageToXml(c) : charToXml(c)).join("")
     : charToXml(ann);
   return `
               <sentence id="st-${escapeXml(ann.id)}" type="1" note="${escapeXml(ann.note || "")}" note_type="${escapeXml(ann.noteType || "1")}">${innerXml}
@@ -40,7 +47,7 @@ function paragraphToXml(ann, sentChildren, childMap) {
   let innerXml;
   if (sentChildren.length > 0) {
     innerXml = sentChildren.map((sent) => {
-      const charChildren = (childMap.get(sent.id) || []).filter((c) => c.level === "char");
+      const charChildren = (childMap.get(sent.id) || []).filter((c) => c.level === "char" || c.level === "image");
       return sentenceToXml(sent, charChildren);
     }).join("");
   } else {
@@ -86,10 +93,15 @@ function annotationsToXmlContent(annotations) {
       return paragraphToXml(ann, sentChildren, childMap);
     }
     if (ann.level === "sentence") {
-      const charChildren = (childMap.get(ann.id) || []).filter((c) => c.level === "char");
+      const charChildren = (childMap.get(ann.id) || []).filter((c) => c.level === "char" || c.level === "image");
       return `
             <paragraph id="pg-${escapeXml(ann.id)}" type="0">
               ${sentenceToXml(ann, charChildren)}
+            </paragraph>`;
+    }
+    if (ann.level === "image") {
+      return `
+            <paragraph id="pg-${escapeXml(ann.id)}" type="0">${imageToXml(ann)}
             </paragraph>`;
     }
     // char level (orphan) — legacy wrapping

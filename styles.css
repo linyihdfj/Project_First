@@ -36,20 +36,27 @@ body {
 .topbar {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
-  padding: 20px 26px 12px;
+  align-items: center;
+  padding: 10px 26px 8px;
   border-bottom: 2px solid rgba(129, 76, 38, 0.28);
 }
 
 .brand h1 {
   margin: 0;
-  font-size: 28px;
+  font-size: 22px;
   letter-spacing: 1px;
 }
 
+.brand h1 small {
+  font-size: 13px;
+  font-weight: normal;
+  opacity: 0.65;
+  margin-left: 10px;
+  letter-spacing: 0;
+}
+
 .brand p {
-  margin: 4px 0 0;
-  opacity: 0.75;
+  display: none;
 }
 
 .top-actions {
@@ -92,6 +99,10 @@ button.primary {
   border-color: #8b2e23;
 }
 
+button.primary:hover {
+  box-shadow: 0 6px 20px rgba(166, 56, 43, 0.35);
+}
+
 button.danger {
   background: var(--danger);
   border-color: #7f2017;
@@ -101,7 +112,7 @@ button.danger {
 .tabs {
   display: flex;
   gap: 8px;
-  padding: 12px 24px 0;
+  padding: 6px 24px 0;
 }
 
 .tab {
@@ -131,22 +142,39 @@ main {
 .card {
   background: var(--card);
   border: 1px solid #bfa37c;
+  border-top: 3px solid var(--accent);
   border-radius: 14px;
   box-shadow: var(--shadow);
   padding: 14px;
 }
 
 .toolbar {
-  display: grid;
-  gap: 12px;
-  margin-bottom: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding: 10px 14px;
 }
 
 .toolbar-group {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
+  padding-right: 10px;
+  border-right: 1px solid var(--line);
+}
+
+.toolbar-group:last-child {
+  border-right: none;
+  padding-right: 0;
+}
+
+.toolbar-group label {
+  display: inline;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 #image-upload {
@@ -177,6 +205,9 @@ main {
   margin: 0;
   border-left: 4px solid #966337;
   padding-left: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed var(--line);
+  margin-bottom: 4px;
   font-size: 18px;
 }
 
@@ -452,24 +483,15 @@ main {
   overflow-y: auto;
   overflow-x: hidden;
   min-width: 0;
-  flex: 1 1 auto;
-  min-height: 400px;
-}
-
-.right-sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
   max-height: calc(100vh - 188px);
 }
 
-.article-info {
-  overflow-y: auto;
-  overflow-x: hidden;
-  min-width: 0;
-  flex-shrink: 0;
-  min-height: 280px;
-  max-height: 40vh;
+.article-info-page {
+  max-width: 800px;
+}
+
+.article-info-page .meta-grid {
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 }
 
 .article-info-actions {
@@ -478,10 +500,13 @@ main {
 
 .properties h2,
 .glyph-layout h2,
-.xml-card h2 {
+.xml-card h2,
+.article-info-page h2 {
   margin: 10px 0;
   border-left: 4px solid #966337;
   padding-left: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed var(--line);
   font-size: 18px;
 }
 
@@ -631,7 +656,20 @@ textarea {
   width: 360px;
   max-width: 90vw;
   text-align: center;
+  position: relative;
 }
+
+.login-box::before,
+.login-box::after {
+  content: '◆';
+  position: absolute;
+  color: var(--accent);
+  opacity: 0.3;
+  font-size: 20px;
+}
+
+.login-box::before { top: 10px; left: 14px; }
+.login-box::after { bottom: 10px; right: 14px; }
 
 .login-box h1 {
   margin: 0 0 6px;

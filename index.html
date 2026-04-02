@@ -50,26 +50,26 @@
 
     <header class="topbar">
       <div class="brand">
-        <h1>古籍在线编辑系统</h1>
-        <p>多人协同编辑与审校系统</p>
+        <h1>📜 古籍在线编辑系统 <small>多人协同编辑与审校系统</small></h1>
       </div>
       <div class="top-actions">
-        <button id="btn-back-to-select" hidden>返回选择</button>
-        <button id="btn-export-glyph">导出造字映射</button>
-        <label class="file-btn" for="glyph-import-file">导入造字映射</label>
+        <button id="btn-back-to-select" hidden>↩ 返回选择</button>
+        <button id="btn-export-glyph">📤 导出造字映射</button>
+        <label class="file-btn" for="glyph-import-file">📥 导入造字映射</label>
         <input id="glyph-import-file" type="file" accept=".json,application/json" style="display:none" />
         <span id="user-bar" class="user-bar" hidden>
           <span id="user-display-name"></span>
           <span id="user-role-badge" class="role-badge"></span>
-          <button id="btn-user-manage" hidden>用户管理</button>
+          <button id="btn-user-manage" hidden>⚙️ 用户管理</button>
           <button id="btn-logout">退出</button>
         </span>
       </div>
     </header>
 
     <nav class="tabs">
-      <button class="tab active" data-tab="editor">编辑器</button>
-      <button class="tab" data-tab="glyph">造字库</button>
+      <button class="tab active" data-tab="editor">📖 编辑器</button>
+      <button class="tab" data-tab="article">📜 文章信息</button>
+      <button class="tab" data-tab="glyph">🖋️ 造字库</button>
     </nav>
 
     <main>
@@ -77,7 +77,7 @@
         <div class="toolbar card">
           <div class="toolbar-group" id="toolbar-edit-controls">
             <label class="file-btn" for="image-upload"
-              >导入古籍</label
+              >📥 导入古籍</label
             >
             <input
               id="image-upload"
@@ -85,36 +85,35 @@
               accept="image/*,.pdf,application/pdf"
               multiple
             />
-            <button id="btn-clear-pages" class="danger">清空页面</button>
+            <button id="btn-clear-pages" class="danger">🗑️ 清空页面</button>
           </div>
 
           <div class="toolbar-group">
-            <button id="btn-prev-page">上一页</button>
+            <button id="btn-prev-page">◀ 上一页</button>
             <span id="page-indicator">页码: 0 / 0</span>
-            <button id="btn-next-page">下一页</button>
+            <button id="btn-next-page">下一页 ▶</button>
           </div>
 
           <div class="toolbar-group" id="toolbar-annotation-controls">
-            <label>标注层级</label>
             <select id="annotation-level">
-              <option value="char">字</option>
-              <option value="sentence">句</option>
-              <option value="paragraph">段</option>
+              <option value="char">🏷️ 字</option>
+              <option value="sentence">🏷️ 句</option>
+              <option value="paragraph">🏷️ 段</option>
+              <option value="image">🏷️ 图</option>
             </select>
-
           </div>
 
           <div class="toolbar-group" id="toolbar-ai-controls">
-            <label>AI 识别</label>
-            <button id="btn-ai-ocr-region" disabled title="识别选中标注区域的文字">识别文字</button>
+            <label>🤖 AI 识别</label>
+            <button id="btn-ai-ocr-region" disabled title="识别选中标注区域的文字">🔍 识别文字</button>
           </div>
         </div>
 
         <div class="layout">
           <aside class="index-sidebar card">
-            <h2>索引栏</h2>
+            <h2>📑 索引栏</h2>
             <section class="index-section" id="heading-add-section">
-              <h3>添加标题</h3>
+              <h3>🔖 添加标题</h3>
               <div class="form-grid index-form-grid">
                 <label>
                   标题文本
@@ -128,7 +127,7 @@
             </section>
 
             <section class="index-section">
-              <h3>标题索引</h3>
+              <h3>📋 标题索引</h3>
               <div id="heading-drop-root-zone" class="heading-drop-root-zone">拖到此处设为顶级标题</div>
               <ul id="heading-index-list" class="index-list"></ul>
             </section>
@@ -136,7 +135,7 @@
 
           <section class="canvas-area card">
             <div class="canvas-header">
-              <strong>页面标注画布</strong>
+              <strong>📄 页面标注画布</strong>
               <div id="presence-bar" class="presence-bar"></div>
               <div class="canvas-controls">
                 <button id="btn-zoom-out" type="button" title="缩小">-</button>
@@ -156,45 +155,39 @@
             </div>
           </section>
 
-          <div class="right-sidebar">
             <aside class="properties card">
-              <h2>当前标注属性</h2>
+              <h2>🖌️ 当前标注属性</h2>
               <div id="annotation-form" class="form-grid">
                 <p class="empty-tip">当前未选中标注。</p>
               </div>
 
               <!-- 审批状态区域 -->
               <div id="review-status-section" class="review-status-section" hidden>
-                <h2>审批状态</h2>
+                <h2>✅ 审批状态</h2>
                 <div id="review-status-display" class="review-status-display"></div>
               </div>
 
-              <h2>本页标注列表</h2>
+              <h2>📝 本页标注列表</h2>
               <ul id="annotation-list" class="annotation-list"></ul>
             </aside>
+        </div>
+      </section>
 
-            <aside class="article-info card">
-              <h2>文章信息</h2>
-              <div class="form-grid meta-grid" id="meta-form">
-                <label
-                  >文章ID<input id="meta-article-id" value="article-1"
-                /></label>
-                <label>标题原文<input id="meta-title" value="周易注" /></label>
-                <label>子标题<input id="meta-subtitle" value="卷一" /></label>
-                <label>作者<input id="meta-author" value="王弼" /></label>
-                <label>书名<input id="meta-book" value="周易注" /></label>
-                <label>卷<input id="meta-volume" value="卷一" /></label>
-                <label
-                  >出版年<input id="meta-publish-year" value="AD249"
-                /></label>
-                <label
-                  >创作年<input id="meta-writing-year" value="AD240"
-                /></label>
-              </div>
-              <div class="article-info-actions">
-                <button id="btn-export-xml" class="primary">导出 XML</button>
-              </div>
-            </aside>
+      <section id="tab-article" class="tab-pane">
+        <div class="article-info-page card">
+          <h2>📜 文章信息</h2>
+          <div class="form-grid meta-grid" id="meta-form">
+            <label>文章ID<input id="meta-article-id" value="article-1" /></label>
+            <label>标题原文<input id="meta-title" value="周易注" /></label>
+            <label>子标题<input id="meta-subtitle" value="卷一" /></label>
+            <label>作者<input id="meta-author" value="王弼" /></label>
+            <label>书名<input id="meta-book" value="周易注" /></label>
+            <label>卷<input id="meta-volume" value="卷一" /></label>
+            <label>出版年<input id="meta-publish-year" value="AD249" /></label>
+            <label>创作年<input id="meta-writing-year" value="AD240" /></label>
+          </div>
+          <div class="article-info-actions">
+            <button id="btn-export-xml" class="primary">📤 导出 XML</button>
           </div>
         </div>
       </section>
@@ -306,6 +299,7 @@
           <option value="char">字</option>
           <option value="sentence">句</option>
           <option value="paragraph">段</option>
+          <option value="image">图</option>
         </select>
       </label>
       <label

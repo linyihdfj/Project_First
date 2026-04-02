@@ -34,6 +34,7 @@ const {
   createGlyph,
   importGlyph,
   deleteGlyph,
+  getPageSrcsByArticle,
   getSnapshot,
   // Auth
   verifyPassword,
@@ -90,7 +91,9 @@ function requireAuth(req, res, next) {
   }
   const data = verifyToken(token);
   if (!data) {
-    return res.status(401).json({ ok: false, message: "登录已过期，请重新登录" });
+    return res
+      .status(401)
+      .json({ ok: false, message: "登录已过期，请重新登录" });
   }
   req.user = { userId: data.userId, role: data.role };
   next();
@@ -114,7 +117,11 @@ async function requireArticleAccess(req, res, next) {
     return res.status(401).json({ ok: false, message: "未登录" });
   }
   try {
-    const hasAccess = await checkArticleAccess(req.user.userId, articleId, req.user.role);
+    const hasAccess = await checkArticleAccess(
+      req.user.userId,
+      articleId,
+      req.user.role,
+    );
     if (!hasAccess) {
       return res.status(403).json({ ok: false, message: "无权访问该文章" });
     }
@@ -184,18 +191,23 @@ app.get("/api/auth/me", requireAuth, async (req, res) => {
 
 // ── 用户管理端点（仅管理员） ──
 
-app.post("/api/auth/register", requireAuth, requireRole("admin"), async (req, res) => {
-  try {
-    const { username, password, displayName, role } = req.body || {};
-    if (!username || !password) {
-      return sendError(res, new Error("用户名和密码不能为空"));
+app.post(
+  "/api/auth/register",
+  requireAuth,
+  requireRole("admin"),
+  async (req, res) => {
+    try {
+      const { username, password, displayName, role } = req.body || {};
+      if (!username || !password) {
+        return sendError(res, new Error("用户名和密码不能为空"));
+      }
+      const user = await createUser(username, password, displayName, role);
+      res.json({ ok: true, user });
+    } catch (error) {
+      sendError(res, error);
     }
-    const user = await createUser(username, password, displayName, role);
-    res.json({ ok: true, user });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
+  },
+);
 
 app.get("/api/users", requireAuth, requireRole("admin"), async (req, res) => {
   try {
@@ -206,23 +218,33 @@ app.get("/api/users", requireAuth, requireRole("admin"), async (req, res) => {
   }
 });
 
-app.patch("/api/users/:userId", requireAuth, requireRole("admin"), async (req, res) => {
-  try {
-    const user = await updateUser(req.params.userId, req.body || {});
-    res.json({ ok: true, user });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
+app.patch(
+  "/api/users/:userId",
+  requireAuth,
+  requireRole("admin"),
+  async (req, res) => {
+    try {
+      const user = await updateUser(req.params.userId, req.body || {});
+      res.json({ ok: true, user });
+    } catch (error) {
+      sendError(res, error);
+    }
+  },
+);
 
-app.delete("/api/users/:userId", requireAuth, requireRole("admin"), async (req, res) => {
-  try {
-    await deleteUser(req.params.userId);
-    res.json({ ok: true });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
+app.delete(
+  "/api/users/:userId",
+  requireAuth,
+  requireRole("admin"),
+  async (req, res) => {
+    try {
+      await deleteUser(req.params.userId);
+      res.json({ ok: true });
+    } catch (error) {
+      sendError(res, error);
+    }
+  },
+);
 
 // ── 以下端点均需登录 ──
 
@@ -237,326 +259,499 @@ app.get("/api/articles", requireAuth, async (req, res) => {
   }
 });
 
-app.post("/api/articles", requireAuth, requireRole("admin", "editor"), async (req, res) => {
-  try {
-    const payload = req.body || {};
-    const article = await createArticleRecord(payload);
-    // Auto-assign access to creator
-    await assignArticleAccess(req.user.userId, article.id);
-    res.json({ ok: true, article });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
+app.post(
+  "/api/articles",
+  requireAuth,
+  requireRole("admin", "editor"),
+  async (req, res) => {
+    try {
+      const payload = req.body || {};
+      const article = await createArticleRecord(payload);
+      // Auto-assign access to creator
+      await assignArticleAccess(req.user.userId, article.id);
+      res.json({ ok: true, article });
+    } catch (error) {
+      sendError(res, error);
+    }
+  },
+);
 
-app.delete("/api/articles/:articleId", requireAuth, requireRole("admin"), async (req, res) => {
-  try {
-    const articleId = articleIdFromReq(req);
-    await deleteArticle(articleId);
-    res.json({ ok: true });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
+app.delete(
+  "/api/articles/:articleId",
+  requireAuth,
+  requireRole("admin"),
+  async (req, res) => {
+    try {
+      const articleId = articleIdFromReq(req);
+      await deleteArticle(articleId);
+      res.json({ ok: true });
+    } catch (error) {
+      sendError(res, error);
+    }
+  },
+);
 
 // ── 文章权限管理 ──
 
-app.get("/api/articles/:articleId/access", requireAuth, requireRole("admin"), async (req, res) => {
-  try {
-    const articleId = articleIdFromReq(req);
-    const users = await getArticleAccessUsers(articleId);
-    res.json({ ok: true, users });
-  } catch (error) {
-    sendError(res, error, 500);
-  }
-});
-
-app.post("/api/articles/:articleId/access", requireAuth, requireRole("admin"), async (req, res) => {
-  try {
-    const articleId = articleIdFromReq(req);
-    const { userId } = req.body || {};
-    if (!userId) {
-      return sendError(res, new Error("请指定用户"));
+app.get(
+  "/api/articles/:articleId/access",
+  requireAuth,
+  requireRole("admin"),
+  async (req, res) => {
+    try {
+      const articleId = articleIdFromReq(req);
+      const users = await getArticleAccessUsers(articleId);
+      res.json({ ok: true, users });
+    } catch (error) {
+      sendError(res, error, 500);
     }
-    await assignArticleAccess(userId, articleId);
-    res.json({ ok: true });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
+  },
+);
 
-app.delete("/api/articles/:articleId/access/:userId", requireAuth, requireRole("admin"), async (req, res) => {
-  try {
-    const articleId = articleIdFromReq(req);
-    await removeArticleAccess(req.params.userId, articleId);
-    res.json({ ok: true });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
+app.post(
+  "/api/articles/:articleId/access",
+  requireAuth,
+  requireRole("admin"),
+  async (req, res) => {
+    try {
+      const articleId = articleIdFromReq(req);
+      const { userId } = req.body || {};
+      if (!userId) {
+        return sendError(res, new Error("请指定用户"));
+      }
+      await assignArticleAccess(userId, articleId);
+      res.json({ ok: true });
+    } catch (error) {
+      sendError(res, error);
+    }
+  },
+);
+
+app.delete(
+  "/api/articles/:articleId/access/:userId",
+  requireAuth,
+  requireRole("admin"),
+  async (req, res) => {
+    try {
+      const articleId = articleIdFromReq(req);
+      await removeArticleAccess(req.params.userId, articleId);
+      res.json({ ok: true });
+    } catch (error) {
+      sendError(res, error);
+    }
+  },
+);
 
 // ── 文章数据端点 ──
 
-app.get("/api/articles/:articleId", requireAuth, requireArticleAccess, async (req, res) => {
-  try {
-    const articleId = articleIdFromReq(req);
-    const article = await ensureArticle(articleId);
-    res.json({ ok: true, article });
-  } catch (error) {
-    sendError(res, error, 500);
-  }
-});
-
-app.put("/api/articles/:articleId", requireAuth, requireArticleAccess, requireRole("admin", "editor"), async (req, res) => {
-  try {
-    const articleId = articleIdFromReq(req);
-    const payload = req.body || {};
-    const article = await upsertArticle({
-      id: articleId,
-      type: payload.type || "1",
-      version: payload.version || "1.0",
-      title: payload.title || "",
-      subtitle: payload.subtitle || "",
-      author: payload.author || "",
-      book: payload.book || "",
-      volume: payload.volume || "",
-      publishYear: payload.publishYear || "",
-      writingYear: payload.writingYear || "",
-    });
-    res.json({ ok: true, article });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
-
-app.get("/api/articles/:articleId/snapshot", requireAuth, requireArticleAccess, async (req, res) => {
-  try {
-    const articleId = articleIdFromReq(req);
-    const snapshot = await getSnapshot(articleId);
-    res.json({ ok: true, ...snapshot });
-  } catch (error) {
-    sendError(res, error, 500);
-  }
-});
-
-app.get("/api/articles/:articleId/export-xml", requireAuth, requireArticleAccess, async (req, res) => {
-  try {
-    const articleId = articleIdFromReq(req);
-    const snapshot = await getSnapshot(articleId);
-    const xml = generateXmlFromSnapshot(snapshot);
-    const fileName = `${snapshot.article.title || articleId}.xml`;
-    res.setHeader("Content-Type", "application/xml; charset=utf-8");
-    res.setHeader("Content-Disposition", `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}`);
-    res.send(xml);
-  } catch (error) {
-    sendError(res, error, 500);
-  }
-});
-
-app.post("/api/articles/:articleId/pages/bulk", requireAuth, requireArticleAccess, requireRole("admin", "editor"), async (req, res) => {
-  try {
-    const articleId = articleIdFromReq(req);
-    const pages = Array.isArray(req.body && req.body.pages)
-      ? req.body.pages
-      : [];
-    const created = await createPages(articleId, pages);
-    res.json({ ok: true, pages: created });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
-
-app.delete("/api/articles/:articleId/pages", requireAuth, requireArticleAccess, requireRole("admin", "editor"), async (req, res) => {
-  try {
-    const articleId = articleIdFromReq(req);
-    await clearPagesByArticle(articleId);
-    res.json({ ok: true });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
-
-app.post("/api/pages/:pageId/annotations", requireAuth, requireRole("admin", "editor"), async (req, res) => {
-  try {
-    const annotation = await createAnnotation(
-      req.params.pageId,
-      req.body || {},
-    );
-    res.json({ ok: true, annotation });
-    broadcastToPage(req, `page:${annotation.pageId}`, "annotation:created", { annotation, pageId: annotation.pageId });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
-
-app.put("/api/annotations/:annotationId", requireAuth, requireRole("admin", "editor"), async (req, res) => {
-  try {
-    const annotation = await updateAnnotation(
-      req.params.annotationId,
-      req.body || {},
-    );
-    res.json({ ok: true, annotation });
-    // 广播到所有相关页面（跨页标注可能出现在多个页面）
-    const allPageIds = new Set([annotation.pageId, ...(annotation.pageIds || [])]);
-    for (const pid of allPageIds) {
-      broadcastToPage(req, `page:${pid}`, "annotation:updated", { annotation, pageId: pid });
+app.get(
+  "/api/articles/:articleId",
+  requireAuth,
+  requireArticleAccess,
+  async (req, res) => {
+    try {
+      const articleId = articleIdFromReq(req);
+      const article = await ensureArticle(articleId);
+      res.json({ ok: true, article });
+    } catch (error) {
+      sendError(res, error, 500);
     }
-  } catch (error) {
-    sendError(res, error);
-  }
-});
+  },
+);
+
+app.put(
+  "/api/articles/:articleId",
+  requireAuth,
+  requireArticleAccess,
+  requireRole("admin", "editor"),
+  async (req, res) => {
+    try {
+      const articleId = articleIdFromReq(req);
+      const payload = req.body || {};
+      const article = await upsertArticle({
+        id: articleId,
+        type: payload.type || "1",
+        version: payload.version || "1.0",
+        title: payload.title || "",
+        subtitle: payload.subtitle || "",
+        author: payload.author || "",
+        book: payload.book || "",
+        volume: payload.volume || "",
+        publishYear: payload.publishYear || "",
+        writingYear: payload.writingYear || "",
+      });
+      res.json({ ok: true, article });
+    } catch (error) {
+      sendError(res, error);
+    }
+  },
+);
+
+app.get(
+  "/api/articles/:articleId/page-srcs",
+  requireAuth,
+  requireArticleAccess,
+  async (req, res) => {
+    try {
+      const articleId = articleIdFromReq(req);
+      const limit = Math.min(parseInt(req.query.limit, 10) || 3, 50);
+      const srcs = await getPageSrcsByArticle(articleId, limit);
+      res.json({ ok: true, srcs });
+    } catch (error) {
+      sendError(res, error, 500);
+    }
+  },
+);
+
+app.get(
+  "/api/articles/:articleId/snapshot",
+  requireAuth,
+  requireArticleAccess,
+  async (req, res) => {
+    try {
+      const articleId = articleIdFromReq(req);
+      const snapshot = await getSnapshot(articleId);
+      res.json({ ok: true, ...snapshot });
+    } catch (error) {
+      sendError(res, error, 500);
+    }
+  },
+);
+
+app.get(
+  "/api/articles/:articleId/export-xml",
+  requireAuth,
+  requireArticleAccess,
+  async (req, res) => {
+    try {
+      const articleId = articleIdFromReq(req);
+      const snapshot = await getSnapshot(articleId);
+      const xml = generateXmlFromSnapshot(snapshot);
+      const fileName = `${snapshot.article.title || articleId}.xml`;
+      res.setHeader("Content-Type", "application/xml; charset=utf-8");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}`,
+      );
+      res.send(xml);
+    } catch (error) {
+      sendError(res, error, 500);
+    }
+  },
+);
+
+app.post(
+  "/api/articles/:articleId/pages/bulk",
+  requireAuth,
+  requireArticleAccess,
+  requireRole("admin", "editor"),
+  async (req, res) => {
+    try {
+      const articleId = articleIdFromReq(req);
+      const pages = Array.isArray(req.body && req.body.pages)
+        ? req.body.pages
+        : [];
+      const created = await createPages(articleId, pages);
+      res.json({ ok: true, pages: created });
+    } catch (error) {
+      sendError(res, error);
+    }
+  },
+);
+
+app.delete(
+  "/api/articles/:articleId/pages",
+  requireAuth,
+  requireArticleAccess,
+  requireRole("admin", "editor"),
+  async (req, res) => {
+    try {
+      const articleId = articleIdFromReq(req);
+      await clearPagesByArticle(articleId);
+      res.json({ ok: true });
+    } catch (error) {
+      sendError(res, error);
+    }
+  },
+);
+
+app.post(
+  "/api/pages/:pageId/annotations",
+  requireAuth,
+  requireRole("admin", "editor"),
+  async (req, res) => {
+    try {
+      const annotation = await createAnnotation(
+        req.params.pageId,
+        req.body || {},
+      );
+      res.json({ ok: true, annotation });
+      broadcastToPage(req, `page:${annotation.pageId}`, "annotation:created", {
+        annotation,
+        pageId: annotation.pageId,
+      });
+    } catch (error) {
+      sendError(res, error);
+    }
+  },
+);
+
+app.put(
+  "/api/annotations/:annotationId",
+  requireAuth,
+  requireRole("admin", "editor"),
+  async (req, res) => {
+    try {
+      const annotation = await updateAnnotation(
+        req.params.annotationId,
+        req.body || {},
+      );
+      res.json({ ok: true, annotation });
+      // 广播到所有相关页面（跨页标注可能出现在多个页面）
+      const allPageIds = new Set([
+        annotation.pageId,
+        ...(annotation.pageIds || []),
+      ]);
+      for (const pid of allPageIds) {
+        broadcastToPage(req, `page:${pid}`, "annotation:updated", {
+          annotation,
+          pageId: pid,
+        });
+      }
+    } catch (error) {
+      sendError(res, error);
+    }
+  },
+);
 
 // PATCH for review status (admin + reviewer)
-app.patch("/api/annotations/:annotationId", requireAuth, requireRole("admin", "reviewer"), async (req, res) => {
-  try {
-    const { reviewStatus, reviewedBy } = req.body || {};
-    const annotation = await updateAnnotation(
-      req.params.annotationId,
-      { reviewStatus, reviewedBy },
-    );
-    res.json({ ok: true, annotation });
-    const allPageIds = new Set([annotation.pageId, ...(annotation.pageIds || [])]);
-    for (const pid of allPageIds) {
-      broadcastToPage(req, `page:${pid}`, "annotation:updated", { annotation, pageId: pid });
-    }
-  } catch (error) {
-    sendError(res, error);
-  }
-});
-
-app.delete("/api/annotations/:annotationId", requireAuth, requireRole("admin", "editor"), async (req, res) => {
-  try {
-    const result = await deleteAnnotation(req.params.annotationId);
-    res.json({ ok: true });
-    if (result) {
-      const allPageIds = new Set([result.pageId, ...(result.pageIds || [])].filter(Boolean));
+app.patch(
+  "/api/annotations/:annotationId",
+  requireAuth,
+  requireRole("admin", "reviewer"),
+  async (req, res) => {
+    try {
+      const { reviewStatus, reviewedBy } = req.body || {};
+      const annotation = await updateAnnotation(req.params.annotationId, {
+        reviewStatus,
+        reviewedBy,
+      });
+      res.json({ ok: true, annotation });
+      const allPageIds = new Set([
+        annotation.pageId,
+        ...(annotation.pageIds || []),
+      ]);
       for (const pid of allPageIds) {
-        broadcastToPage(req, `page:${pid}`, "annotation:deleted", { annotationId: req.params.annotationId, pageId: pid });
+        broadcastToPage(req, `page:${pid}`, "annotation:updated", {
+          annotation,
+          pageId: pid,
+        });
       }
+    } catch (error) {
+      sendError(res, error);
     }
-  } catch (error) {
-    sendError(res, error);
-  }
-});
+  },
+);
+
+app.delete(
+  "/api/annotations/:annotationId",
+  requireAuth,
+  requireRole("admin", "editor"),
+  async (req, res) => {
+    try {
+      const result = await deleteAnnotation(req.params.annotationId);
+      res.json({ ok: true });
+      if (result) {
+        const allPageIds = new Set(
+          [result.pageId, ...(result.pageIds || [])].filter(Boolean),
+        );
+        for (const pid of allPageIds) {
+          broadcastToPage(req, `page:${pid}`, "annotation:deleted", {
+            annotationId: req.params.annotationId,
+            pageId: pid,
+          });
+        }
+      }
+    } catch (error) {
+      sendError(res, error);
+    }
+  },
+);
 
 // ── OCR / AI 识别端点 ──
 
-app.post("/api/ocr/recognize", requireAuth, requireRole("admin", "editor"), async (req, res) => {
-  try {
-    const provider = getProvider();
-    if (!provider) {
-      return sendError(res, new Error("OCR 服务未配置，请在 server/ocr-config.json 中设置 API 密钥"));
+app.post(
+  "/api/ocr/recognize",
+  requireAuth,
+  requireRole("admin", "editor"),
+  async (req, res) => {
+    try {
+      const provider = getProvider();
+      if (!provider) {
+        return sendError(
+          res,
+          new Error(
+            "OCR 服务未配置，请在 server/ocr-config.json 中设置 API 密钥",
+          ),
+        );
+      }
+      const { pageId, x, y, width, height } = req.body || {};
+      if (!pageId) {
+        return sendError(res, new Error("缺少 pageId"));
+      }
+      const page = await getPageRow(pageId);
+      if (!page) {
+        return sendError(res, new Error("页面不存在"), 404);
+      }
+      const imagePath = path.join(PROJECT_ROOT, page.src.replace(/^\//, ""));
+      let imageBuffer;
+      if (x != null && y != null && width && height) {
+        imageBuffer = await cropImage(imagePath, { x, y, width, height });
+      } else {
+        imageBuffer = await readImageBuffer(imagePath);
+      }
+      const results = await provider.recognizeRegion(imageBuffer);
+      res.json({ ok: true, results });
+    } catch (error) {
+      sendError(res, error);
     }
-    const { pageId, x, y, width, height } = req.body || {};
-    if (!pageId) {
-      return sendError(res, new Error("缺少 pageId"));
-    }
-    const page = await getPageRow(pageId);
-    if (!page) {
-      return sendError(res, new Error("页面不存在"), 404);
-    }
-    const imagePath = path.join(PROJECT_ROOT, page.src.replace(/^\//, ""));
-    let imageBuffer;
-    if (x != null && y != null && width && height) {
-      imageBuffer = await cropImage(imagePath, { x, y, width, height });
-    } else {
-      imageBuffer = await readImageBuffer(imagePath);
-    }
-    const results = await provider.recognizeRegion(imageBuffer);
-    res.json({ ok: true, results });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
+  },
+);
 
-app.post("/api/ocr/layout-detect", requireAuth, requireRole("admin", "editor"), async (req, res) => {
-  try {
-    const provider = getProvider();
-    if (!provider) {
-      return sendError(res, new Error("OCR 服务未配置，请在 server/ocr-config.json 中设置 API 密钥"));
+app.post(
+  "/api/ocr/layout-detect",
+  requireAuth,
+  requireRole("admin", "editor"),
+  async (req, res) => {
+    try {
+      const provider = getProvider();
+      if (!provider) {
+        return sendError(
+          res,
+          new Error(
+            "OCR 服务未配置，请在 server/ocr-config.json 中设置 API 密钥",
+          ),
+        );
+      }
+      const { pageId, level, x, y, width, height } = req.body || {};
+      if (!pageId) {
+        return sendError(res, new Error("缺少 pageId"));
+      }
+      const page = await getPageRow(pageId);
+      if (!page) {
+        return sendError(res, new Error("页面不存在"), 404);
+      }
+      const imagePath = path.join(PROJECT_ROOT, page.src.replace(/^\//, ""));
+      let imageBuffer;
+      if (x != null && y != null && width != null && height != null) {
+        imageBuffer = await cropImage(imagePath, { x, y, width, height });
+      } else {
+        imageBuffer = await readImageBuffer(imagePath);
+      }
+      let regions = await provider.detectLayout(imageBuffer, level || "line");
+      // If cropped, offset coordinates back to page space
+      if (x != null && y != null) {
+        regions = regions.map((r) => ({
+          ...r,
+          x: r.x + Math.round(x),
+          y: r.y + Math.round(y),
+        }));
+      }
+      res.json({ ok: true, regions });
+    } catch (error) {
+      sendError(res, error);
     }
-    const { pageId, level, x, y, width, height } = req.body || {};
-    if (!pageId) {
-      return sendError(res, new Error("缺少 pageId"));
-    }
-    const page = await getPageRow(pageId);
-    if (!page) {
-      return sendError(res, new Error("页面不存在"), 404);
-    }
-    const imagePath = path.join(PROJECT_ROOT, page.src.replace(/^\//, ""));
-    let imageBuffer;
-    if (x != null && y != null && width != null && height != null) {
-      imageBuffer = await cropImage(imagePath, { x, y, width, height });
-    } else {
-      imageBuffer = await readImageBuffer(imagePath);
-    }
-    let regions = await provider.detectLayout(imageBuffer, level || "line");
-    // If cropped, offset coordinates back to page space
-    if (x != null && y != null) {
-      regions = regions.map((r) => ({
-        ...r,
-        x: r.x + Math.round(x),
-        y: r.y + Math.round(y),
-      }));
-    }
-    res.json({ ok: true, regions });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
+  },
+);
 
-app.post("/api/pages/:pageId/annotations/batch", requireAuth, requireRole("admin", "editor"), async (req, res) => {
-  try {
-    const { annotations: items } = req.body || {};
-    if (!Array.isArray(items) || !items.length) {
-      return sendError(res, new Error("annotations 不能为空"));
+app.post(
+  "/api/pages/:pageId/annotations/batch",
+  requireAuth,
+  requireRole("admin", "editor"),
+  async (req, res) => {
+    try {
+      const { annotations: items } = req.body || {};
+      if (!Array.isArray(items) || !items.length) {
+        return sendError(res, new Error("annotations 不能为空"));
+      }
+      const pageId = req.params.pageId;
+      const created = [];
+      for (const item of items) {
+        const annotation = await createAnnotation(pageId, item);
+        created.push(annotation);
+        broadcastToPage(
+          req,
+          `page:${annotation.pageId}`,
+          "annotation:created",
+          { annotation, pageId: annotation.pageId },
+        );
+      }
+      res.json({ ok: true, annotations: created, count: created.length });
+    } catch (error) {
+      sendError(res, error);
     }
-    const pageId = req.params.pageId;
-    const created = [];
-    for (const item of items) {
-      const annotation = await createAnnotation(pageId, item);
-      created.push(annotation);
-      broadcastToPage(req, `page:${annotation.pageId}`, "annotation:created", { annotation, pageId: annotation.pageId });
-    }
-    res.json({ ok: true, annotations: created, count: created.length });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
+  },
+);
 
 // ── 标注跨页区域 ──
 
-app.post("/api/annotations/:annotationId/regions", requireAuth, requireRole("admin", "editor"), async (req, res) => {
-  try {
-    const { annotationId } = req.params;
-    const { pageId, x, y, width, height } = req.body || {};
-    if (!pageId || x == null || y == null || width == null || height == null) {
-      return sendError(res, new Error("缺少 pageId, x, y, width, height"));
+app.post(
+  "/api/annotations/:annotationId/regions",
+  requireAuth,
+  requireRole("admin", "editor"),
+  async (req, res) => {
+    try {
+      const { annotationId } = req.params;
+      const { pageId, x, y, width, height } = req.body || {};
+      if (
+        !pageId ||
+        x == null ||
+        y == null ||
+        width == null ||
+        height == null
+      ) {
+        return sendError(res, new Error("缺少 pageId, x, y, width, height"));
+      }
+      const region = await addAnnotationRegion(
+        annotationId,
+        pageId,
+        x,
+        y,
+        width,
+        height,
+      );
+      res.json({ ok: true, region });
+    } catch (error) {
+      sendError(res, error);
     }
-    const region = await addAnnotationRegion(annotationId, pageId, x, y, width, height);
-    res.json({ ok: true, region });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
+  },
+);
 
-app.get("/api/annotations/:annotationId/regions", requireAuth, async (req, res) => {
-  try {
-    const regions = await getRegionsByAnnotation(req.params.annotationId);
-    res.json({ ok: true, regions });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
+app.get(
+  "/api/annotations/:annotationId/regions",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const regions = await getRegionsByAnnotation(req.params.annotationId);
+      res.json({ ok: true, regions });
+    } catch (error) {
+      sendError(res, error);
+    }
+  },
+);
 
-app.get("/api/pages/:pageId/cross-page-annotations", requireAuth, async (req, res) => {
-  try {
-    const annotations = await getRegionsByPage(req.params.pageId);
-    res.json({ ok: true, annotations });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
+app.get(
+  "/api/pages/:pageId/cross-page-annotations",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const annotations = await getRegionsByPage(req.params.pageId);
+      res.json({ ok: true, annotations });
+    } catch (error) {
+      sendError(res, error);
+    }
+  },
+);
 
 app.get("/api/pages/:pageId/annotations", requireAuth, async (req, res) => {
   try {
@@ -567,137 +762,212 @@ app.get("/api/pages/:pageId/annotations", requireAuth, async (req, res) => {
   }
 });
 
-app.delete("/api/annotation-regions/:regionId", requireAuth, requireRole("admin", "editor"), async (req, res) => {
-  try {
-    await deleteAnnotationRegion(req.params.regionId);
-    res.json({ ok: true });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
-
-app.put("/api/annotations/:annotationId/regions/reorder", requireAuth, requireRole("admin", "editor"), async (req, res) => {
-  try {
-    const { annotationId } = req.params;
-    const { regionIds } = req.body || {};
-    if (!Array.isArray(regionIds)) {
-      return sendError(res, new Error("缺少 regionIds 数组"));
+app.delete(
+  "/api/annotation-regions/:regionId",
+  requireAuth,
+  requireRole("admin", "editor"),
+  async (req, res) => {
+    try {
+      await deleteAnnotationRegion(req.params.regionId);
+      res.json({ ok: true });
+    } catch (error) {
+      sendError(res, error);
     }
-    await reorderAnnotationRegions(annotationId, regionIds);
-    res.json({ ok: true });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
+  },
+);
 
-app.get("/api/articles/:articleId/glyphs", requireAuth, requireArticleAccess, async (req, res) => {
-  try {
-    const articleId = articleIdFromReq(req);
-    const glyphs = await getGlyphsByArticle(articleId);
-    res.json({ ok: true, glyphs });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
-
-app.post("/api/articles/:articleId/glyphs", requireAuth, requireArticleAccess, requireRole("admin", "editor"), async (req, res) => {
-  try {
-    const articleId = articleIdFromReq(req);
-    const glyph = await createGlyph(articleId, req.body || {});
-    res.json({ ok: true, glyph });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
-
-app.delete("/api/glyphs/:glyphId", requireAuth, requireRole("admin", "editor"), async (req, res) => {
-  try {
-    await deleteGlyph(req.params.glyphId);
-    res.json({ ok: true });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
-
-app.post("/api/articles/:articleId/headings", requireAuth, requireArticleAccess, requireRole("admin", "editor"), async (req, res) => {
-  try {
-    const articleId = articleIdFromReq(req);
-    const heading = await createHeading(articleId, req.body || {});
-    res.json({ ok: true, heading });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
-
-app.patch("/api/articles/:articleId/headings/:headingId", requireAuth, requireArticleAccess, requireRole("admin", "editor"), async (req, res) => {
-  try {
-    const articleId = articleIdFromReq(req);
-    const headingId = req.params.headingId;
-    const { parentId, orderIndex, level } = req.body || {};
-    const heading = await updateHeadingParent(
-      articleId,
-      headingId,
-      parentId || null,
-      orderIndex || 0,
-      level !== undefined ? level : null,
-    );
-    res.json({ ok: true, heading });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
-
-app.post("/api/articles/:articleId/headings/reorder", requireAuth, requireArticleAccess, requireRole("admin", "editor"), async (req, res) => {
-  try {
-    const articleId = articleIdFromReq(req);
-    const { parentId, orderedIds } = req.body || {};
-    if (!Array.isArray(orderedIds)) {
-      return res.status(400).json({ ok: false, error: "orderedIds must be an array" });
+app.put(
+  "/api/annotations/:annotationId/regions/reorder",
+  requireAuth,
+  requireRole("admin", "editor"),
+  async (req, res) => {
+    try {
+      const { annotationId } = req.params;
+      const { regionIds } = req.body || {};
+      if (!Array.isArray(regionIds)) {
+        return sendError(res, new Error("缺少 regionIds 数组"));
+      }
+      await reorderAnnotationRegions(annotationId, regionIds);
+      res.json({ ok: true });
+    } catch (error) {
+      sendError(res, error);
     }
-    await reorderHeadings(articleId, parentId || null, orderedIds);
-    res.json({ ok: true });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
+  },
+);
 
-app.delete("/api/headings/:headingId", requireAuth, requireRole("admin", "editor"), async (req, res) => {
-  try {
-    await deleteHeading(req.params.headingId);
-    res.json({ ok: true });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
+app.get(
+  "/api/articles/:articleId/glyphs",
+  requireAuth,
+  requireArticleAccess,
+  async (req, res) => {
+    try {
+      const articleId = articleIdFromReq(req);
+      const glyphs = await getGlyphsByArticle(articleId);
+      res.json({ ok: true, glyphs });
+    } catch (error) {
+      sendError(res, error);
+    }
+  },
+);
+
+app.post(
+  "/api/articles/:articleId/glyphs",
+  requireAuth,
+  requireArticleAccess,
+  requireRole("admin", "editor"),
+  async (req, res) => {
+    try {
+      const articleId = articleIdFromReq(req);
+      const glyph = await createGlyph(articleId, req.body || {});
+      broadcastToPage(req, `article:${articleId}`, "glyph:created", {
+        articleId,
+        glyph,
+      });
+      res.json({ ok: true, glyph });
+    } catch (error) {
+      sendError(res, error);
+    }
+  },
+);
+
+app.delete(
+  "/api/glyphs/:glyphId",
+  requireAuth,
+  requireRole("admin", "editor"),
+  async (req, res) => {
+    try {
+      const glyph = await deleteGlyph(req.params.glyphId);
+      if (glyph && glyph.articleId) {
+        broadcastToPage(req, `article:${glyph.articleId}`, "glyph:deleted", {
+          articleId: glyph.articleId,
+          glyphId: glyph.id,
+        });
+      }
+      res.json({ ok: true, glyph });
+    } catch (error) {
+      sendError(res, error);
+    }
+  },
+);
+
+app.post(
+  "/api/articles/:articleId/headings",
+  requireAuth,
+  requireArticleAccess,
+  requireRole("admin", "editor"),
+  async (req, res) => {
+    try {
+      const articleId = articleIdFromReq(req);
+      const heading = await createHeading(articleId, req.body || {});
+      res.json({ ok: true, heading });
+    } catch (error) {
+      sendError(res, error);
+    }
+  },
+);
+
+app.patch(
+  "/api/articles/:articleId/headings/:headingId",
+  requireAuth,
+  requireArticleAccess,
+  requireRole("admin", "editor"),
+  async (req, res) => {
+    try {
+      const articleId = articleIdFromReq(req);
+      const headingId = req.params.headingId;
+      const { parentId, orderIndex, level } = req.body || {};
+      const heading = await updateHeadingParent(
+        articleId,
+        headingId,
+        parentId || null,
+        orderIndex || 0,
+        level !== undefined ? level : null,
+      );
+      res.json({ ok: true, heading });
+    } catch (error) {
+      sendError(res, error);
+    }
+  },
+);
+
+app.post(
+  "/api/articles/:articleId/headings/reorder",
+  requireAuth,
+  requireArticleAccess,
+  requireRole("admin", "editor"),
+  async (req, res) => {
+    try {
+      const articleId = articleIdFromReq(req);
+      const { parentId, orderedIds } = req.body || {};
+      if (!Array.isArray(orderedIds)) {
+        return res
+          .status(400)
+          .json({ ok: false, error: "orderedIds must be an array" });
+      }
+      await reorderHeadings(articleId, parentId || null, orderedIds);
+      res.json({ ok: true });
+    } catch (error) {
+      sendError(res, error);
+    }
+  },
+);
+
+app.delete(
+  "/api/headings/:headingId",
+  requireAuth,
+  requireRole("admin", "editor"),
+  async (req, res) => {
+    try {
+      await deleteHeading(req.params.headingId);
+      res.json({ ok: true });
+    } catch (error) {
+      sendError(res, error);
+    }
+  },
+);
 
 // ── 造字库批量导入 ──
 
-app.post("/api/articles/:articleId/glyphs/import", requireAuth, requireArticleAccess, requireRole("admin", "editor"), async (req, res) => {
-  try {
-    const articleId = articleIdFromReq(req);
-    const glyphs = Array.isArray(req.body && req.body.glyphs) ? req.body.glyphs : [];
-    if (!glyphs.length) {
-      return sendError(res, new Error("导入数据为空"));
-    }
-    const results = [];
-    for (const g of glyphs) {
-      try {
-        const glyph = await importGlyph(articleId, {
-          code: g.code,
-          name: g.name || "",
-          note: g.note || "",
-          imgDataUrl: g.imgDataUrl || "",
-        });
-        results.push(glyph);
-      } catch (e) {
-        // Skip duplicates or invalid entries
+app.post(
+  "/api/articles/:articleId/glyphs/import",
+  requireAuth,
+  requireArticleAccess,
+  requireRole("admin", "editor"),
+  async (req, res) => {
+    try {
+      const articleId = articleIdFromReq(req);
+      const glyphs = Array.isArray(req.body && req.body.glyphs)
+        ? req.body.glyphs
+        : [];
+      if (!glyphs.length) {
+        return sendError(res, new Error("导入数据为空"));
       }
+      const results = [];
+      for (const g of glyphs) {
+        try {
+          const glyph = await importGlyph(articleId, {
+            code: g.code,
+            name: g.name || "",
+            note: g.note || "",
+            imgDataUrl: g.imgDataUrl || "",
+          });
+          results.push(glyph);
+        } catch (e) {
+          // Skip duplicates or invalid entries
+        }
+      }
+      if (results.length) {
+        broadcastToPage(req, `article:${articleId}`, "glyph:imported", {
+          articleId,
+          glyphs: results,
+        });
+      }
+      res.json({ ok: true, imported: results.length, glyphs: results });
+    } catch (error) {
+      sendError(res, error);
     }
-    res.json({ ok: true, imported: results.length, glyphs: results });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
+  },
+);
 
 // ── 静态文件 ──
 
@@ -752,30 +1022,59 @@ io.on("connection", async (socket) => {
   try {
     const user = await getUserById(socket.userId);
     socket.displayName = user ? user.displayName : "Unknown";
-  } catch { socket.displayName = "Unknown"; }
+  } catch {
+    socket.displayName = "Unknown";
+  }
 
   socket.on("join-page", async ({ pageId }) => {
     // Leave all previous page rooms
     for (const room of socket.rooms) {
       if (room.startsWith("page:")) {
         socket.leave(room);
-        io.to(room).emit("presence:leave", { userId: socket.userId, displayName: socket.displayName });
+        io.to(room).emit("presence:leave", {
+          userId: socket.userId,
+          displayName: socket.displayName,
+        });
       }
     }
     if (!pageId) return;
     const roomName = `page:${pageId}`;
     socket.join(roomName);
     // Notify others
-    socket.to(roomName).emit("presence:join", { userId: socket.userId, displayName: socket.displayName, role: socket.userRole });
+    socket.to(roomName).emit("presence:join", {
+      userId: socket.userId,
+      displayName: socket.displayName,
+      role: socket.userRole,
+    });
     // Send current members to the joining user
     const members = await getRoomMembers(roomName);
     socket.emit("presence:members", { members });
   });
 
+  socket.on("join-article", async ({ articleId }) => {
+    for (const room of socket.rooms) {
+      if (room.startsWith("article:")) {
+        socket.leave(room);
+      }
+    }
+    const normalizedArticleId = String(articleId || "").trim();
+    if (!normalizedArticleId) return;
+    const hasAccess = await checkArticleAccess(
+      socket.userId,
+      normalizedArticleId,
+      socket.userRole,
+    );
+    if (!hasAccess) return;
+    socket.join(`article:${normalizedArticleId}`);
+  });
+
   socket.on("disconnecting", () => {
     for (const room of socket.rooms) {
       if (room.startsWith("page:")) {
-        socket.to(room).emit("presence:leave", { userId: socket.userId, displayName: socket.displayName });
+        socket.to(room).emit("presence:leave", {
+          userId: socket.userId,
+          displayName: socket.displayName,
+        });
       }
     }
   });
@@ -786,7 +1085,7 @@ io.on("connection", async (socket) => {
 async function bootstrap() {
   await initDatabase();
   await ensureArticle("article-1");
-  httpServer.listen(PORT, () => {
+  httpServer.listen(PORT, "localhost", () => {
     console.log(`SDUDOC server listening on http://localhost:${PORT}`);
   });
 }

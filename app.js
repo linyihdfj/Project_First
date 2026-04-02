@@ -46,6 +46,39 @@ const state = {
   selectedRegionId: null, // 选中的区域ID，仅显示该区域
 };
 
+// ── 图片预加载缓存 ──
+const preloadedUrls = new Set();
+
+function preloadImage(src) {
+  if (!src || preloadedUrls.has(src)) return;
+  preloadedUrls.add(src);
+  const img = new Image();
+  img.src = src;
+}
+
+function preloadAdjacentPages(currentIndex, pages, range = 3) {
+  const start = Math.max(0, currentIndex - range);
+  const end = Math.min(pages.length - 1, currentIndex + range);
+  for (let i = start; i <= end; i++) {
+    if (i !== currentIndex && pages[i] && pages[i].src) {
+      preloadImage(pages[i].src);
+    }
+  }
+}
+
+async function preloadArticleFirstPages(articles) {
+  for (const article of articles) {
+    try {
+      const data = await apiRequest(
+        `/articles/${encodeURIComponent(article.id)}/page-srcs?limit=3`,
+      );
+      (data.srcs || []).forEach(preloadImage);
+    } catch (e) {
+      // 预加载失败时静默忽略
+    }
+  }
+}
+
 const refs = {
   // Login
   loginOverlay: document.getElementById("login-overlay"),
@@ -82,6 +115,7 @@ const refs = {
   tabs: Array.from(document.querySelectorAll(".tab")),
   panes: {
     editor: document.getElementById("tab-editor"),
+    article: document.getElementById("tab-article"),
     glyph: document.getElementById("tab-glyph"),
   },
   imageUpload: document.getElementById("image-upload"),
@@ -320,7 +354,12 @@ async function loadSnapshot(articleId) {
   resetCanvasView();
   syncMetaInputsFromState();
   renderAll();
+  joinCurrentArticleRoom();
   joinCurrentPageRoom();
+  // 预加载当前页附近的页面图片
+  if (state.pages.length > 0) {
+    preloadAdjacentPages(0, state.pages);
+  }
 }
 
 function setActiveTab(tabName) {
@@ -1054,23 +1093,32 @@ function scheduleAnnotationPersist(ann) {
     return;
   }
 
-  if (annotationSaveTimers.has(ann.id)) {
-    clearTimeout(annotationSaveTimers.get(ann.id));
+  const annotationId = ann.id;
+
+  if (annotationSaveTimers.has(annotationId)) {
+    clearTimeout(annotationSaveTimers.get(annotationId));
   }
 
   const timer = window.setTimeout(async () => {
-    annotationSaveTimers.delete(ann.id);
+    annotationSaveTimers.delete(annotationId);
     try {
-      await apiRequest(`/annotations/${encodeURIComponent(ann.id)}`, {
+      const latestAnn =
+        state.selectedAnnotationId === annotationId
+          ? getSelectedAnnotation() || getAnnotationById(annotationId)
+          : getAnnotationById(annotationId);
+      if (!latestAnn) {
+        return;
+      }
+      await apiRequest(`/annotations/${encodeURIComponent(annotationId)}`, {
         method: "PUT",
-        body: ann,
+        body: latestAnn,
       });
     } catch (error) {
       alert(error.message);
     }
   }, 300);
 
-  annotationSaveTimers.set(ann.id, timer);
+  annotationSaveTimers.set(annotationId, timer);
 }
 
 async function removeSelectedAnnotation() {
@@ -1154,6 +1202,28 @@ function getSelectedAnnotation() {
     page.annotations.find((ann) => ann.id === state.selectedAnnotationId) ||
     null
   );
+}
+
+function getAnnotationById(annotationId) {
+  if (!annotationId) {
+    return null;
+  }
+  const currentPage = getCurrentPage();
+  if (currentPage) {
+    const currentPageAnn = currentPage.annotations.find(
+      (item) => item.id === annotationId,
+    );
+    if (currentPageAnn) {
+      return currentPageAnn;
+    }
+  }
+  for (const page of state.pages) {
+    const ann = page.annotations.find((item) => item.id === annotationId);
+    if (ann) {
+      return ann;
+    }
+  }
+  return null;
 }
 
 function buildAnnotationList() {
@@ -1478,6 +1548,9 @@ function levelLabel(level) {
   }
   if (level === "sentence") {
     return "句";
+  }
+  if (level === "image") {
+    return "图";
   }
   return "段";
 }
@@ -1984,6 +2057,18 @@ function renderAnnotationForm() {
       "color",
     ],
     char: ["x", "y", "width", "height", "style", "color"],
+    image: [
+      "charCode",
+      "glyphRef",
+      "originalText",
+      "simplifiedText",
+      "x",
+      "y",
+      "width",
+      "height",
+      "style",
+      "color",
+    ],
   };
   const toHide = new Set(hideFields[ann.level] || []);
   fragment.querySelectorAll("[data-field]").forEach((el) => {
@@ -2415,6 +2500,7 @@ function renderPage() {
 
   refs.pageImage.style.display = "block";
   refs.pageImage.src = page.src;
+  preloadAdjacentPages(state.currentPageIndex, state.pages);
   refs.pageIndicator.textContent = `页码: ${state.currentPageIndex + 1} / ${state.pages.length}`;
   refs.canvasMeta.textContent = `${page.name} (${page.width}x${page.height})`;
 
@@ -2581,6 +2667,8 @@ async function loadArticleList() {
     const data = await apiRequest("/articles");
     state.articleList = data.articles || [];
     renderArticleGrid();
+    // 后台预加载每本古籍的前3页图片
+    preloadArticleFirstPages(state.articleList);
   } catch (e) {
     state.articleList = [];
     renderArticleGrid();
@@ -3621,6 +3709,7 @@ function initSocket() {
   });
 
   socket.on("connect", () => {
+    joinCurrentArticleRoom();
     joinCurrentPageRoom();
     refreshCurrentPageAnnotations();
   });
@@ -3638,9 +3727,18 @@ function initSocket() {
   socket.on("annotation:created", handleRemoteAnnotationCreated);
   socket.on("annotation:updated", handleRemoteAnnotationUpdated);
   socket.on("annotation:deleted", handleRemoteAnnotationDeleted);
+  socket.on("glyph:created", handleRemoteGlyphCreated);
+  socket.on("glyph:deleted", handleRemoteGlyphDeleted);
+  socket.on("glyph:imported", handleRemoteGlyphImported);
   socket.on("presence:join", handlePresenceJoin);
   socket.on("presence:leave", handlePresenceLeave);
   socket.on("presence:members", handlePresenceMembers);
+}
+
+function joinCurrentArticleRoom() {
+  if (!socket || !socket.connected || !state.article || !state.article.id)
+    return;
+  socket.emit("join-article", { articleId: state.article.id });
 }
 
 function joinCurrentPageRoom() {
@@ -3685,7 +3783,24 @@ function handleRemoteAnnotationCreated({ annotation, pageId }) {
 }
 
 function handleRemoteAnnotationUpdated({ annotation, pageId }) {
-  // 更新所有页面中同 ID 标注（同一标注可能作为后代出现在多个页面）
+  // 本地防抖编辑期间，保留可编辑字段，但始终同步审核字段，避免跨页审核状态不同步。
+  const protectedFieldsWhenLocalEditing = [
+    "level",
+    "style",
+    "color",
+    "originalText",
+    "simplifiedText",
+    "note",
+    "noteType",
+    "charCode",
+    "glyphRef",
+    "parentId",
+    "orderIndex",
+    "x",
+    "y",
+    "width",
+    "height",
+  ];
   const isLocalEditing =
     state.selectedAnnotationId === annotation.id &&
     annotationSaveTimers.has(annotation.id);
@@ -3693,12 +3808,23 @@ function handleRemoteAnnotationUpdated({ annotation, pageId }) {
   for (const p of state.pages) {
     const index = p.annotations.findIndex((a) => a.id === annotation.id);
     if (index === -1) continue;
-    if (isLocalEditing) continue;
-    // 保留每个页面副本自己的 regions（不同页面 regions 不同）
-    p.annotations[index] = {
+
+    const localCopy = p.annotations[index];
+    const merged = {
+      ...localCopy,
       ...annotation,
-      regions: p.annotations[index].regions,
+      regions: localCopy.regions,
     };
+
+    if (isLocalEditing) {
+      protectedFieldsWhenLocalEditing.forEach((field) => {
+        if (Object.prototype.hasOwnProperty.call(localCopy, field)) {
+          merged[field] = localCopy[field];
+        }
+      });
+    }
+
+    p.annotations[index] = merged;
     updated = true;
   }
   if (!updated) return;
@@ -3732,6 +3858,49 @@ function handleRemoteAnnotationDeleted({ annotationId, pageId }) {
     buildAnnotationList();
     renderAnnotationForm();
     renderReviewStatus();
+  }
+}
+
+function handleRemoteGlyphCreated({ articleId, glyph }) {
+  if (!state.article || state.article.id !== articleId || !glyph) return;
+  if (state.glyphs.some((item) => item.id === glyph.id)) return;
+  state.glyphs.unshift(glyph);
+  renderAll();
+}
+
+function handleRemoteGlyphDeleted({ articleId, glyphId }) {
+  if (!state.article || state.article.id !== articleId || !glyphId) return;
+  const beforeCount = state.glyphs.length;
+  state.glyphs = state.glyphs.filter((item) => item.id !== glyphId);
+  if (state.glyphs.length === beforeCount) return;
+
+  state.pages.forEach((page) => {
+    page.annotations.forEach((ann) => {
+      if (ann.glyphRef === glyphId) {
+        ann.glyphRef = "";
+      }
+    });
+  });
+  renderAll();
+}
+
+function handleRemoteGlyphImported({ articleId, glyphs }) {
+  if (
+    !state.article ||
+    state.article.id !== articleId ||
+    !Array.isArray(glyphs)
+  ) {
+    return;
+  }
+  let changed = false;
+  glyphs.forEach((glyph) => {
+    if (!glyph || !glyph.id) return;
+    if (state.glyphs.some((item) => item.id === glyph.id)) return;
+    state.glyphs.unshift(glyph);
+    changed = true;
+  });
+  if (changed) {
+    renderAll();
   }
 }
 
