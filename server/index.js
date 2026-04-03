@@ -23,6 +23,7 @@ const {
   getRegionsByPage,
   getRegionsByAnnotation,
   deleteAnnotationRegion,
+  updateAnnotationRegion,
   reorderAnnotationRegions,
   createHeading,
   updateHeadingParent,
@@ -777,6 +778,30 @@ app.delete(
 );
 
 app.put(
+  "/api/annotation-regions/:regionId",
+  requireAuth,
+  requireRole("admin", "editor"),
+  async (req, res) => {
+    try {
+      const { regionId } = req.params;
+      const { x, y, width, height } = req.body || {};
+      if (x == null || y == null || width == null || height == null) {
+        return sendError(res, new Error("缺少 x, y, width, height"));
+      }
+      const region = await updateAnnotationRegion(regionId, {
+        x,
+        y,
+        width,
+        height,
+      });
+      res.json({ ok: true, region });
+    } catch (error) {
+      sendError(res, error);
+    }
+  },
+);
+
+app.put(
   "/api/annotations/:annotationId/regions/reorder",
   requireAuth,
   requireRole("admin", "editor"),
@@ -971,10 +996,13 @@ app.post(
 
 // ── 静态文件 ──
 
-app.use("/uploads", express.static(path.join(PROJECT_ROOT, "uploads"), {
-  maxAge: "7d",
-  immutable: true,
-}));
+app.use(
+  "/uploads",
+  express.static(path.join(PROJECT_ROOT, "uploads"), {
+    maxAge: "7d",
+    immutable: true,
+  }),
+);
 app.use(express.static(PROJECT_ROOT));
 
 app.use((req, res, next) => {

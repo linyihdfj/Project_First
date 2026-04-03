@@ -1401,6 +1401,48 @@ async function deleteAnnotationRegion(regionId) {
   await run("DELETE FROM annotation_regions WHERE id = ?", [regionId]);
 }
 
+async function updateAnnotationRegion(regionId, payload) {
+  const x = Number(payload.x);
+  const y = Number(payload.y);
+  const width = Number(payload.width);
+  const height = Number(payload.height);
+
+  if (
+    !Number.isFinite(x) ||
+    !Number.isFinite(y) ||
+    !Number.isFinite(width) ||
+    !Number.isFinite(height)
+  ) {
+    throw new Error("区域坐标参数无效");
+  }
+
+  await run(
+    `UPDATE annotation_regions
+     SET x = ?, y = ?, width = ?, height = ?
+     WHERE id = ?`,
+    [x, y, width, height, regionId],
+  );
+
+  const row = await get("SELECT * FROM annotation_regions WHERE id = ?", [
+    regionId,
+  ]);
+  if (!row) {
+    throw new Error("区域不存在");
+  }
+
+  return {
+    id: row.id,
+    annotationId: row.annotation_id,
+    pageId: row.page_id,
+    x: row.x,
+    y: row.y,
+    width: row.width,
+    height: row.height,
+    orderIndex: row.order_index || 0,
+    createdAt: row.created_at,
+  };
+}
+
 async function reorderAnnotationRegions(annotationId, regionIds) {
   for (let i = 0; i < regionIds.length; i++) {
     await run(
@@ -1960,6 +2002,7 @@ module.exports = {
   getRegionsByPage,
   getRegionsByAnnotation,
   deleteAnnotationRegion,
+  updateAnnotationRegion,
   reorderAnnotationRegions,
   getHeadingsByArticle,
   getPageIdsByArticle,

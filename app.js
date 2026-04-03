@@ -1,5 +1,6 @@
 const NS_SVG = "http://www.w3.org/2000/svg";
 const API_BASE = "/api";
+const MIN_REGION_SIZE = 8;
 
 const state = {
   currentUser: null,
@@ -44,6 +45,11 @@ const state = {
   presenceUsers: [],
   addingRegionForAnnotation: null, // annotationId when in add-region draw mode
   selectedRegionId: null, // 选中的区域ID，仅显示该区域
+  regionResize: null,
+  glyphPicker: {
+    annotationId: null,
+    query: "",
+  },
 };
 
 // ── 图片预加载缓存 ──
@@ -117,6 +123,10 @@ const refs = {
   // User management dialog
   userManageDialog: document.getElementById("user-manage-dialog"),
   btnCloseUserDialog: document.getElementById("btn-close-user-dialog"),
+  glyphPickerDialog: document.getElementById("glyph-picker-dialog"),
+  btnCloseGlyphPicker: document.getElementById("btn-close-glyph-picker"),
+  glyphPickerSearch: document.getElementById("glyph-picker-search"),
+  glyphPickerList: document.getElementById("glyph-picker-list"),
   newUserUsername: document.getElementById("new-user-username"),
   newUserPassword: document.getElementById("new-user-password"),
   newUserDisplayName: document.getElementById("new-user-display-name"),
@@ -981,6 +991,112 @@ function getPointerPoint(evt) {
   };
 }
 
+function getRegionFromAnnotation(annotationId, regionId) {
+  const ann = getAnnotationById(annotationId);
+  if (!ann || !Array.isArray(ann.regions)) {
+    return null;
+  }
+  return ann.regions.find((region) => region.id === regionId) || null;
+}
+
+function syncRegionAcrossPages(annotationId, regionId, rect) {
+  state.pages.forEach((page) => {
+    page.annotations
+      .filter((ann) => ann.id === annotationId && Array.isArray(ann.regions))
+      .forEach((ann) => {
+        const region = ann.regions.find((item) => item.id === regionId);
+        if (!region) {
+          return;
+        }
+        region.x = rect.x;
+        region.y = rect.y;
+        region.width = rect.width;
+        region.height = rect.height;
+      });
+  });
+}
+
+function startRegionResize(evt, annotationId, regionId, handle) {
+  if (!isEditor()) {
+    return;
+  }
+  const page = getCurrentPage();
+  if (!page) {
+    return;
+  }
+  const region = getRegionFromAnnotation(annotationId, regionId);
+  if (!region) {
+    return;
+  }
+
+  const pt = getPointerPoint(evt);
+  state.regionResize = {
+    annotationId,
+    regionId,
+    handle,
+    startX: pt.x,
+    startY: pt.y,
+    origin: {
+      x: Number(region.x),
+      y: Number(region.y),
+      width: Number(region.width),
+      height: Number(region.height),
+    },
+  };
+
+  state.selectedAnnotationId = annotationId;
+  state.selectedRegionId = regionId;
+  state.selectedHeadingId = null;
+  evt.preventDefault();
+  evt.stopPropagation();
+}
+
+function updateRegionResize(evt) {
+  if (!state.regionResize) {
+    return;
+  }
+  const page = getCurrentPage();
+  if (!page) {
+    return;
+  }
+  const pt = getPointerPoint(evt);
+  const { startX, startY, origin, handle, annotationId, regionId } =
+    state.regionResize;
+  const dx = pt.x - startX;
+  const dy = pt.y - startY;
+
+  let left = origin.x;
+  let top = origin.y;
+  let right = origin.x + origin.width;
+  let bottom = origin.y + origin.height;
+
+  if (handle.includes("w")) {
+    const maxLeft = right - MIN_REGION_SIZE;
+    left = clampValue(origin.x + dx, 0, maxLeft);
+  }
+  if (handle.includes("e")) {
+    const minRight = left + MIN_REGION_SIZE;
+    right = clampValue(origin.x + origin.width + dx, minRight, page.width);
+  }
+  if (handle.includes("n")) {
+    const maxTop = bottom - MIN_REGION_SIZE;
+    top = clampValue(origin.y + dy, 0, maxTop);
+  }
+  if (handle.includes("s")) {
+    const minBottom = top + MIN_REGION_SIZE;
+    bottom = clampValue(origin.y + origin.height + dy, minBottom, page.height);
+  }
+
+  const nextRect = {
+    x: Math.round(left),
+    y: Math.round(top),
+    width: Math.round(right - left),
+    height: Math.round(bottom - top),
+  };
+
+  syncRegionAcrossPages(annotationId, regionId, nextRect);
+}
+
 function beginDraw(evt) {
   if (shouldStartPanning(evt)) {
     beginCanvasPan(evt);
@@ -1021,6 +1137,12 @@ function moveDraw(evt) {
     return;
   }
 
+  if (state.regionResize) {
+    updateRegionResize(evt);
+    drawOverlay();
+    return;
+  }
+
   if (!state.drawing) {
     return;
   }
@@ -1033,6 +1155,57 @@ function moveDraw(evt) {
 async function finishDraw() {
   if (state.canvasView.isPanning) {
     endCanvasPan();
+    return;
+  }
+
+  if (state.regionResize) {
+    const resizeState = state.regionResize;
+    state.regionResize = null;
+    const region = getRegionFromAnnotation(
+      resizeState.annotationId,
+      resizeState.regionId,
+    );
+    if (!region) {
+      drawOverlay();
+      return;
+    }
+
+    const nextRect = {
+      x: Math.round(Number(region.x)),
+      y: Math.round(Number(region.y)),
+      width: Math.round(Number(region.width)),
+      height: Math.round(Number(region.height)),
+    };
+    const origin = resizeState.origin;
+    const changed =
+      nextRect.x !== Math.round(origin.x) ||
+      nextRect.y !== Math.round(origin.y) ||
+      nextRect.width !== Math.round(origin.width) ||
+      nextRect.height !== Math.round(origin.height);
+
+    if (!changed) {
+      drawOverlay();
+      return;
+    }
+
+    try {
+      await apiRequest(
+        `/annotation-regions/${encodeURIComponent(resizeState.regionId)}`,
+        {
+          method: "PUT",
+          body: nextRect,
+        },
+      );
+      renderAll();
+    } catch (error) {
+      syncRegionAcrossPages(
+        resizeState.annotationId,
+        resizeState.regionId,
+        resizeState.origin,
+      );
+      drawOverlay();
+      alert("调整区域失败：" + error.message);
+    }
     return;
   }
 
@@ -2131,6 +2304,7 @@ function renderAnnotationForm() {
   // 根据标注级别移除不需要的字段
   const hideFields = {
     paragraph: [
+      "id",
       "charCode",
       "glyphRef",
       "x",
@@ -2141,6 +2315,7 @@ function renderAnnotationForm() {
       "color",
     ],
     sentence: [
+      "id",
       "charCode",
       "glyphRef",
       "x",
@@ -2150,8 +2325,9 @@ function renderAnnotationForm() {
       "style",
       "color",
     ],
-    char: ["x", "y", "width", "height", "style", "color"],
+    char: ["id", "charCode", "x", "y", "width", "height", "style", "color"],
     image: [
+      "id",
       "charCode",
       "glyphRef",
       "originalText",
@@ -2183,7 +2359,7 @@ function renderAnnotationForm() {
   fieldElements.forEach((el) => {
     const field = el.dataset.field;
     if (field === "glyphRef") {
-      fillGlyphRefSelect(el, ann.glyphRef);
+      fillGlyphRefControl(fragment, el, ann);
       return;
     }
     el.value = ann[field] ?? "";
@@ -2219,6 +2395,13 @@ function renderAnnotationForm() {
     fragment.querySelectorAll("input:not([disabled]), select").forEach((el) => {
       el.disabled = true;
     });
+    fragment
+      .querySelectorAll(
+        'button[data-action="open-glyph-picker"], button[data-action="clear-glyph-ref"]',
+      )
+      .forEach((el) => {
+        el.disabled = true;
+      });
   }
 
   refs.annotationForm.appendChild(fragment);
@@ -2432,34 +2615,131 @@ async function reorderRegions(
   }
 }
 
-function fillGlyphRefSelect(selectEl, selectedId) {
-  selectEl.innerHTML = "";
-  const empty = document.createElement("option");
-  empty.value = "";
-  empty.textContent = "不关联";
-  selectEl.appendChild(empty);
+function getGlyphById(glyphId) {
+  if (!glyphId) return null;
+  return state.glyphs.find((item) => item.id === glyphId) || null;
+}
 
-  state.glyphs.forEach((glyph) => {
-    const opt = document.createElement("option");
-    opt.value = glyph.id;
-    opt.textContent = `${glyph.code} - ${glyph.name || "未命名"}`;
-    if (glyph.id === selectedId) {
-      opt.selected = true;
-    }
-    selectEl.appendChild(opt);
+function glyphDisplayText(glyph) {
+  if (!glyph) return "未关联造字";
+  return `${glyph.code} - ${glyph.name || "未命名"}`;
+}
+
+function fillGlyphRefControl(fragment, glyphRefEl, ann) {
+  glyphRefEl.value = ann.glyphRef || "";
+  const displayEl = fragment.querySelector('[data-role="glyph-display"]');
+  const openBtn = fragment.querySelector('[data-action="open-glyph-picker"]');
+  const clearBtn = fragment.querySelector('[data-action="clear-glyph-ref"]');
+  const linkedGlyph = getGlyphById(ann.glyphRef);
+
+  if (displayEl) {
+    displayEl.value = glyphDisplayText(linkedGlyph);
+  }
+
+  if (openBtn) {
+    openBtn.disabled = !isEditor();
+    openBtn.addEventListener("click", () => {
+      openGlyphPickerForAnnotation(ann.id);
+    });
+  }
+
+  if (clearBtn) {
+    clearBtn.disabled = !isEditor() || !ann.glyphRef;
+    clearBtn.addEventListener("click", () => {
+      clearGlyphRefForAnnotation(ann.id);
+    });
+  }
+}
+
+function openGlyphPickerForAnnotation(annotationId) {
+  if (!annotationId || !refs.glyphPickerDialog) return;
+  const ann = getAnnotationById(annotationId);
+  if (!ann) return;
+  state.glyphPicker.annotationId = annotationId;
+  state.glyphPicker.query = "";
+  refs.glyphPickerDialog.hidden = false;
+  if (refs.glyphPickerSearch) {
+    refs.glyphPickerSearch.value = "";
+  }
+  renderGlyphPickerList();
+  if (refs.glyphPickerSearch) {
+    refs.glyphPickerSearch.focus();
+  }
+}
+
+function hideGlyphPicker() {
+  if (refs.glyphPickerDialog) {
+    refs.glyphPickerDialog.hidden = true;
+  }
+  state.glyphPicker.annotationId = null;
+  state.glyphPicker.query = "";
+}
+
+function clearGlyphRefForAnnotation(annotationId) {
+  const ann = getAnnotationById(annotationId);
+  if (!ann) return;
+  ann.glyphRef = "";
+  ann.charCode = "";
+  renderAnnotationForm();
+  drawOverlay();
+  scheduleAnnotationPersist(ann);
+}
+
+function applyGlyphToCurrentAnnotation(glyphId) {
+  const ann = getAnnotationById(
+    state.glyphPicker.annotationId || state.selectedAnnotationId,
+  );
+  if (!ann) return;
+  ann.glyphRef = glyphId || "";
+  const glyph = getGlyphById(glyphId);
+  ann.charCode = glyph ? glyph.code : "";
+  hideGlyphPicker();
+  renderAnnotationForm();
+  drawOverlay();
+  scheduleAnnotationPersist(ann);
+}
+
+function renderGlyphPickerList() {
+  if (!refs.glyphPickerList) return;
+
+  const query = String(state.glyphPicker.query || "")
+    .trim()
+    .toLowerCase();
+  const filtered = state.glyphs.filter((glyph) => {
+    if (!query) return true;
+    const haystack =
+      `${glyph.code || ""} ${glyph.name || ""} ${glyph.note || ""}`.toLowerCase();
+    return haystack.includes(query);
   });
 
-  selectEl.addEventListener("input", () => {
-    const ann = getSelectedAnnotation();
-    if (!ann) {
-      return;
-    }
-    ann.glyphRef = selectEl.value;
-    const glyph = state.glyphs.find((item) => item.id === ann.glyphRef);
-    ann.charCode = glyph ? glyph.code : "";
-    renderAnnotationForm();
-    drawOverlay();
-    scheduleAnnotationPersist(ann);
+  refs.glyphPickerList.innerHTML = "";
+  if (!filtered.length) {
+    const tip = document.createElement("p");
+    tip.className = "empty-tip";
+    tip.textContent = state.glyphs.length
+      ? "没有匹配结果，请调整搜索词。"
+      : "造字库为空，请先在造字库页添加造字。";
+    refs.glyphPickerList.appendChild(tip);
+    return;
+  }
+
+  filtered.forEach((glyph) => {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "glyph-picker-item";
+    const imagePart = glyph.imgDataUrl
+      ? `<img src="${glyph.imgDataUrl}" alt="${escapeHtml(glyph.code)}">`
+      : '<div class="no-image">无图</div>';
+    item.innerHTML = `${imagePart}
+      <div class="glyph-picker-item-text">
+        <strong>${escapeHtml(glyph.code || "")}</strong>
+        <span>${escapeHtml(glyph.name || "未命名")}</span>
+        <small>${escapeHtml(glyph.note || "")}</small>
+      </div>`;
+    item.addEventListener("click", () => {
+      applyGlyphToCurrentAnnotation(glyph.id);
+    });
+    refs.glyphPickerList.appendChild(item);
   });
 }
 
@@ -2497,6 +2777,43 @@ function buildShapeElement(ann, page, selected) {
   return rect;
 }
 
+function buildResizeHandles(annotationId, region, page) {
+  const scaleX = refs.annotationSvg.clientWidth / page.width;
+  const scaleY = refs.annotationSvg.clientHeight / page.height;
+  const x = region.x * scaleX;
+  const y = region.y * scaleY;
+  const width = region.width * scaleX;
+  const height = region.height * scaleY;
+
+  const handles = [
+    { key: "nw", x, y, cursor: "nwse-resize" },
+    { key: "n", x: x + width / 2, y, cursor: "ns-resize" },
+    { key: "ne", x: x + width, y, cursor: "nesw-resize" },
+    { key: "e", x: x + width, y: y + height / 2, cursor: "ew-resize" },
+    { key: "se", x: x + width, y: y + height, cursor: "nwse-resize" },
+    { key: "s", x: x + width / 2, y: y + height, cursor: "ns-resize" },
+    { key: "sw", x, y: y + height, cursor: "nesw-resize" },
+    { key: "w", x, y: y + height / 2, cursor: "ew-resize" },
+  ];
+
+  const fragment = document.createDocumentFragment();
+  handles.forEach((item) => {
+    const node = document.createElementNS(NS_SVG, "circle");
+    node.setAttribute("cx", String(item.x));
+    node.setAttribute("cy", String(item.y));
+    node.setAttribute("r", "5");
+    node.setAttribute("fill", "#fff");
+    node.setAttribute("stroke", "#d5533f");
+    node.setAttribute("stroke-width", "2");
+    node.style.cursor = item.cursor;
+    node.addEventListener("mousedown", (evt) => {
+      startRegionResize(evt, annotationId, region.id, item.key);
+    });
+    fragment.appendChild(node);
+  });
+  return fragment;
+}
+
 function getVisibleAnnotationIds() {
   const page = getCurrentPage();
   if (!page) return new Set();
@@ -2532,22 +2849,31 @@ function drawOverlay() {
         };
         const shape = buildShapeElement(regionAnn, page, selected);
         shape.dataset.annId = ann.id;
+        shape.dataset.regionId = region.id;
         shape.style.cursor = "pointer";
         shape.addEventListener("mousedown", (evt) => {
           evt.stopPropagation();
         });
         shape.addEventListener("click", (evt) => {
           evt.stopPropagation();
-          if (state.selectedAnnotationId === ann.id) {
-            state.selectedAnnotationId = null;
-          } else {
-            state.selectedAnnotationId = ann.id;
-          }
+          state.selectedAnnotationId = ann.id;
           state.selectedHeadingId = null;
-          state.selectedRegionId = null;
-          renderAll();
+          state.selectedRegionId = region.id;
+          renderAll({ skipFormRebuild: true });
+          renderAnnotationForm();
         });
         refs.annotationSvg.appendChild(shape);
+
+        if (
+          isEditor() &&
+          selected &&
+          state.selectedRegionId === region.id &&
+          !state.addingRegionForAnnotation
+        ) {
+          refs.annotationSvg.appendChild(
+            buildResizeHandles(ann.id, region, page),
+          );
+        }
       });
     });
 
@@ -3484,6 +3810,22 @@ function bindEvents() {
   if (refs.btnCloseUserDialog) {
     refs.btnCloseUserDialog.addEventListener("click", hideUserManageDialog);
   }
+  if (refs.btnCloseGlyphPicker) {
+    refs.btnCloseGlyphPicker.addEventListener("click", hideGlyphPicker);
+  }
+  if (refs.glyphPickerDialog) {
+    refs.glyphPickerDialog.addEventListener("click", (evt) => {
+      if (evt.target === refs.glyphPickerDialog) {
+        hideGlyphPicker();
+      }
+    });
+  }
+  if (refs.glyphPickerSearch) {
+    refs.glyphPickerSearch.addEventListener("input", () => {
+      state.glyphPicker.query = refs.glyphPickerSearch.value || "";
+      renderGlyphPickerList();
+    });
+  }
   if (refs.btnCreateUser) {
     refs.btnCreateUser.addEventListener("click", () => createNewUser());
   }
@@ -3614,6 +3956,16 @@ function bindEvents() {
     }
     applyCanvasView();
     drawOverlay();
+  });
+
+  window.addEventListener("keydown", (evt) => {
+    if (
+      evt.key === "Escape" &&
+      refs.glyphPickerDialog &&
+      !refs.glyphPickerDialog.hidden
+    ) {
+      hideGlyphPicker();
+    }
   });
 }
 

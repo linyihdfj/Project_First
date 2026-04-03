@@ -13,8 +13,15 @@
         <h1>古籍在线编辑系统</h1>
         <p>多人协同编辑与审校系统</p>
         <div class="login-form">
-          <label>用户名<input id="login-username" placeholder="请输入用户名" /></label>
-          <label>密码<input id="login-password" type="password" placeholder="请输入密码" /></label>
+          <label
+            >用户名<input id="login-username" placeholder="请输入用户名"
+          /></label>
+          <label
+            >密码<input
+              id="login-password"
+              type="password"
+              placeholder="请输入密码"
+          /></label>
           <p id="login-error" class="login-error" hidden></p>
           <button id="btn-login" class="primary">登录</button>
         </div>
@@ -29,7 +36,9 @@
           <div class="article-select-user">
             <span id="select-user-display-name"></span>
             <span id="select-user-role-badge" class="role-badge"></span>
-            <button id="btn-select-user-manage" class="secondary" hidden>用户管理</button>
+            <button id="btn-select-user-manage" class="secondary" hidden>
+              用户管理
+            </button>
             <button id="btn-select-logout">退出</button>
           </div>
         </div>
@@ -37,9 +46,17 @@
         <div id="article-create-section" class="article-create-section" hidden>
           <h3>创建新文章</h3>
           <div class="form-grid">
-            <label>标题 *<input id="new-article-title" placeholder="如：周易注" /></label>
-            <label>子标题<input id="new-article-subtitle" placeholder="选填，如：卷一" /></label>
-            <label>作者<input id="new-article-author" placeholder="选填，如：王弼" /></label>
+            <label
+              >标题 *<input id="new-article-title" placeholder="如：周易注"
+            /></label>
+            <label
+              >子标题<input
+                id="new-article-subtitle"
+                placeholder="选填，如：卷一"
+            /></label>
+            <label
+              >作者<input id="new-article-author" placeholder="选填，如：王弼"
+            /></label>
           </div>
           <button id="btn-create-article" class="primary">创建文章</button>
         </div>
@@ -56,7 +73,12 @@
         <button id="btn-back-to-select" hidden>↩ 返回选择</button>
         <button id="btn-export-glyph">📤 导出造字映射</button>
         <label class="file-btn" for="glyph-import-file">📥 导入造字映射</label>
-        <input id="glyph-import-file" type="file" accept=".json,application/json" style="display:none" />
+        <input
+          id="glyph-import-file"
+          type="file"
+          accept=".json,application/json"
+          style="display: none"
+        />
         <span id="user-bar" class="user-bar" hidden>
           <span id="user-display-name"></span>
           <span id="user-role-badge" class="role-badge"></span>
@@ -76,9 +98,7 @@
       <section id="tab-editor" class="tab-pane active">
         <div class="toolbar card">
           <div class="toolbar-group" id="toolbar-edit-controls">
-            <label class="file-btn" for="image-upload"
-              >📥 导入古籍</label
-            >
+            <label class="file-btn" for="image-upload">📥 导入古籍</label>
             <input
               id="image-upload"
               type="file"
@@ -105,7 +125,13 @@
 
           <div class="toolbar-group" id="toolbar-ai-controls">
             <label>🤖 AI 识别</label>
-            <button id="btn-ai-ocr-region" disabled title="识别选中标注区域的文字">🔍 识别文字</button>
+            <button
+              id="btn-ai-ocr-region"
+              disabled
+              title="识别选中标注区域的文字"
+            >
+              🔍 识别文字
+            </button>
           </div>
         </div>
 
@@ -117,10 +143,15 @@
               <div class="form-grid index-form-grid">
                 <label>
                   标题文本
-                  <input id="heading-title-input" placeholder="如：上卷 天文篇" />
+                  <input
+                    id="heading-title-input"
+                    placeholder="如：上卷 天文篇"
+                  />
                 </label>
               </div>
-              <button id="btn-add-heading" class="primary" type="button">添加标题</button>
+              <button id="btn-add-heading" class="primary" type="button">
+                添加标题
+              </button>
               <p id="heading-add-tip" class="index-tip">
                 可先选中一个标注，标题将绑定该位置并支持精准跳转。
               </p>
@@ -128,7 +159,9 @@
 
             <section class="index-section">
               <h3>📋 标题索引</h3>
-              <div id="heading-drop-root-zone" class="heading-drop-root-zone">拖到此处设为顶级标题</div>
+              <div id="heading-drop-root-zone" class="heading-drop-root-zone">
+                拖到此处设为顶级标题
+              </div>
               <ul id="heading-index-list" class="index-list"></ul>
             </section>
           </aside>
@@ -139,7 +172,9 @@
               <div id="presence-bar" class="presence-bar"></div>
               <div class="canvas-controls">
                 <button id="btn-zoom-out" type="button" title="缩小">-</button>
-                <button id="btn-zoom-reset" type="button" title="重置缩放">100%</button>
+                <button id="btn-zoom-reset" type="button" title="重置缩放">
+                  100%
+                </button>
                 <button id="btn-zoom-in" type="button" title="放大">+</button>
                 <span id="canvas-meta">未加载页面</span>
               </div>
@@ -151,25 +186,33 @@
               </div>
             </div>
             <div class="hint">
-              鼠标滚轮缩放；按住 Shift 拖拽可平移画布；在页面上拖拽即可创建标注。
+              鼠标滚轮缩放；按住 Shift
+              拖拽可平移画布；在页面上拖拽即可创建标注。
             </div>
           </section>
 
-            <aside class="properties card">
-              <h2>🖌️ 当前标注属性</h2>
-              <div id="annotation-form" class="form-grid">
-                <p class="empty-tip">当前未选中标注。</p>
-              </div>
+          <aside class="properties card">
+            <h2>🖌️ 当前标注属性</h2>
+            <div id="annotation-form" class="form-grid">
+              <p class="empty-tip">当前未选中标注。</p>
+            </div>
 
-              <!-- 审批状态区域 -->
-              <div id="review-status-section" class="review-status-section" hidden>
-                <h2>✅ 审批状态</h2>
-                <div id="review-status-display" class="review-status-display"></div>
-              </div>
+            <!-- 审批状态区域 -->
+            <div
+              id="review-status-section"
+              class="review-status-section"
+              hidden
+            >
+              <h2>✅ 审批状态</h2>
+              <div
+                id="review-status-display"
+                class="review-status-display"
+              ></div>
+            </div>
 
-              <h2>📝 本页标注列表</h2>
-              <ul id="annotation-list" class="annotation-list"></ul>
-            </aside>
+            <h2>📝 本页标注列表</h2>
+            <ul id="annotation-list" class="annotation-list"></ul>
+          </aside>
         </div>
       </section>
 
@@ -177,7 +220,9 @@
         <div class="article-info-page card">
           <h2>📜 文章信息</h2>
           <div class="form-grid meta-grid" id="meta-form">
-            <label>文章ID<input id="meta-article-id" value="article-1" /></label>
+            <label
+              >文章ID<input id="meta-article-id" value="article-1"
+            /></label>
             <label>标题原文<input id="meta-title" value="周易注" /></label>
             <label>子标题<input id="meta-subtitle" value="卷一" /></label>
             <label>作者<input id="meta-author" value="王弼" /></label>
@@ -240,7 +285,6 @@
           </section>
         </div>
       </section>
-
     </main>
 
     <!-- 文章权限管理弹窗 -->
@@ -248,7 +292,9 @@
       <div class="dialog-box">
         <div class="dialog-header">
           <h2>权限管理 - <span id="access-article-title"></span></h2>
-          <button id="btn-close-access-dialog" class="dialog-close">&times;</button>
+          <button id="btn-close-access-dialog" class="dialog-close">
+            &times;
+          </button>
         </div>
         <div class="dialog-body">
           <div class="access-add-form">
@@ -266,16 +312,28 @@
       <div class="dialog-box">
         <div class="dialog-header">
           <h2>用户管理</h2>
-          <button id="btn-close-user-dialog" class="dialog-close">&times;</button>
+          <button id="btn-close-user-dialog" class="dialog-close">
+            &times;
+          </button>
         </div>
         <div class="dialog-body">
           <div class="user-create-form">
             <h3>创建新用户</h3>
             <div class="form-grid">
-              <label>用户名<input id="new-user-username" placeholder="用户名" /></label>
-              <label>密码<input id="new-user-password" type="password" placeholder="密码" /></label>
-              <label>显示名<input id="new-user-display-name" placeholder="显示名" /></label>
-              <label>角色
+              <label
+                >用户名<input id="new-user-username" placeholder="用户名"
+              /></label>
+              <label
+                >密码<input
+                  id="new-user-password"
+                  type="password"
+                  placeholder="密码"
+              /></label>
+              <label
+                >显示名<input id="new-user-display-name" placeholder="显示名"
+              /></label>
+              <label
+                >角色
                 <select id="new-user-role">
                   <option value="editor">编辑者</option>
                   <option value="reviewer">审校者</option>
@@ -287,6 +345,30 @@
           </div>
           <h3>用户列表</h3>
           <div id="user-list" class="user-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 关联造字弹窗 -->
+    <div
+      id="glyph-picker-dialog"
+      class="dialog-overlay glyph-picker-dialog"
+      hidden
+    >
+      <div class="dialog-box">
+        <div class="dialog-header">
+          <h2>选择造字</h2>
+          <button id="btn-close-glyph-picker" class="dialog-close">
+            &times;
+          </button>
+        </div>
+        <div class="dialog-body">
+          <input
+            id="glyph-picker-search"
+            class="glyph-picker-search"
+            placeholder="按编码/字样说明/备注搜索"
+          />
+          <div id="glyph-picker-list" class="glyph-picker-list"></div>
         </div>
       </div>
     </div>
@@ -318,22 +400,33 @@
         >简体<input data-field="simplifiedText" placeholder="简体转写"
       /></label>
       <label>注释<input data-field="note" placeholder="注释内容" /></label>
-      <label
-        >注释类型
-        <select data-field="noteType">
-          <option value="1">文中注释</option>
-          <option value="2">角注</option>
-          <option value="3">边注</option>
-          <option value="4">批注</option>
-        </select>
-      </label>
+      <div class="annotation-inline-row">
+        <label
+          >注释类型
+          <select data-field="noteType">
+            <option value="1">文中注释</option>
+            <option value="2">角注</option>
+            <option value="3">边注</option>
+            <option value="4">批注</option>
+          </select>
+        </label>
+        <label
+          >关联造字
+          <input data-field="glyphRef" type="hidden" />
+          <input data-role="glyph-display" readonly placeholder="未关联造字" />
+          <div class="glyph-picker-inline">
+            <button type="button" data-action="open-glyph-picker">
+              选择造字
+            </button>
+            <button type="button" data-action="clear-glyph-ref">
+              清空关联
+            </button>
+          </div>
+        </label>
+      </div>
       <label
         >Unicode 编码<input data-field="charCode" placeholder="U+4E00"
       /></label>
-      <label
-        >关联造字
-        <select data-field="glyphRef"></select>
-      </label>
       <label>X<input data-field="x" disabled /></label>
       <label>Y<input data-field="y" disabled /></label>
       <label>宽<input data-field="width" disabled /></label>
@@ -344,6 +437,6 @@
     </template>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script src="app.js?v=20260321-1"></script>
+    <script src="app.js?v=20260403-1"></script>
   </body>
 </html>
