@@ -15,7 +15,8 @@
       "Bash(find ./server -type f -name *.js)",
       "Bash(find /c/Users/13702/Desktop/project_first -maxdepth 2 -name *.md -o -name *.txt -o -name *.docx)",
       "Bash(wc:*)",
-      "Bash(grep -E \"\\\\.\\(js|html|json\\)$|^d\")"
+      "Bash(grep -E \"\\\\.\\(js|html|json\\)$|^d\")",
+      "Bash(echo \"exit: $?\")"
     ]
   }
 }

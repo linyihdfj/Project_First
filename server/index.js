@@ -971,7 +971,10 @@ app.post(
 
 // ── 静态文件 ──
 
-app.use("/uploads", express.static(path.join(PROJECT_ROOT, "uploads")));
+app.use("/uploads", express.static(path.join(PROJECT_ROOT, "uploads"), {
+  maxAge: "7d",
+  immutable: true,
+}));
 app.use(express.static(PROJECT_ROOT));
 
 app.use((req, res, next) => {
@@ -1085,8 +1088,8 @@ io.on("connection", async (socket) => {
 async function bootstrap() {
   await initDatabase();
   await ensureArticle("article-1");
-  httpServer.listen(PORT, "localhost", () => {
-    console.log(`SDUDOC server listening on http://localhost:${PORT}`);
+  httpServer.listen(PORT, "0.0.0.0", () => {
+    console.log(`SDUDOC server listening on http://0.0.0.0:${PORT}`);
   });
 }
 

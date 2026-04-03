@@ -47,20 +47,42 @@ const state = {
 };
 
 // ── 图片预加载缓存 ──
-const preloadedUrls = new Set();
+// 使用 Blob URL 在内存中缓存图片，切换页面时无需重新请求网络
+const imageCache = new Map(); // src -> blobUrl
+const imageCacheLoading = new Map(); // src -> Promise<blobUrl>
 
 function preloadImage(src) {
-  if (!src || preloadedUrls.has(src)) return;
-  preloadedUrls.add(src);
-  const img = new Image();
-  img.src = src;
+  if (!src || imageCache.has(src) || imageCacheLoading.has(src)) return;
+  const promise = fetch(src)
+    .then((res) => res.blob())
+    .then((blob) => {
+      const blobUrl = URL.createObjectURL(blob);
+      imageCache.set(src, blobUrl);
+      imageCacheLoading.delete(src);
+      return blobUrl;
+    })
+    .catch(() => {
+      imageCacheLoading.delete(src);
+      return null;
+    });
+  imageCacheLoading.set(src, promise);
+}
+
+function getCachedImageUrl(src) {
+  return imageCache.get(src) || src;
+}
+
+async function waitForImage(src) {
+  if (imageCache.has(src)) return imageCache.get(src);
+  if (imageCacheLoading.has(src)) return await imageCacheLoading.get(src);
+  return src;
 }
 
 function preloadAdjacentPages(currentIndex, pages, range = 3) {
   const start = Math.max(0, currentIndex - range);
   const end = Math.min(pages.length - 1, currentIndex + range);
   for (let i = start; i <= end; i++) {
-    if (i !== currentIndex && pages[i] && pages[i].src) {
+    if (pages[i] && pages[i].src) {
       preloadImage(pages[i].src);
     }
   }
@@ -1404,8 +1426,8 @@ async function reparentAnnotation(childId, newParentId) {
   const page = getCurrentPage();
   if (!page) return;
 
-  const child = page.annotations.find((a) => a.id === childId);
-  const parent = page.annotations.find((a) => a.id === newParentId);
+  const child = getAnnotationById(childId);
+  const parent = getAnnotationById(newParentId);
   if (!child || !parent) return;
 
   // Prevent circular: can't drop parent onto its own child
@@ -1413,26 +1435,61 @@ async function reparentAnnotation(childId, newParentId) {
   // Can't drop onto itself
   if (childId === newParentId) return;
 
-  // Count existing children of new parent to set orderIndex
-  const siblings = page.annotations.filter((a) => a.parentId === newParentId);
+  // Count existing children of new parent globally (dedupe by annotation id)
+  const siblingIds = new Set();
+  for (const p of state.pages) {
+    for (const a of p.annotations) {
+      if (a.parentId === newParentId && a.id !== childId) {
+        siblingIds.add(a.id);
+      }
+    }
+  }
 
   const oldParentId = child.parentId;
+  const nextOrderIndex = siblingIds.size;
+
+  // 同步 child 在所有页面副本上的 parent/order，避免后续重算读到旧副本
+  for (const p of state.pages) {
+    for (const a of p.annotations) {
+      if (a.id === childId) {
+        a.parentId = newParentId;
+        a.orderIndex = nextOrderIndex;
+      }
+    }
+  }
   child.parentId = newParentId;
-  child.orderIndex = siblings.length;
+  child.orderIndex = nextOrderIndex;
 
   try {
     await apiRequest(`/annotations/${encodeURIComponent(childId)}`, {
       method: "PUT",
-      body: { parentId: newParentId, orderIndex: child.orderIndex },
+      body: { parentId: newParentId, orderIndex: nextOrderIndex },
     });
-    // 如果新父级是段，更新其文本
-    if (parent.level === "paragraph") {
-      recalcParentTextFromChildren(newParentId);
-    }
-    // 如果旧父级是段，也更新其文本
+    // 新父级若是可聚合层级（句/段），更新其文本
+    recalcParentTextFromChildren(newParentId);
+    // 旧父级若是可聚合层级（句/段），也更新其文本
     if (oldParentId && oldParentId !== newParentId) {
       recalcParentTextFromChildren(oldParentId);
     }
+
+    // flush recalc 产生的 pending persist，保证 renderAll 前父文本已落库
+    const flushIds = new Set([newParentId]);
+    if (oldParentId) flushIds.add(oldParentId);
+    for (const fid of flushIds) {
+      if (!fid) continue;
+      if (annotationSaveTimers.has(fid)) {
+        clearTimeout(annotationSaveTimers.get(fid));
+        annotationSaveTimers.delete(fid);
+      }
+      const flushAnn = getAnnotationById(fid);
+      if (flushAnn) {
+        await apiRequest(`/annotations/${encodeURIComponent(fid)}`, {
+          method: "PUT",
+          body: flushAnn,
+        });
+      }
+    }
+
     renderAll();
   } catch (error) {
     alert("设置父子关系失败：" + error.message);
@@ -1511,30 +1568,67 @@ async function reorderAnnotation(draggedId, targetId, position) {
 
 function recalcParentTextFromChildren(parentId) {
   if (!parentId) return;
-  // 在所有页面中查找父标注
-  let parent = null;
-  for (const p of state.pages) {
-    parent = p.annotations.find((a) => a.id === parentId);
-    if (parent) break;
-  }
-  if (!parent || (parent.level !== "paragraph" && parent.level !== "sentence"))
-    return;
+  const currentPage = getCurrentPage();
+  const currentPageId = currentPage ? currentPage.id : null;
 
-  // 从所有页面收集子标注（按 ID 去重，同一标注可能出现在多个页面）
-  const childrenMap = new Map();
+  // 收集父标注在各页的副本，并优先使用当前页副本作为基准
+  const parentCopies = [];
   for (const p of state.pages) {
     for (const a of p.annotations) {
-      if (a.parentId === parentId && !childrenMap.has(a.id)) {
-        childrenMap.set(a.id, a);
+      if (a.id === parentId) {
+        parentCopies.push({ pageId: p.id, ann: a });
       }
     }
   }
-  const children = [...childrenMap.values()];
+  if (!parentCopies.length) return;
+
+  const parentEntry =
+    parentCopies.find((item) => item.pageId === currentPageId) ||
+    parentCopies[0];
+  const parent = parentEntry.ann;
+  if (parent.level !== "paragraph" && parent.level !== "sentence") return;
+
+  // 从所有页面收集子标注（按 ID 去重）；同 ID 有多个副本时优先当前页，再优先文本更完整的副本
+  const childrenMap = new Map();
+  function scoreTextCompleteness(ann) {
+    return (
+      String(ann.originalText || "").length +
+      String(ann.simplifiedText || "").length
+    );
+  }
+  for (const p of state.pages) {
+    for (const a of p.annotations) {
+      if (a.parentId !== parentId) continue;
+      const existing = childrenMap.get(a.id);
+      if (!existing) {
+        childrenMap.set(a.id, { pageId: p.id, ann: a });
+        continue;
+      }
+      const existingIsCurrent = existing.pageId === currentPageId;
+      const candidateIsCurrent = p.id === currentPageId;
+      const existingScore = scoreTextCompleteness(existing.ann);
+      const candidateScore = scoreTextCompleteness(a);
+      if (
+        (!existingIsCurrent && candidateIsCurrent) ||
+        (existingIsCurrent === candidateIsCurrent &&
+          candidateScore > existingScore)
+      ) {
+        childrenMap.set(a.id, { pageId: p.id, ann: a });
+      }
+    }
+  }
+  const children = [...childrenMap.values()].map((item) => item.ann);
   children.sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
 
-  // 先清空再拼接，确保删除的子标注不残留
-  parent.originalText = children.map((c) => c.originalText || "").join("");
-  parent.simplifiedText = children.map((c) => c.simplifiedText || "").join("");
+  // 先清空再拼接，确保删除的子标注不残留；并同步到父标注的所有副本
+  const nextOriginalText = children.map((c) => c.originalText || "").join("");
+  const nextSimplifiedText = children
+    .map((c) => c.simplifiedText || "")
+    .join("");
+  for (const item of parentCopies) {
+    item.ann.originalText = nextOriginalText;
+    item.ann.simplifiedText = nextSimplifiedText;
+  }
   scheduleAnnotationPersist(parent);
   // 递归向上传播（句→段）
   if (parent.parentId) {
@@ -2499,7 +2593,16 @@ function renderPage() {
   }
 
   refs.pageImage.style.display = "block";
-  refs.pageImage.src = page.src;
+  // 优先使用内存缓存的 Blob URL，秒切页面
+  refs.pageImage.src = getCachedImageUrl(page.src);
+  // 如果还没缓存完成，等待加载后再替换
+  if (!imageCache.has(page.src)) {
+    waitForImage(page.src).then((url) => {
+      if (url && getCurrentPage() === page) {
+        refs.pageImage.src = url;
+      }
+    });
+  }
   preloadAdjacentPages(state.currentPageIndex, state.pages);
   refs.pageIndicator.textContent = `页码: ${state.currentPageIndex + 1} / ${state.pages.length}`;
   refs.canvasMeta.textContent = `${page.name} (${page.width}x${page.height})`;
