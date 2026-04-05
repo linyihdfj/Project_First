@@ -71,14 +71,6 @@
       </div>
       <div class="top-actions">
         <button id="btn-back-to-select" hidden>↩ 返回选择</button>
-        <button id="btn-export-glyph">📤 导出造字映射</button>
-        <label class="file-btn" for="glyph-import-file">📥 导入造字映射</label>
-        <input
-          id="glyph-import-file"
-          type="file"
-          accept=".json,application/json"
-          style="display: none"
-        />
         <span id="user-bar" class="user-bar" hidden>
           <span id="user-display-name"></span>
           <span id="user-role-badge" class="role-badge"></span>
@@ -281,6 +273,20 @@
 
           <section class="card">
             <h2>造字映射列表</h2>
+            <div class="glyph-transfer-actions">
+              <button id="btn-export-glyph" type="button">
+                📤 导出造字映射
+              </button>
+              <label class="file-btn" for="glyph-import-file"
+                >📥 导入造字映射</label
+              >
+              <input
+                id="glyph-import-file"
+                type="file"
+                accept=".json,application/json"
+                style="display: none"
+              />
+            </div>
             <div id="glyph-list" class="glyph-list"></div>
           </section>
         </div>

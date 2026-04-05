@@ -1,6 +1,8 @@
 const NS_SVG = "http://www.w3.org/2000/svg";
 const API_BASE = "/api";
 const MIN_REGION_SIZE = 8;
+const BORDER_HIT_TOLERANCE_PX = 8;
+const HANDLE_HIT_RADIUS_PX = 10;
 
 const state = {
   currentUser: null,
@@ -46,6 +48,7 @@ const state = {
   addingRegionForAnnotation: null, // annotationId when in add-region draw mode
   selectedRegionId: null, // 选中的区域ID，仅显示该区域
   regionResize: null,
+  regionMove: null,
   glyphPicker: {
     annotationId: null,
     query: "",
@@ -1051,6 +1054,166 @@ function startRegionResize(evt, annotationId, regionId, handle) {
   evt.stopPropagation();
 }
 
+function startRegionMove(evt, annotationId, regionId) {
+  if (!isEditor()) {
+    return;
+  }
+  const page = getCurrentPage();
+  if (!page) {
+    return;
+  }
+  const region = getRegionFromAnnotation(annotationId, regionId);
+  if (!region) {
+    return;
+  }
+
+  const pt = getPointerPoint(evt);
+  state.regionMove = {
+    annotationId,
+    regionId,
+    startX: pt.x,
+    startY: pt.y,
+    origin: {
+      x: Number(region.x),
+      y: Number(region.y),
+      width: Number(region.width),
+      height: Number(region.height),
+    },
+  };
+
+  state.selectedAnnotationId = annotationId;
+  state.selectedRegionId = regionId;
+  state.selectedHeadingId = null;
+  evt.preventDefault();
+  evt.stopPropagation();
+}
+
+function updateRegionMove(evt) {
+  if (!state.regionMove) {
+    return;
+  }
+  const page = getCurrentPage();
+  if (!page) {
+    return;
+  }
+
+  const pt = getPointerPoint(evt);
+  const { startX, startY, origin, annotationId, regionId } = state.regionMove;
+  const dx = pt.x - startX;
+  const dy = pt.y - startY;
+
+  const nextRect = {
+    x: Math.round(clampValue(origin.x + dx, 0, page.width - origin.width)),
+    y: Math.round(clampValue(origin.y + dy, 0, page.height - origin.height)),
+    width: Math.round(origin.width),
+    height: Math.round(origin.height),
+  };
+
+  syncRegionAcrossPages(annotationId, regionId, nextRect);
+}
+
+function getResizeCursorByHandle(handle) {
+  const cursorMap = {
+    nw: "nwse-resize",
+    n: "ns-resize",
+    ne: "nesw-resize",
+    e: "ew-resize",
+    se: "nwse-resize",
+    s: "ns-resize",
+    sw: "nesw-resize",
+    w: "ew-resize",
+  };
+  return cursorMap[handle] || "default";
+}
+
+function getRegionBorderHit(region, page, evt) {
+  if (!region || !page || !evt || !refs.annotationSvg) {
+    return null;
+  }
+
+  const rect = refs.annotationSvg.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) {
+    return null;
+  }
+
+  const pt = getPointerPoint(evt);
+  const toleranceX = (BORDER_HIT_TOLERANCE_PX / rect.width) * page.width;
+  const toleranceY = (BORDER_HIT_TOLERANCE_PX / rect.height) * page.height;
+  const handleRadiusX = (HANDLE_HIT_RADIUS_PX / rect.width) * page.width;
+  const handleRadiusY = (HANDLE_HIT_RADIUS_PX / rect.height) * page.height;
+
+  const left = Number(region.x);
+  const top = Number(region.y);
+  const right = left + Number(region.width);
+  const bottom = top + Number(region.height);
+
+  const withinBounds =
+    pt.x >= left - toleranceX &&
+    pt.x <= right + toleranceX &&
+    pt.y >= top - toleranceY &&
+    pt.y <= bottom + toleranceY;
+  if (!withinBounds) {
+    return null;
+  }
+
+  const handlePoints = [
+    { key: "nw", x: left, y: top },
+    { key: "n", x: (left + right) / 2, y: top },
+    { key: "ne", x: right, y: top },
+    { key: "e", x: right, y: (top + bottom) / 2 },
+    { key: "se", x: right, y: bottom },
+    { key: "s", x: (left + right) / 2, y: bottom },
+    { key: "sw", x: left, y: bottom },
+    { key: "w", x: left, y: (top + bottom) / 2 },
+  ];
+
+  const handleHit = handlePoints.find(
+    (item) =>
+      Math.abs(pt.x - item.x) <= handleRadiusX &&
+      Math.abs(pt.y - item.y) <= handleRadiusY,
+  );
+  if (handleHit) {
+    return {
+      type: "resize",
+      handle: handleHit.key,
+      cursor: getResizeCursorByHandle(handleHit.key),
+    };
+  }
+
+  const nearLeft =
+    Math.abs(pt.x - left) <= toleranceX &&
+    pt.y >= top - toleranceY &&
+    pt.y <= bottom + toleranceY;
+  const nearRight =
+    Math.abs(pt.x - right) <= toleranceX &&
+    pt.y >= top - toleranceY &&
+    pt.y <= bottom + toleranceY;
+  const nearTop =
+    Math.abs(pt.y - top) <= toleranceY &&
+    pt.x >= left - toleranceX &&
+    pt.x <= right + toleranceX;
+  const nearBottom =
+    Math.abs(pt.y - bottom) <= toleranceY &&
+    pt.x >= left - toleranceX &&
+    pt.x <= right + toleranceX;
+
+  if (nearLeft || nearRight || nearTop || nearBottom) {
+    return {
+      type: "move",
+      cursor: "move",
+    };
+  }
+
+  return null;
+}
+
+function updateSvgCursor(cursor) {
+  if (!refs.annotationSvg) {
+    return;
+  }
+  refs.annotationSvg.style.cursor = cursor || "default";
+}
+
 function updateRegionResize(evt) {
   if (!state.regionResize) {
     return;
@@ -1107,9 +1270,14 @@ function beginDraw(evt) {
   }
 
   // 点击空白区域取消选择
-  if (state.selectedAnnotationId || state.selectedHeadingId) {
+  if (
+    state.selectedAnnotationId ||
+    state.selectedHeadingId ||
+    state.selectedRegionId
+  ) {
     state.selectedAnnotationId = null;
     state.selectedHeadingId = null;
+    state.selectedRegionId = null;
     renderAll();
   }
 
@@ -1143,7 +1311,36 @@ function moveDraw(evt) {
     return;
   }
 
+  if (state.regionMove) {
+    updateRegionMove(evt);
+    drawOverlay();
+    return;
+  }
+
   if (!state.drawing) {
+    const target = evt.target;
+    const annotationId = target?.dataset?.annId;
+    const regionId = target?.dataset?.regionId;
+    const page = getCurrentPage();
+    const isSelectedRegion =
+      annotationId &&
+      regionId &&
+      state.selectedAnnotationId === annotationId &&
+      state.selectedRegionId === regionId;
+
+    if (isEditor() && isSelectedRegion && page) {
+      const region = getRegionFromAnnotation(annotationId, regionId);
+      const hit = getRegionBorderHit(region, page, evt);
+      if (hit) {
+        updateSvgCursor(hit.cursor);
+        return;
+      }
+    }
+    if (annotationId && regionId) {
+      updateSvgCursor("pointer");
+      return;
+    }
+    updateSvgCursor("default");
     return;
   }
   const pt = getPointerPoint(evt);
@@ -1205,6 +1402,57 @@ async function finishDraw() {
       );
       drawOverlay();
       alert("调整区域失败：" + error.message);
+    }
+    return;
+  }
+
+  if (state.regionMove) {
+    const moveState = state.regionMove;
+    state.regionMove = null;
+    const region = getRegionFromAnnotation(
+      moveState.annotationId,
+      moveState.regionId,
+    );
+    if (!region) {
+      drawOverlay();
+      return;
+    }
+
+    const nextRect = {
+      x: Math.round(Number(region.x)),
+      y: Math.round(Number(region.y)),
+      width: Math.round(Number(region.width)),
+      height: Math.round(Number(region.height)),
+    };
+    const origin = moveState.origin;
+    const changed =
+      nextRect.x !== Math.round(origin.x) ||
+      nextRect.y !== Math.round(origin.y) ||
+      nextRect.width !== Math.round(origin.width) ||
+      nextRect.height !== Math.round(origin.height);
+
+    if (!changed) {
+      drawOverlay();
+      return;
+    }
+
+    try {
+      await apiRequest(
+        `/annotation-regions/${encodeURIComponent(moveState.regionId)}`,
+        {
+          method: "PUT",
+          body: nextRect,
+        },
+      );
+      renderAll();
+    } catch (error) {
+      syncRegionAcrossPages(
+        moveState.annotationId,
+        moveState.regionId,
+        moveState.origin,
+      );
+      drawOverlay();
+      alert("移动区域失败：" + error.message);
     }
     return;
   }
@@ -2850,15 +3098,48 @@ function drawOverlay() {
         const shape = buildShapeElement(regionAnn, page, selected);
         shape.dataset.annId = ann.id;
         shape.dataset.regionId = region.id;
-        shape.style.cursor = "pointer";
         shape.addEventListener("mousedown", (evt) => {
+          const isSelectedRegion =
+            state.selectedAnnotationId === ann.id &&
+            state.selectedRegionId === region.id;
+          if (isEditor() && isSelectedRegion) {
+            const hit = getRegionBorderHit(region, page, evt);
+            if (hit?.type === "resize") {
+              startRegionResize(evt, ann.id, region.id, hit.handle);
+              return;
+            }
+            if (hit?.type === "move") {
+              startRegionMove(evt, ann.id, region.id);
+              return;
+            }
+          }
           evt.stopPropagation();
         });
         shape.addEventListener("click", (evt) => {
           evt.stopPropagation();
+          const isCurrentSelection =
+            state.selectedAnnotationId === ann.id &&
+            state.selectedRegionId === region.id;
+          if (isCurrentSelection) {
+            state.selectedRegionId = null;
+            renderAll({ skipFormRebuild: true });
+            renderAnnotationForm();
+            return;
+          }
           state.selectedAnnotationId = ann.id;
           state.selectedHeadingId = null;
           state.selectedRegionId = region.id;
+          renderAll({ skipFormRebuild: true });
+          renderAnnotationForm();
+        });
+        shape.addEventListener("dblclick", (evt) => {
+          evt.stopPropagation();
+          if (state.selectedAnnotationId !== ann.id) {
+            return;
+          }
+          state.selectedAnnotationId = null;
+          state.selectedHeadingId = null;
+          state.selectedRegionId = null;
           renderAll({ skipFormRebuild: true });
           renderAnnotationForm();
         });
@@ -3904,6 +4185,7 @@ function bindEvents() {
     finishDraw().catch((error) => alert(error.message));
   });
   refs.annotationSvg.addEventListener("mouseleave", () => {
+    updateSvgCursor("default");
     if (state.canvasView.isPanning) {
       endCanvasPan();
       return;
@@ -3916,6 +4198,9 @@ function bindEvents() {
   window.addEventListener("mouseup", () => {
     if (state.canvasView.isPanning) {
       endCanvasPan();
+    }
+    if (state.regionResize || state.regionMove || state.drawing) {
+      finishDraw().catch((error) => alert(error.message));
     }
   });
 

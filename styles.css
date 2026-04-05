@@ -604,6 +604,13 @@ textarea {
   margin-top: 10px;
 }
 
+.glyph-transfer-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
 .glyph-capture-tip {
   margin: 8px 0 0;
   color: #7f6348;
