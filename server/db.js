@@ -315,7 +315,6 @@ async function initDatabase() {
     )
   `);
 
-  // 尝试为现有表添加 parent_id 和 order_index 列（如果还不存在）
   try {
     const headingCols = await all("PRAGMA table_info(headings)");
     const hasParentId = headingCols.some((col) => col.name === "parent_id");
@@ -347,7 +346,6 @@ async function initDatabase() {
     )
   `);
 
-  // 用户表
   await run(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
@@ -360,7 +358,6 @@ async function initDatabase() {
     )
   `);
 
-  // 评论表
   await run(`
     CREATE TABLE IF NOT EXISTS comments (
       id TEXT PRIMARY KEY,
@@ -377,7 +374,6 @@ async function initDatabase() {
     )
   `);
 
-  // 尝试为 annotations 表添加 review_status 和 reviewed_by 列
   try {
     const annCols = await all("PRAGMA table_info(annotations)");
     if (!annCols.some((col) => col.name === "review_status")) {
@@ -398,7 +394,6 @@ async function initDatabase() {
     }
   } catch (e) {}
 
-  // 标注跨页区域表
   await run(`
     CREATE TABLE IF NOT EXISTS annotation_regions (
       id TEXT PRIMARY KEY,
@@ -414,7 +409,6 @@ async function initDatabase() {
     )
   `);
 
-  // 迁移：为 annotation_regions 添加 order_index 列
   try {
     const regionCols = await all("PRAGMA table_info(annotation_regions)");
     if (!regionCols.some((col) => col.name === "order_index")) {
@@ -424,7 +418,6 @@ async function initDatabase() {
     }
   } catch (e) {}
 
-  // 用户-文章关联表
   await run(`
     CREATE TABLE IF NOT EXISTS user_articles (
       user_id TEXT NOT NULL,
@@ -436,15 +429,13 @@ async function initDatabase() {
     )
   `);
 
-  // 创建默认管理员账户
   await ensureAdminUser();
 
-  // ── 数据迁移：将 annotations 表中的 x/y/w/h 迁移到 annotation_regions ──
   await migrateAnnotationsToRegions();
 }
 
 async function migrateAnnotationsToRegions() {
-  // 查找还未迁移的标注（x/y/w/h 不全为 0）
+
   const rows = await all(
     "SELECT id, page_id, x, y, width, height FROM annotations WHERE (x != 0 OR y != 0 OR width != 0 OR height != 0)",
   );
@@ -452,7 +443,7 @@ async function migrateAnnotationsToRegions() {
 
   const now = nowIso();
   for (const row of rows) {
-    // 检查是否已存在该 annotation + page 的 region
+
     const existing = await get(
       "SELECT id FROM annotation_regions WHERE annotation_id = ? AND page_id = ?",
       [row.id, row.page_id],
@@ -473,7 +464,7 @@ async function migrateAnnotationsToRegions() {
         ],
       );
     }
-    // 清零标记已迁移
+
     await run(
       "UPDATE annotations SET x = 0, y = 0, width = 0, height = 0 WHERE id = ?",
       [row.id],
@@ -481,7 +472,6 @@ async function migrateAnnotationsToRegions() {
   }
 }
 
-// ── 密码哈希 ──
 const SALT_LEN = 16;
 const KEY_LEN = 32;
 
@@ -497,10 +487,9 @@ function verifyPassword(password, hash) {
   return derived === key;
 }
 
-// ── JWT (HMAC-SHA256, 无外部依赖) ──
 const JWT_SECRET =
   process.env.JWT_SECRET || "sdudoc-secret-key-change-in-production";
-const JWT_EXPIRY = 7 * 24 * 60 * 60; // 7天
+const JWT_EXPIRY = 7 * 24 * 60 * 60;
 
 function base64UrlEncode(data) {
   return Buffer.from(data)
@@ -555,8 +544,6 @@ function verifyToken(token) {
     return null;
   }
 }
-
-// ── 用户管理 ──
 
 async function ensureAdminUser() {
   const existing = await get("SELECT id FROM users WHERE username = ?", [
@@ -667,8 +654,6 @@ async function deleteUser(userId) {
   if (row.username === "admin") throw new Error("不能删除默认管理员");
   await run("DELETE FROM users WHERE id = ?", [userId]);
 }
-
-// ── 评论 CRUD ──
 
 function mapCommentRow(row) {
   return {
@@ -841,7 +826,6 @@ async function getPagesByArticle(articleId) {
     return pages;
   }
 
-  // 加载所有 regions，按 page_id 分组
   const regionRows = await all(
     `SELECT ar.id AS region_id, ar.annotation_id, ar.page_id, ar.x, ar.y, ar.width, ar.height,
             a.id AS ann_id, a.char_id, a.level, a.style, a.color,
@@ -855,7 +839,6 @@ async function getPagesByArticle(articleId) {
     [articleId],
   );
 
-  // 加载所有标注（用于子标注查找）
   const allAnnotationRows = await all(
     "SELECT * FROM annotations WHERE article_id = ? ORDER BY created_at ASC",
     [articleId],
@@ -865,11 +848,9 @@ async function getPagesByArticle(articleId) {
     allAnnotationsMap.set(row.id, mapAnnotationRow(row));
   });
 
-  // 按页面分组 regions
   const pageMap = new Map(pages.map((page) => [page.id, page]));
 
-  // 收集每页上直接有 region 的标注 ID
-  const pageAnnotationIds = new Map(); // pageId -> Set<annotationId>
+  const pageAnnotationIds = new Map();
   regionRows.forEach((row) => {
     if (!pageAnnotationIds.has(row.page_id)) {
       pageAnnotationIds.set(row.page_id, new Set());
@@ -877,8 +858,7 @@ async function getPagesByArticle(articleId) {
     pageAnnotationIds.get(row.page_id).add(row.annotation_id);
   });
 
-  // 收集子标注（递归查找所有后代）
-  const childrenMap = new Map(); // parentId -> [annotationId]
+  const childrenMap = new Map();
   allAnnotationRows.forEach((row) => {
     if (row.parent_id) {
       if (!childrenMap.has(row.parent_id)) {
@@ -899,8 +879,7 @@ async function getPagesByArticle(articleId) {
     return result;
   }
 
-  // 构建每个 region 到标注对象的映射
-  const annotationRegionsMap = new Map(); // annotationId -> [{regionId, x, y, w, h, pageId}]
+  const annotationRegionsMap = new Map();
   regionRows.forEach((row) => {
     if (!annotationRegionsMap.has(row.annotation_id)) {
       annotationRegionsMap.set(row.annotation_id, []);
@@ -915,10 +894,9 @@ async function getPagesByArticle(articleId) {
     });
   });
 
-  // 为每个页面组装标注列表
   for (const page of pages) {
     const directIds = pageAnnotationIds.get(page.id) || new Set();
-    // 收集所有需要显示的标注 ID（直接 + 子标注跟随父）
+
     const allIds = new Set(directIds);
     for (const annId of directIds) {
       const descendants = getAllDescendants(annId);
@@ -931,7 +909,7 @@ async function getPagesByArticle(articleId) {
     for (const annId of allIds) {
       const ann = allAnnotationsMap.get(annId);
       if (!ann) continue;
-      // 该标注在当前页上的 regions
+
       const allRegions = annotationRegionsMap.get(annId) || [];
       const pageRegions = allRegions.filter((r) => r.pageId === page.id);
       annotations.push({
@@ -1075,7 +1053,6 @@ async function createAnnotation(pageId, payload) {
     ],
   );
 
-  // 创建第一个 region
   const regionX = Number(payload.x) || 0;
   const regionY = Number(payload.y) || 0;
   const regionW = Number(payload.width) || 0;
@@ -1112,7 +1089,6 @@ async function updateAnnotation(annotationId, payload) {
     throw new Error("标注不存在");
   }
 
-  // 收集该标注所有 region 所在的页面（用于跨页广播）
   const regionRows = await all(
     "SELECT DISTINCT page_id FROM annotation_regions WHERE annotation_id = ?",
     [annotationId],
@@ -1178,7 +1154,7 @@ async function updateAnnotation(annotationId, payload) {
 }
 
 async function deleteAnnotation(annotationId) {
-  // 收集所有包含该标注 region 的页面 ID
+
   const regionRows = await all(
     "SELECT DISTINCT page_id FROM annotation_regions WHERE annotation_id = ?",
     [annotationId],
@@ -1207,8 +1183,6 @@ async function getChildAnnotations(parentId) {
   );
   return rows.map(mapAnnotationRow);
 }
-
-// ── 标注跨页区域 ──
 
 async function addAnnotationRegion(annotationId, pageId, x, y, width, height) {
   const id = uid("region");
@@ -1245,7 +1219,6 @@ async function getAnnotationsForPage(pageId) {
 
   const articleId = pageRow.article_id;
 
-  // 查询该页上直接有 region 的标注
   const regionRows = await all(
     `SELECT ar.id AS region_id, ar.annotation_id, ar.page_id, ar.x, ar.y, ar.width, ar.height
      FROM annotation_regions ar
@@ -1257,7 +1230,6 @@ async function getAnnotationsForPage(pageId) {
 
   const directIds = new Set(regionRows.map((r) => r.annotation_id));
 
-  // 加载所有文章标注用于子标注查找
   const allAnnotationRows = await all(
     "SELECT * FROM annotations WHERE article_id = ? ORDER BY created_at ASC",
     [articleId],
@@ -1267,7 +1239,6 @@ async function getAnnotationsForPage(pageId) {
     allAnnotationsMap.set(row.id, mapAnnotationRow(row));
   });
 
-  // 构建子标注关系
   const childrenMap = new Map();
   allAnnotationRows.forEach((row) => {
     if (row.parent_id) {
@@ -1287,7 +1258,6 @@ async function getAnnotationsForPage(pageId) {
     return result;
   }
 
-  // 收集所有需要显示的标注 ID（直接 + 子标注跟随父）
   const allIds = new Set(directIds);
   for (const annId of directIds) {
     const descendants = getAllDescendants(annId);
@@ -1296,7 +1266,6 @@ async function getAnnotationsForPage(pageId) {
     }
   }
 
-  // 获取所有标注的全部 regions
   const allRegionRows =
     allIds.size > 0
       ? await all(
@@ -1359,7 +1328,7 @@ async function getRegionsByPage(pageId) {
     y: row.y,
     width: row.width,
     height: row.height,
-    // annotation fields
+
     id: row.annotation_id,
     charId: row.char_id,
     level: row.level,
@@ -1613,7 +1582,7 @@ async function updateHeadingParent(
       `UPDATE headings SET parent_id = ?, order_index = ?, level = ?, updated_at = ? WHERE id = ?`,
       [parentId || null, orderIndex, level, now, headingId],
     );
-    // Recursively update child levels
+
     await updateChildLevelsDb(articleId, headingId, level);
   } else {
     await run(
@@ -1870,8 +1839,6 @@ async function getXmlVersion(articleId, versionNo) {
   };
 }
 
-// ── 文章列表与权限 ──
-
 async function listArticles() {
   const rows = await all("SELECT * FROM articles ORDER BY updated_at DESC");
   return rows.map(mapArticleRow);
@@ -1960,11 +1927,11 @@ async function createArticleRecord(payload) {
 }
 
 async function deleteArticle(articleId) {
-  // Collect page image paths before deletion
+
   const pageRows = await all("SELECT src FROM pages WHERE article_id = ?", [
     articleId,
   ]);
-  // Collect glyph image paths
+
   const glyphRows = await all(
     "SELECT img_src FROM glyphs WHERE article_id = ?",
     [articleId],
@@ -1972,7 +1939,6 @@ async function deleteArticle(articleId) {
 
   await run("DELETE FROM articles WHERE id = ?", [articleId]);
 
-  // Clean up disk images
   pageRows.forEach((row) => {
     if (!row.src) return;
     const diskPath = path.join(PROJECT_ROOT, row.src.replace(/^\//, ""));
@@ -2016,7 +1982,7 @@ module.exports = {
   deleteGlyph,
   getPageSrcsByArticle,
   getSnapshot,
-  // Auth
+
   hashPassword,
   verifyPassword,
   createToken,
@@ -2027,12 +1993,12 @@ module.exports = {
   createUser,
   updateUser,
   deleteUser,
-  // Comments
+
   getCommentsByArticle,
   createComment,
   updateComment,
   deleteComment,
-  // Article access
+
   listArticles,
   listArticlesForUser,
   checkArticleAccess,

@@ -1,7 +1,4 @@
 #!/usr/bin/env node
-/**
- * 测试标题层级功能和文件切换功能
- */
 
 const PORT = 3001;
 const BASE_URL = `http://localhost:${PORT}`;
@@ -10,7 +7,7 @@ async function test() {
   console.log("=== 开始测试标题层级功能 ===\n");
 
   try {
-    // 1. 创建页面
+
     console.log("1. 创建测试页面...");
     const pagesRes = await fetch(`${BASE_URL}/api/articles/article-1/pages/bulk`, {
       method: "POST",
@@ -32,7 +29,6 @@ async function test() {
 
     const pageId = pagesData.pages[0].id;
 
-    // 2. 创建第一个标题（大标题）
     console.log("2. 创建第一个标题（大标题）...");
     const heading1Res = await fetch(
       `${BASE_URL}/api/articles/article-1/headings`,
@@ -52,7 +48,6 @@ async function test() {
     console.log(`  - ID: ${heading1.heading.id}`);
     console.log(`  - Parent ID: ${heading1.heading.parentId || "null"}\n`);
 
-    // 3. 创建第二个标题（子标题，成为第一个的子标题）
     console.log("3. 创建第二个标题（子标题）...");
     const heading2Res = await fetch(
       `${BASE_URL}/api/articles/article-1/headings`,
@@ -73,7 +68,6 @@ async function test() {
     console.log(`  - ID: ${heading2.heading.id}`);
     console.log(`  - Parent ID: ${heading2.heading.parentId}\n`);
 
-    // 4. 创建第三个标题（sub-sub标题）
     console.log("4. 创建第三个标题（孙级标题）...");
     const heading3Res = await fetch(
       `${BASE_URL}/api/articles/article-1/headings`,
@@ -94,7 +88,6 @@ async function test() {
     console.log(`  - ID: ${heading3.heading.id}`);
     console.log(`  - Parent ID: ${heading3.heading.parentId}\n`);
 
-    // 5. 测试拖放功能 - 将第三个标题的父级更改为第一个标题
     console.log("5. 测试拖放功能 - 更改第三个标题的父级...");
     const updateRes = await fetch(
       `${BASE_URL}/api/articles/article-1/headings/${heading3.heading.id}`,
@@ -115,7 +108,6 @@ async function test() {
       `  - 新的 Parent ID: ${updated.heading.parentId} (之前是 ${heading2.heading.id})\n`,
     );
 
-    // 6. 获取所有标题，查看树形结构
     console.log("6. 获取所有标题数据...");
     const snapshotRes = await fetch(
       `${BASE_URL}/api/articles/article-1/snapshot`,
@@ -131,7 +123,6 @@ async function test() {
       );
     });
 
-    // 7. 测试文件切换功能 - 清空页面并导入新文件
     console.log("\n7. 测试文件切换功能（清空旧页面）...");
     const clearRes = await fetch(
       `${BASE_URL}/api/articles/article-1/pages`,

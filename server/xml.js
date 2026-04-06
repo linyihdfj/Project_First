@@ -51,7 +51,7 @@ function paragraphToXml(ann, sentChildren, childMap) {
       return sentenceToXml(sent, charChildren);
     }).join("");
   } else {
-    // Paragraph with no sentence children — wrap content as a single sentence
+
     innerXml = `
               <sentence id="st-${escapeXml(ann.id)}" type="0" note="${escapeXml(ann.note || "")}" note_type="${escapeXml(ann.noteType || "1")}">
                 ${charToXml(ann)}
@@ -62,15 +62,9 @@ function paragraphToXml(ann, sentChildren, childMap) {
             </paragraph>`;
 }
 
-/**
- * Build hierarchical XML content from annotations.
- * Supports: paragraph → sentence → char hierarchy via parentId.
- * Orphan annotations (no parentId) use legacy wrapping for backward compatibility.
- */
 function annotationsToXmlContent(annotations) {
   if (!annotations || annotations.length === 0) return "";
 
-  // Build child map
   const childMap = new Map();
   const topLevel = [];
   for (const ann of annotations) {
@@ -82,7 +76,6 @@ function annotationsToXmlContent(annotations) {
     }
   }
 
-  // Sort children by orderIndex
   for (const [, children] of childMap) {
     children.sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
   }
@@ -104,7 +97,7 @@ function annotationsToXmlContent(annotations) {
             <paragraph id="pg-${escapeXml(ann.id)}" type="0">${imageToXml(ann)}
             </paragraph>`;
     }
-    // char level (orphan) — legacy wrapping
+
     const charValue = (ann.originalText || ann.simplifiedText || "□").slice(0, 1);
     const code = ann.charCode || toUnicodeCode(charValue);
     const wordNotes = ann.note

@@ -1,392 +1,1026 @@
-# 古籍在线编辑系统（project_first）
+# 古籍在线标注与协作整理系统
 
-这是一个面向古籍数字化整理场景的全栈项目：前端提供可视化标注编辑器，后端提供鉴权、文章权限、数据持久化、OCR 能力与 XML 导出。
+这个项目是一个面向古籍数字化整理场景的全栈 Web 应用。它把“古籍页面导入、图像标注、文本录入、标题树整理、异体字管理、多人协作、XML 导出”放在同一个系统里完成，适合课程作业展示，也适合作为后续继续扩展的原型。
 
-本文档按“老师会追问代码细节”的思路整理，重点回答三件事：
+本文档重点回答 4 件事：
 
-1. 用了什么技术，为什么这么选
-2. 解决了什么问题，核心难点在哪里
-3. 已实现哪些功能，各功能在代码里的落点是什么
-
----
-
-## 1. 项目定位与要解决的问题
-
-### 1.1 业务背景
-
-古籍整理常见痛点：
-
-- 原始材料多为扫描图（图片/PDF），文本不可直接编辑
-- 标注粒度不统一（字、句、段、图），且经常跨行、跨页
-- 异体字/生僻字需要建立“造字映射”
-- 团队协作下，编辑与审校职责不同，权限需要隔离
-- 产物需要结构化导出（XML），用于后续归档或检索
-
-### 1.2 本项目给出的方案
-
-- 以“文章”为协作单位，建立用户-文章授权关系
-- 页面支持批量导入并持久化保存
-- 标注支持层级结构与多区域（region）机制，解决跨行跨页问题
-- 支持标题树（可拖拽重排）构建结构化目录
-- 支持造字库增删导入导出，并可关联标注
-- 提供 OCR（当前是百度 Provider）辅助识别与自动框选
-- 一键导出 XML（含 content/view/sources）
+1. 这个项目整体是怎么分层的。
+2. 各个目录和文件分别负责什么。
+3. 代码是按什么思路实现这些功能的。
+4. 项目用了哪些技术，以及这些技术各自承担什么角色。
 
 ---
 
-## 2. 技术栈与工程结构
+## 1. 项目概览
 
-## 2.1 技术栈
+### 1.1 项目解决的问题
 
-- 前端：原生 HTML + CSS + JavaScript（单页应用）
-- 后端：Node.js + Express
-- 实时协同：Socket.IO
-- 数据库：SQLite（sqlite3）
-- 图像处理：sharp（用于 OCR 裁剪）
-- OCR：可插拔 Provider 机制（当前实现 Baidu OCR）
-- 认证：自实现 JWT（HMAC-SHA256）+ 角色权限控制
+古籍整理通常会遇到这些问题：
 
-选择理由：
+- 原始材料多为扫描图像或 PDF，不能直接像普通文本那样编辑。
+- 标注粒度复杂，既可能是字，也可能是句、段、图片，还会出现跨行、跨页。
+- 生僻字、异体字需要单独建库，不能只靠普通字符集表达。
+- 多人协作时，需要区分管理员、编辑者、审核者的权限。
+- 最终结果往往需要导出为结构化 XML，而不只是停留在可视化编辑界面里。
 
-- SQLite 轻量、零部署，适合作业/原型阶段快速落地
-- 原生前端减少构建复杂度，便于展示业务逻辑
-- Socket.IO 适合低门槛实现“同页在线可见”的协同体验
+### 1.2 这个项目的核心能力
 
-## 2.2 目录说明
+- 登录鉴权与角色权限控制
+- 按文章维度管理古籍项目
+- 上传图片或 PDF，生成页面数据
+- 在页面上绘制标注区域并录入文本信息
+- 维护段落/句子/单字/图片等层级标注
+- 建立标题树，形成目录结构
+- 管理造字库，并将标注关联到字形
+- 通过 Socket.IO 实现同页协作与在线成员显示
+- 通过 OCR 辅助识别选区文字或版面
+- 将当前文章快照导出为 XML
+
+---
+
+## 2. 技术栈与架构思路
+
+### 2.1 技术栈
+
+#### 前端
+
+- `HTML`
+  用来定义页面结构，包含登录层、文章选择层、编辑器主体、标题区、属性面板、造字库面板等。
+- `CSS`
+  用来实现整体布局、卡片式界面、工具栏、弹窗、画布区域和响应式样式。
+- `原生 JavaScript`
+  不依赖 React/Vue，而是把不同能力拆成多个 `window.createXxxTools()` 工具模块，再由 `app.js` 统一装配。
+
+#### 后端
+
+- `Node.js`
+  作为运行环境，负责文件处理、数据库访问、网络服务与 XML 生成。
+- `Express`
+  提供 REST API、静态资源服务、全站入口回退。
+- `Socket.IO`
+  提供页面级实时协作能力，例如成员 presence、远程标注同步、造字同步。
+
+#### 数据与外部能力
+
+- `SQLite`
+  作为本地数据库，存储文章、页面、标注、区域、标题、用户、权限、造字等信息。
+- `sharp`
+  用于裁剪图片选区，为 OCR 提供局部图像输入。
+- `Baidu OCR`
+  当前内置的 OCR Provider，实现文字识别和版面检测。
+
+### 2.2 架构思路
+
+项目采用的是“单仓库前后端一体化”的实现方式：
+
+```text
+浏览器
+  ├─ index.html
+  ├─ styles.css
+  ├─ app.js
+  └─ client/*.js
+        │
+        │ HTTP(JSON) + Socket.IO
+        ▼
+Express 服务
+  ├─ server/routes/*.js
+  ├─ server/middleware/*.js
+  ├─ server/socket.js
+  ├─ server/ocr.js
+  ├─ server/xml.js
+  └─ server/db.js
+        │
+        ▼
+SQLite + uploads 文件目录
+```
+
+这个结构的特点是：
+
+- 前端没有构建流程，打开依赖简单，便于课程项目展示。
+- 后端把“数据库、认证、路由、协作、OCR、XML”分成独立模块，职责比较清晰。
+- 页面数据与图像文件分离：结构化信息进 SQLite，实际图片进 `uploads/`。
+- 标注采用“主记录 + 多区域”的思路，能表达跨行、跨页这类传统单矩形很难处理的场景。
+
+---
+
+## 3. 目录结构总览
 
 ```text
 project_first/
-├─ index.html                  # 前端页面结构（登录、文章选择、编辑器、管理弹窗）
-├─ app.js                      # 前端核心逻辑（状态管理、绘制标注、API、Socket）
-├─ styles.css                  # 样式与响应式布局
+├─ index.html
+├─ styles.css
+├─ app.js
+├─ package.json
+├─ package-lock.json
+├─ README.md
+├─ test-hierarchy.js
+├─ 说明.txt
+├─ XML-V0.1.docx
+├─ 作业一说明.docx
+├─ client/
 ├─ server/
-│  ├─ index.js                 # API 路由、鉴权、Socket.IO、静态资源、服务启动
-│  ├─ db.js                    # SQLite 表结构、迁移、CRUD、权限与认证核心实现
-│  ├─ ocr.js                   # OCR 抽象层与 Baidu Provider
-│  ├─ xml.js                   # 按快照生成 XML
-│  ├─ ocr-config.example.json  # OCR 配置模板
-│  └─ ocr-config.json          # OCR 实际配置（本地私有）
 ├─ data/
-│  └─ sdudoc.sqlite            # SQLite 数据库文件
 ├─ uploads/
-│  ├─ pages/                   # 页面图片
-│  └─ glyphs/                  # 造字图片
-├─ 古籍示例/                    # 示例素材
-├─ test-hierarchy.js           # 标题层级与文件切换测试脚本
-└─ README.md
+└─ 古籍示例/
 ```
 
----
-
-## 3. 系统架构与数据流
-
-```text
-Browser(index.html + app.js + styles.css)
-        |
-        | HTTP/JSON + Socket.IO
-        v
-Express(server/index.js)
-        |
-        +-- DB Layer(server/db.js) ----> SQLite(data/sdudoc.sqlite)
-        |
-        +-- OCR Layer(server/ocr.js) --> Baidu OCR API
-        |
-        +-- XML Builder(server/xml.js)
-        |
-        +-- Static Files(uploads + frontend)
-```
-
-核心数据流（以标注为例）：
-
-1. 前端在画布创建框选
-2. 调用 API 写入 annotations + annotation_regions
-3. 后端写库后通过 Socket 广播同页用户
-4. 其他客户端收到事件并更新页面状态
+下面按目录和文件展开说明。
 
 ---
 
-## 4. 已实现功能清单（可用于答辩）
+## 4. 顶层文件说明
 
-## 4.1 用户与权限
+### `package.json`
 
-- 登录/身份校验：Token 鉴权
-- 角色模型：admin、editor、reviewer
-- 用户管理（仅 admin）：创建、查询、修改、删除
-- 文章权限：通过 user_articles 控制某用户可访问哪些文章
+作用：
 
-实现细节：
+- 定义项目名称、版本、启动入口和依赖。
 
-- Token 由后端自实现 JWT（7 天有效期）
-- 鉴权中间件：requireAuth
-- 角色中间件：requireRole(...roles)
-- 文章级中间件：requireArticleAccess
+实现思路：
 
-## 4.2 文章与页面管理
+- 使用非常轻量的 Node 项目配置，只保留 `start` / `dev` 两个脚本，默认都启动 `server/index.js`。
 
-- 文章列表按“当前用户可访问范围”返回
-- 创建文章（admin/editor）后自动给创建者授权
-- 删除文章（admin）会级联删除数据并清理磁盘图片
-- 页面批量导入（图片/PDF 渲染结果）
-- 清空页面时同步清理历史页面资源
+使用技术：
 
-## 4.3 标注系统（核心）
+- Node.js 包管理
+- Express / Socket.IO / SQLite3 / sharp 依赖声明
 
-- 支持层级：char / sentence / paragraph / image
-- 标注样式：highlight / box / underline
-- 标注属性：原文、简体、注释、注释类型、编码、关联造字等
-- 审校字段：reviewStatus、reviewedBy
-- 支持父子标注（parentId + orderIndex）
-- 支持批量创建标注
+### `index.html`
 
-关键设计点：
+作用：
 
-- 旧版以 x/y/width/height 存单框，现迁移为 annotation_regions 多区域结构
-- 一个标注可绑定多个 region，用于表达“跨行/跨页同一句”
+- 提供整个前端单页应用的 DOM 骨架。
+- 包含登录遮罩、文章选择页、编辑页、文章信息页、造字库页、用户管理/权限管理等界面容器。
 
-## 4.4 标题树与目录导航
+实现思路：
 
-- 标题可绑定 page/annotation
-- 支持 parentId 构建树结构
-- 支持拖拽重排（orderIndex）
-- 修改父级时可递归修正子级层级
+- 先把所有主要区域都写进 HTML，再由 JavaScript 根据登录状态、角色权限、当前文章状态去显示或隐藏。
+- 页面编辑区采用“三栏布局”：
+  - 左侧标题与索引
+  - 中间画布与页面图像
+  - 右侧标注属性与标注列表
 
-## 4.5 造字库
+使用技术：
 
-- 新增造字（编码校验，格式如 U+E001）
-- 造字图片上传与保存
-- 造字删除会解除标注关联
-- 支持 JSON 导入导出（批量）
+- 原生 HTML
+- 表单、按钮、`img`、`svg` 等基础 DOM 元素
 
-## 4.6 OCR 辅助
+### `styles.css`
 
-- 识别接口：对整页或局部框选做文字识别
-- 版面检测：返回建议框（可用于自动标注辅助）
-- 粒度支持：行级/字符级（字符级不足时回退行级）
+作用：
 
-## 4.7 XML 导出
+- 定义整套 UI 的视觉样式与布局。
 
-- 基于文章快照生成 XML
-- 输出结构包含 article/head/content/view/sources
-- content 内按段句字（以及 image）映射
-- view 中生成 SVG 标注图层（rect/line/text）
+实现思路：
 
-## 4.8 实时协同
+- 通过卡片式容器、工具栏、侧栏、弹窗、列表、表单网格等样式，把原生 HTML 组织成一个编辑器界面。
+- 对画布区、标题树、标注列表、登录页、文章选择页等提供专门样式。
 
-- 通过 Socket.IO 的房间机制按 page/article 组织广播
-- 支持 presence（加入/离开/成员列表）
-- 标注与造字变更可实时同步给其他在线用户
+使用技术：
 
----
+- 纯 CSS
+- Flex / Grid 布局
+- 交互态样式控制
 
-## 5. 数据模型（数据库表）
+### `app.js`
 
-核心表：
+作用：
 
-- articles：文章元信息
-- pages：页面元信息与图片路径
-- annotations：标注主记录（含层级、文本、审校状态）
-- annotation_regions：标注的多区域坐标（跨行/跨页关键）
-- headings：标题树（parent_id、order_index）
-- glyphs：造字映射
-- users：账号与角色
-- user_articles：用户-文章授权关系
-- xml_versions：XML 版本记录
-- comments：评论表（目前为数据库能力预留，API 未对外开放）
+- 前端总入口。
+- 负责把 `client/` 下拆分的所有模块组装起来，形成完整应用。
 
----
+实现思路：
 
-## 6. API 概览（按模块）
+- 先初始化全局状态 `state` 和 DOM 引用 `refs`。
+- 再依次初始化认证、API、页面缓存、用户管理、页面导入、画布视图、区域绘制、标注选择、标题树、标注表单、造字库、文章列表、审核状态、AI/OCR、事件绑定、Socket 协作等模块。
+- `app.js` 本身尽量少写具体业务细节，更多扮演“依赖注入 + 流程编排”的角色。
 
-系统与认证：
+使用技术：
 
-- GET /api/health
-- POST /api/auth/login
-- GET /api/auth/me
+- 原生 JavaScript 模块化模式
+- 浏览器 `fetch`
+- Socket.IO client
+- SVG 叠加绘制
 
-用户管理（admin）：
+### `test-hierarchy.js`
 
-- POST /api/auth/register
-- GET /api/users
-- PATCH /api/users/:userId
-- DELETE /api/users/:userId
+作用：
 
-文章与权限：
+- 用脚本方式验证标题层级、拖拽换父级、清空页面后联动清空旧数据等能力。
 
-- GET /api/articles
-- POST /api/articles
-- DELETE /api/articles/:articleId
-- GET /api/articles/:articleId/access
-- POST /api/articles/:articleId/access
-- DELETE /api/articles/:articleId/access/:userId
+实现思路：
 
-文章数据与导出：
+- 直接请求本地 API，模拟创建页面、创建标题、修改标题父级、重新导入页面，再检查快照结果。
 
-- GET /api/articles/:articleId
-- PUT /api/articles/:articleId
-- GET /api/articles/:articleId/page-srcs
-- GET /api/articles/:articleId/snapshot
-- GET /api/articles/:articleId/export-xml
+使用技术：
 
-页面与标注：
+- Node.js 脚本
+- `fetch` 调用本地 HTTP API
 
-- POST /api/articles/:articleId/pages/bulk
-- DELETE /api/articles/:articleId/pages
-- POST /api/pages/:pageId/annotations
-- POST /api/pages/:pageId/annotations/batch
-- GET /api/pages/:pageId/annotations
-- PUT /api/annotations/:annotationId
-- PATCH /api/annotations/:annotationId
-- DELETE /api/annotations/:annotationId
+### `说明.txt`
 
-跨页区域：
+作用：
 
-- POST /api/annotations/:annotationId/regions
-- GET /api/annotations/:annotationId/regions
-- PUT /api/annotations/:annotationId/regions/reorder
-- DELETE /api/annotation-regions/:regionId
-- GET /api/pages/:pageId/cross-page-annotations
+- 辅助说明文件，通常用于记录任务背景、更新说明或本地备注。
 
-标题与造字：
+### `XML-V0.1.docx`
 
-- POST /api/articles/:articleId/headings
-- PATCH /api/articles/:articleId/headings/:headingId
-- POST /api/articles/:articleId/headings/reorder
-- DELETE /api/headings/:headingId
-- GET /api/articles/:articleId/glyphs
-- POST /api/articles/:articleId/glyphs
-- DELETE /api/glyphs/:glyphId
-- POST /api/articles/:articleId/glyphs/import
+作用：
 
-OCR：
+- XML 格式规范或导出目标说明文档。
+- 对理解 `server/xml.js` 的输出结构有参考意义。
 
-- POST /api/ocr/recognize
-- POST /api/ocr/layout-detect
+### `作业一说明.docx`
+
+作用：
+
+- 课程作业说明文档，描述项目背景、要求或提交内容。
 
 ---
 
-## 7. 关键难点与对应实现
+## 5. 前端结构说明：`client/`
 
-## 7.1 跨行/跨页标注
+前端采用“按功能拆工具模块”的方式组织代码。每个文件通常暴露一个 `createXxxTools` 或 `createXxx` 工厂函数，再由 `app.js` 注入依赖并统一调用。
 
-问题：同一句文本可能跨两行甚至跨页，单矩形模型无法表达。
+### 5.1 状态、工具与基础设施
 
-实现：
+#### `client/state.js`
 
-- annotation_regions 支持一个 annotation 对应多个 region
-- getAnnotationsForPage 会把父标注及其子标注打包返回
-- 更新/删除时会按涉及的所有 page 广播，避免跨页不同步
+作用：
 
-## 7.2 权限与协作并存
+- 定义前端全局状态的初始结构。
 
-问题：既要多人协同，也要角色隔离和文章隔离。
+实现思路：
 
-实现：
+- 把用户、文章、页面列表、当前页、选中标注、画布缩放平移、标题树状态、在线成员、造字捕获状态等都集中放进一个对象里，作为整个前端的单一状态源。
 
-- 角色权限由 requireRole 控制
-- 文章访问由 checkArticleAccess 控制
-- Socket join-article 时再次校验文章访问权
+#### `client/refs.js`
 
-## 7.3 兼容历史数据
+作用：
 
-问题：模型升级后需要兼容旧数据。
+- 收集页面上会被频繁访问的 DOM 节点。
 
-实现：
+实现思路：
 
-- 启动时 initDatabase 执行迁移
-- migrateAnnotationsToRegions 将旧坐标迁移到 region 表并清零旧字段
+- 在应用启动时把常用元素缓存起来，减少后续逻辑里反复 `document.getElementById`。
+
+#### `client/utils.js`
+
+作用：
+
+- 放通用函数，例如生成 id、数值裁剪、HTML 转义、API 路径拼接。
+
+实现思路：
+
+- 抽离高频基础函数，避免在多个模块里重复写。
+
+#### `client/api-client.js`
+
+作用：
+
+- 封装统一的 API 请求函数。
+
+实现思路：
+
+- 自动附带 `Authorization` 和 `X-Socket-Id`。
+- 统一处理 JSON 响应、401 失效、错误提示。
+- 让业务模块只关心请求路径和数据，不再重复写 fetch 模板代码。
+
+#### `client/auth-storage.js`
+
+作用：
+
+- 负责本地 token 的读写和删除。
+
+实现思路：
+
+- 使用浏览器存储保存登录令牌，让刷新页面后还能恢复登录状态。
+
+#### `client/image-cache.js`
+
+作用：
+
+- 缓存页面图片并预加载前后页。
+
+实现思路：
+
+- 将远程图片资源转成 blob URL，减少重复加载，提升翻页体验。
+
+### 5.2 登录、权限与用户管理
+
+#### `client/auth-permissions.js`
+
+作用：
+
+- 负责登录、退出、身份检查、角色能力判断、界面权限控制。
+
+实现思路：
+
+- 登录后保存 token，并初始化 Socket。
+- 基于当前用户角色提供 `isAdmin`、`isEditor`、`canReview` 等能力判断。
+- 根据权限动态显示或禁用对应按钮和面板。
+
+#### `client/user-management.js`
+
+作用：
+
+- 管理用户列表、新建用户、修改角色、重置密码、删除用户。
+
+实现思路：
+
+- 通过管理员专用面板调用用户接口，完成后台账号管理。
+
+#### `client/article-access-tools.js`
+
+作用：
+
+- 管理文章访问权限。
+
+实现思路：
+
+- 管理员可以查看某篇文章当前授权给哪些用户，并进行授权/撤销授权。
+
+### 5.3 文章与页面管理
+
+#### `client/article-select-tools.js`
+
+作用：
+
+- 负责文章列表页、创建文章、打开文章、删除文章、导出 XML。
+
+实现思路：
+
+- 登录后先展示用户可访问文章列表。
+- 打开文章时会预加载首批页面，并请求文章快照。
+
+#### `client/article-access-tools.js`
+
+作用：
+
+- 与文章列表模块配合，处理文章级权限弹窗。
+
+#### `client/app-state-tools.js`
+
+作用：
+
+- 负责文章元数据和页面数据在前端状态中的同步。
+
+实现思路：
+
+- 提供“表单 -> state -> 后端”的桥接逻辑。
+- 统一处理文章信息保存、快照加载、活动标签页切换、页面对象构造。
+
+#### `client/page-import-tools.js`
+
+作用：
+
+- 负责图片/PDF 导入和页面持久化。
+
+实现思路：
+
+- 接收用户选中的文件。
+- 图片直接读取尺寸并转为页面对象。
+- PDF 则调用 PDF 工具拆页成多张图片。
+- 最后批量提交到后端保存。
+
+#### `client/file-helpers.js`
+
+作用：
+
+- 提供文件读取、图片尺寸获取等基础文件操作。
+
+#### `client/file-pdf-utils.js`
+
+作用：
+
+- 处理 PDF 转图片。
+
+实现思路：
+
+- 动态加载 PDF.js，把 PDF 各页渲染到 canvas，再转成图片数据供页面导入模块使用。
+
+### 5.4 画布、标注与交互
+
+#### `client/canvas-navigation-tools.js`
+
+作用：
+
+- 处理画布平移、缩放、视口边界等基础导航行为。
+
+#### `client/region-hit-tools.js`
+
+作用：
+
+- 负责命中检测。
+
+实现思路：
+
+- 判断鼠标是否点中标注框、边框或缩放控制点，为拖拽和缩放提供基础。
+
+#### `client/canvas-view-tools.js`
+
+作用：
+
+- 组合导航与区域命中逻辑，形成完整的画布视图层。
+
+实现思路：
+
+- 统一暴露当前页获取、视图裁剪、缩放控制、拖动画布、鼠标滚轮缩放、光标更新等能力。
+
+#### `client/region-create-helpers.js`
+
+作用：
+
+- 提供创建标注区域时的辅助算法和数据整理。
+
+#### `client/region-create-tools.js`
+
+作用：
+
+- 负责新建区域时的数据生成。
+
+#### `client/region-drag-tools.js`
+
+作用：
+
+- 负责标注区域的拖动和缩放过程。
+
+#### `client/region-draw-tools.js`
+
+作用：
+
+- 把“新建、拖动、缩放、结束绘制”整合成用户在画布上的完整标注操作流。
+
+实现思路：
+
+- 基于鼠标事件更新当前绘制状态。
+- 满足最小尺寸后创建标注。
+- 已有标注则支持移动和 resize。
+- 和 API、渲染、跨页同步逻辑联动。
+
+#### `client/annotation-selection-tools.js`
+
+作用：
+
+- 负责选中标注、延迟保存、删除标注、按 id 查询标注。
+
+实现思路：
+
+- 把用户对标注的焦点状态和保存节流逻辑集中管理，避免多个面板同时直接改数据。
+
+#### `client/annotation-form-tools.js`
+
+作用：
+
+- 负责右侧“标注属性面板”。
+
+实现思路：
+
+- 根据选中标注动态生成表单。
+- 支持层级、文本、注释、编码、造字引用、多区域信息等编辑。
+- 修改后走统一保存流程。
+
+#### `client/annotation-hierarchy-tools.js`
+
+作用：
+
+- 负责标注树、父子层级、顺序调整、父节点文本重算、审核状态联动。
+
+实现思路：
+
+- 通过 `parentId + orderIndex` 维护标注层级结构。
+- 可以把字归到句、把句归到段，形成结构化文本。
+- 当子节点变化时，父节点可自动重算聚合文本。
+
+#### `client/overlay-render-tools.js`
+
+作用：
+
+- 把标注画到页面图像上方的 SVG 图层中。
+
+实现思路：
+
+- 不直接改图片，而是在上层用 SVG 绘制高亮框、矩形框、下划线、控制点等。
+- 这样既便于交互，也便于后续导出视图信息。
+
+#### `client/page-render-tools.js`
+
+作用：
+
+- 负责页面渲染、当前页刷新、标注数据重载。
+
+实现思路：
+
+- 统一组织图片显示、SVG overlay、标注列表、审核状态、预加载等刷新逻辑。
+
+### 5.5 标题树、造字库与审核
+
+#### `client/heading-tools.js`
+
+作用：
+
+- 管理标题索引、标题新增、标题树显示、跳转、拖拽换层级。
+
+实现思路：
+
+- 标题可以绑定到某页和某条标注，用于定位。
+- 通过 `parentId` 构造树结构，`orderIndex` 控制同级顺序。
+- 拖拽时既要更新父节点，也要更新排序。
+
+#### `client/glyph-library-tools.js`
+
+作用：
+
+- 管理造字库列表、新增造字、删除造字、从标注截图中截取字形、导入导出 JSON。
+
+实现思路：
+
+- 允许用户从当前标注区域直接截取字形图片，减少手工准备素材的成本。
+- 造字数据既保存在数据库，也配套保存图片资源。
+
+#### `client/glyph-picker-tools.js`
+
+作用：
+
+- 负责在标注编辑时选择和关联造字。
+
+#### `client/review-status-tools.js`
+
+作用：
+
+- 管理标注的审核状态显示与更新。
+
+实现思路：
+
+- 将编辑与审核拆成不同角色职责，审核者可以更新 `reviewStatus` 等字段。
+
+### 5.6 协作与 AI
+
+#### `client/socket-event-handlers.js`
+
+作用：
+
+- 定义 Socket 事件的具体处理逻辑。
+
+#### `client/socket-collab-tools.js`
+
+作用：
+
+- 管理 Socket 初始化、加入房间、远端事件同步、在线成员展示。
+
+实现思路：
+
+- 以 `article:{id}` 和 `page:{id}` 为房间粒度。
+- 同页协作时，同步标注新增/修改/删除、造字变化和 presence 状态。
+
+#### `client/ai-tools.js`
+
+作用：
+
+- 封装 AI/OCR 按钮状态和识别操作。
+
+实现思路：
+
+- 基于当前选中区域调用后端 OCR 接口。
+- 将识别结果回填到标注文本里，作为辅助录入工具。
+
+### 5.7 事件装配
+
+#### `client/ui-event-bindings-tools.js`
+
+作用：
+
+- 给页面上所有按钮、输入框、切页控件、缩放控件、上传控件绑定事件。
+
+实现思路：
+
+- 把“事件绑定”从业务逻辑里单独抽出去，避免 `app.js` 里堆满 DOM 监听代码。
 
 ---
 
-## 8. 运行方式与环境要求
+## 6. 后端结构说明：`server/`
 
-## 8.1 安装与启动
+后端采用“入口 + 配置 + 中间件 + 路由 + 服务能力 + 数据层”的结构。
+
+### 6.1 入口与基础设施
+
+#### `server/index.js`
+
+作用：
+
+- 后端主入口。
+
+实现思路：
+
+- 创建 Express 应用和 HTTP Server。
+- 创建 Socket 层。
+- 初始化认证中间件。
+- 注入数据库、OCR、XML、广播等依赖到路由层。
+- 注册静态资源与前端入口。
+- 启动服务。
+
+这相当于后端的“总装配器”，和前端 `app.js` 对应。
+
+#### `server/bootstrap.js`
+
+作用：
+
+- 负责服务启动前的初始化流程。
+
+实现思路：
+
+- 先初始化数据库。
+- 再确保默认文章存在。
+- 最后监听端口。
+
+#### `server/config/index.js`
+
+作用：
+
+- 管理基础配置。
+
+实现思路：
+
+- 目前主要提供端口和项目根目录，保持配置集中。
+
+### 6.2 HTTP 与中间件
+
+#### `server/middleware/auth.js`
+
+作用：
+
+- 提供认证与授权中间件。
+
+实现思路：
+
+- `requireAuth` 负责校验 token。
+- `requireRole` 负责检查角色是否在允许范围内。
+- `requireArticleAccess` 负责检查用户是否对指定文章有访问权限。
+
+#### `server/http/request.js`
+
+作用：
+
+- 处理与请求相关的辅助逻辑。
+
+实现思路：
+
+- 主要用于从请求中统一提取 `articleId` 之类的信息，减少路由重复代码。
+
+#### `server/http/response.js`
+
+作用：
+
+- 统一错误响应输出。
+
+实现思路：
+
+- 将异常格式收口，避免各路由自己拼错误 JSON。
+
+#### `server/http/static.js`
+
+作用：
+
+- 注册静态资源路由。
+
+实现思路：
+
+- `/uploads` 暴露上传资源。
+- 项目根目录作为静态前端资源目录。
+- 非 API 路径最终统一回退到 `index.html`，形成单页应用入口。
+
+### 6.3 实时协作
+
+#### `server/socket.js`
+
+作用：
+
+- 负责 Socket.IO 的服务端逻辑。
+
+实现思路：
+
+- 连接时校验 token。
+- 用户可以加入文章房间和页面房间。
+- 页面房间用于 presence 和细粒度标注广播。
+- 广播时利用 `X-Socket-Id` 避免把变更再推回发送者自身。
+
+### 6.4 路由层：`server/routes/`
+
+#### `server/routes/index.js`
+
+作用：
+
+- 汇总注册全部路由。
+
+实现思路：
+
+- 通过依赖注入方式把数据库函数、中间件、工具函数传给各子路由，降低模块耦合。
+
+#### `server/routes/health.js`
+
+作用：
+
+- 健康检查与基础连通性检查。
+
+#### `server/routes/auth.js`
+
+作用：
+
+- 登录、获取当前用户信息、创建用户等认证相关接口。
+
+实现思路：
+
+- 登录后签发 token。
+- 前端通过 `/me` 恢复当前登录身份。
+
+#### `server/routes/users.js`
+
+作用：
+
+- 管理用户列表、角色更新、用户删除。
+
+#### `server/routes/articles.js`
+
+作用：
+
+- 管理文章列表、创建文章、删除文章、读取/更新文章信息、权限分配、加载文章快照。
+
+实现思路：
+
+- 创建文章后自动授权给创建者。
+- 快照接口一次性返回文章、页面、标注、标题、造字等结构化数据，适合作为前端初始化入口。
+
+#### `server/routes/article-pages.js`
+
+作用：
+
+- 管理文章页面的批量导入与清空。
+
+实现思路：
+
+- 批量接收页面数据并落库。
+- 清空页面时需要级联清掉依赖这些页面的数据。
+
+#### `server/routes/article-export.js`
+
+作用：
+
+- 负责导出文章 XML。
+
+实现思路：
+
+- 先取文章快照，再调用 XML 生成器输出最终文档。
+
+#### `server/routes/annotations.js`
+
+作用：
+
+- 管理标注的增删改查、批量创建、审核状态更新。
+
+实现思路：
+
+- 编辑类接口由 `admin/editor` 使用。
+- 审核状态接口允许 `admin/reviewer` 使用。
+- 每次成功变更后都广播到相关页面房间，实现实时同步。
+
+#### `server/routes/annotation-regions.js`
+
+作用：
+
+- 管理标注区域增删改查和重排序。
+
+实现思路：
+
+- 一个标注主体可关联多个区域，这是跨行/跨页表达能力的核心。
+
+#### `server/routes/headings.js`
+
+作用：
+
+- 管理标题新增、层级调整、拖拽重排、删除。
+
+#### `server/routes/glyphs.js`
+
+作用：
+
+- 管理造字列表、新增造字、批量导入、删除造字。
+
+#### `server/routes/ocr.js`
+
+作用：
+
+- 提供 OCR 相关接口。
+
+实现思路：
+
+- 读取整页图片或裁剪选区后交给 OCR Provider。
+- 支持文本识别和版面检测两种方向。
+
+### 6.5 服务能力层
+
+#### `server/db.js`
+
+作用：
+
+- 项目最核心的数据层文件。
+
+实现思路：
+
+- 封装 SQLite 连接、建表、迁移、事务、CRUD、认证、权限、文章快照查询等。
+- 同时处理上传图片保存到 `uploads/` 的逻辑。
+- 通过一组 `mapXxxRow` 函数把数据库行转换成前端更好使用的对象。
+
+这是整个项目里最重的文件，因为几乎所有业务数据最终都从这里进出。
+
+它管理的核心数据包括：
+
+- 文章 `articles`
+- 页面 `pages`
+- 标注 `annotations`
+- 标注区域 `annotation_regions`
+- 标题 `headings`
+- 造字 `glyphs`
+- 用户 `users`
+- 用户文章权限 `user_articles`
+- XML 版本等扩展数据
+
+#### `server/ocr.js`
+
+作用：
+
+- 封装 OCR 抽象层和当前的百度 OCR 实现。
+
+实现思路：
+
+- 先定义 `OcrProvider` 抽象接口。
+- 再实现 `BaiduOcrProvider`。
+- 通过本地配置文件选择实际 provider。
+- 对外暴露裁图、读图、获取 provider 等能力。
+
+这样的设计好处是：以后若要接腾讯、阿里或本地 OCR，只需要再实现一个 provider。
+
+#### `server/xml.js`
+
+作用：
+
+- 把文章快照转换成 XML 字符串。
+
+实现思路：
+
+- 先处理转义。
+- 再把标注树按段、句、字、图映射到 XML 内容结构。
+- 同时把可视化标注区域映射到 `view` 里的 SVG。
+- 最后拼出完整的 `<article>` 文档。
+
+这个文件体现了“编辑器内部数据结构 -> 标准导出格式”的转换逻辑。
+
+---
+
+## 7. 数据设计思路
+
+### 7.1 标注为什么拆成“annotation + regions”
+
+这是本项目最关键的设计之一。
+
+如果一个标注只存单个矩形：
+
+- 能表达的只是一个框选区域
+- 很难表示跨行文字
+- 更难表示跨页内容
+
+因此项目采用：
+
+- `annotations` 存标注的语义信息
+  - 类型
+  - 原文
+  - 简体
+  - 注释
+  - 审核状态
+  - 层级关系
+- `annotation_regions` 存标注对应的一个或多个几何区域
+
+这样同一个标注就能挂多个区域，既保留“这是同一条语义记录”，又保留“它在图像上分布在多个位置”。
+
+### 7.2 标题树为什么单独建表
+
+标题不是普通文本的一部分，它更像“目录索引结构”，所以单独存储更合理：
+
+- 可以单独拖拽重排
+- 可以绑定到页面位置
+- 可以形成整篇文章的导航树
+- 不必和正文标注完全绑定死
+
+### 7.3 权限为什么按“文章”做授权
+
+因为古籍整理通常以篇、卷、册为协作单位，所以系统不是简单按页面授权，而是：
+
+- 用户拥有哪些文章的访问权
+- 进入文章后，再看到该文章下的所有页面、标注、标题、造字
+
+这样更符合团队协作的管理方式。
+
+---
+
+## 8. 核心业务流程
+
+### 8.1 登录与进入文章
+
+1. 用户在 `index.html` 登录表单输入账号密码。
+2. 前端调用 `/api/auth/login`。
+3. 后端校验用户并签发 token。
+4. 前端保存 token，调用 `/api/auth/me` 恢复身份。
+5. 然后加载当前用户可访问的文章列表。
+6. 打开文章时，前端请求文章快照并初始化页面状态。
+
+### 8.2 导入页面
+
+1. 用户上传图片或 PDF。
+2. 前端读取图片，或先把 PDF 拆成多页图片。
+3. 生成页面对象并调用批量导入接口。
+4. 后端保存图片到 `uploads/pages/`，再把页面元数据写入 SQLite。
+
+### 8.3 创建标注
+
+1. 用户在画布上拖动鼠标创建区域。
+2. 前端生成标注对象和区域数据。
+3. 调用标注创建接口写入数据库。
+4. 后端返回新标注，并通过 Socket 向同页其他成员广播。
+5. 各客户端刷新 overlay、标注列表、属性面板。
+
+### 8.4 OCR 辅助识别
+
+1. 用户选中某个标注区域。
+2. 前端调用 OCR 接口。
+3. 后端读取整页图片或裁剪局部图像。
+4. 把图像发送给 OCR Provider。
+5. 识别结果返回前端，回填到标注文本里。
+
+### 8.5 导出 XML
+
+1. 前端点击导出按钮。
+2. 后端先获取文章快照。
+3. `server/xml.js` 把快照转换成 XML。
+4. 结果作为文件流或文本响应返回给前端下载。
+
+---
+
+## 9. 运行方式
+
+### 9.1 安装依赖
 
 ```bash
 npm install
-npm run dev
 ```
 
-默认地址：
+### 9.2 启动项目
 
-- 前端：http://localhost:3000/index.html
-- 健康检查：http://localhost:3000/api/health
+```bash
+npm start
+```
 
-## 8.2 运行环境建议
+默认端口：
 
-- Node.js 18+
+- `3000`
 
-说明：项目中使用了 fetch（服务端 OCR 请求），Node 18+ 原生支持。
+启动后访问：
 
-## 8.3 默认账户
+- `http://localhost:3000`
 
-数据库初始化时会自动创建管理员账户：
+### 9.3 OCR 配置
 
-- 用户名：admin
-- 密码：admin123
+如果要启用 OCR，需要在 `server/` 下准备实际配置文件：
 
-建议首次登录后立即修改。
+- 参考 `server/ocr-config.example.json`
+- 新建 `server/ocr-config.json`
 
-## 8.4 OCR 配置
+当前支持的 provider 是：
 
-1. 复制 server/ocr-config.example.json 为 server/ocr-config.json
-2. 填写百度 OCR 的 apiKey 与 secretKey
-
-未配置时，OCR 接口会返回“服务未配置”提示。
+- `baidu`
 
 ---
 
-## 9. 前端页面结构（老师常问）
+## 10. 适合继续扩展的方向
 
-页面主要由 3 个 Tab 组成：
+从当前代码结构看，后续比较容易扩展的方向有：
 
-- 编辑器：导入页面、绘制标注、索引栏、标注属性、OCR
-- 文章信息：文章元信息维护、导出 XML
-- 造字库：新增/导入/导出/管理造字映射
-
-前端状态集中在 app.js 的 state 对象：
-
-- 当前用户与角色
-- 当前文章与页面列表
-- 当前选中标注、标题
-- 画布缩放/平移状态
-- 造字与标题树
-- 在线用户 presence
+- 增加更多 OCR Provider
+- 给前端模块补正式打包流程
+- 将 `server/db.js` 继续拆分成多份 repository/service
+- 增加评论、审核流、版本历史
+- 为 XML 导出增加更多标准兼容选项
+- 增加更完整的自动化测试
 
 ---
 
-## 10. 可用于课堂答辩的“代码细节要点”
+## 11. 总结
 
-如果老师问“你这个项目不是拼装的吗，具体你做了什么”，可以从下面回答：
+这个项目的特点，不在于用了复杂框架，而在于它围绕“古籍整理”这个具体问题，把几个关键能力串起来了：
 
-1. 我没有用现成编辑器组件，而是自己在 SVG + 图片图层上实现标注交互。
-2. 标注模型不是单框，而是 annotation + regions 的多区域结构，专门解决跨行跨页。
-3. 权限不是只看角色，还叠加了 user_articles 的文章级授权。
-4. Socket 广播使用 room + except(sender) 防止自己回声更新。
-5. 数据库初始化内置迁移逻辑，保证旧版本坐标数据可升级到新结构。
-6. XML 不是静态模板，而是由快照动态生成，包含内容层和可视化层（view/svg）。
+- 用原生前端做出了可编辑的标注界面
+- 用 SQLite 保存结构化整理结果
+- 用多区域标注解决跨行/跨页问题
+- 用标题树和造字库承载古籍场景特有需求
+- 用 Socket.IO 增加协作能力
+- 用 OCR 和 XML 导出把“录入”和“产出”两端都补齐
 
----
-
-## 11. 当前边界与后续优化方向
-
-当前边界：
-
-- 冲突处理是“后写覆盖”模型，尚未做 CRDT/OT
-- 评论能力目前只在数据库层预留，未提供 API 与前端界面
-- OCR 目前仅接入百度 Provider
-
-可扩展方向：
-
-- 增加评论 API 与审校流转
-- 增加 OCR provider（如本地模型或其他云服务）
-- 标注协作加入版本号/乐观锁，减少并发覆盖
-- 增加操作日志与审计轨迹
-
----
-
-## 12. 脚本命令
-
-package.json 当前脚本：
-
-- npm start：启动服务（node server/index.js）
-- npm run dev：开发启动（当前同 start）
+如果把它理解成一个课程项目，它已经覆盖了前端交互、后端接口、数据库设计、权限控制、实时通信、外部服务集成、结构化导出等一整套完整链路；如果把它理解成一个原型系统，它的分层也已经具备继续演化的基础。

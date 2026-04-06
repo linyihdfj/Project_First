@@ -1,31 +1,17 @@
-/**
- * OCR Provider abstraction layer.
- * Supports pluggable providers (Baidu, etc.) via a common interface.
- */
-
 const fs = require("fs");
 const path = require("path");
 const sharp = require("sharp");
 
-/* ------------------------------------------------------------------ */
-/*  Base class                                                         */
-/* ------------------------------------------------------------------ */
-
 class OcrProvider {
-  /** Recognize text in an image buffer. Returns [{ text, confidence }]. */
-  async recognizeRegion(/* imageBuffer */) {
+
+  async recognizeRegion() {
     throw new Error("recognizeRegion() not implemented");
   }
 
-  /** Detect text regions in an image buffer. Returns [{ x, y, width, height, text, confidence }]. */
-  async detectLayout(/* imageBuffer */) {
+  async detectLayout() {
     throw new Error("detectLayout() not implemented");
   }
 }
-
-/* ------------------------------------------------------------------ */
-/*  Baidu OCR provider                                                 */
-/* ------------------------------------------------------------------ */
 
 class BaiduOcrProvider extends OcrProvider {
   constructor(apiKey, secretKey) {
@@ -53,7 +39,7 @@ class BaiduOcrProvider extends OcrProvider {
       throw new Error("Baidu token response missing access_token");
     }
     this._accessToken = data.access_token;
-    // Token valid for 30 days; refresh 1 day early
+
     this._tokenExpiry = Date.now() + (data.expires_in - 86400) * 1000;
     return this._accessToken;
   }
@@ -100,7 +86,6 @@ class BaiduOcrProvider extends OcrProvider {
       throw new Error(`Baidu OCR error ${data.error_code}: ${data.error_msg}`);
     }
 
-    // 逐字模式：从 chars 数组中提取每个字的位置
     if (level === "char") {
       const results = [];
       for (const item of data.words_result || []) {
@@ -117,7 +102,7 @@ class BaiduOcrProvider extends OcrProvider {
           }
         }
       }
-      // 如果 API 未返回逐字数据，回退为逐行结果
+
       if (results.length === 0 && (data.words_result || []).length > 0) {
         console.warn("[OCR] 逐字模式未获得字符级数据，回退为逐行结果");
         return (data.words_result || []).map((item) => ({
@@ -133,7 +118,6 @@ class BaiduOcrProvider extends OcrProvider {
       return results;
     }
 
-    // 逐行模式：直接返回行级结果
     return (data.words_result || []).map((item) => ({
       x: item.location.left,
       y: item.location.top,
@@ -145,13 +129,6 @@ class BaiduOcrProvider extends OcrProvider {
   }
 }
 
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                            */
-/* ------------------------------------------------------------------ */
-
-/**
- * Crop a rectangular region from an image file and return a buffer.
- */
 async function cropImage(imagePath, rect) {
   const { x, y, width, height } = rect;
   return sharp(imagePath)
@@ -159,16 +136,9 @@ async function cropImage(imagePath, rect) {
     .toBuffer();
 }
 
-/**
- * Read a full image file as a buffer.
- */
 async function readImageBuffer(imagePath) {
   return fs.promises.readFile(imagePath);
 }
-
-/* ------------------------------------------------------------------ */
-/*  Factory                                                            */
-/* ------------------------------------------------------------------ */
 
 let _provider = null;
 

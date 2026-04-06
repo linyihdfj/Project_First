@@ -1,0 +1,12 @@
+{
+  "chat.tools.terminal.autoApprove": {
+    "/^node -e \"const db=require\\('\\./server/db'\\); \\(async\\(\\)=>\\{ const u=await db\\.getUserByUsername\\('admin'\\); console\\.log\\('admin exists:', !!u\\); if\\(u\\)\\{ console\\.log\\('role:',u\\.role\\); console\\.log\\('hash prefix:', String\\(u\\.password_hash\\)\\.slice\\(0,18\\)\\); console\\.log\\('verify admin123:', db\\.verifyPassword\\('admin123',u\\.password_hash\\)\\); \\} process\\.exit\\(0\\); \\}\\)\\(\\)\\.catch\\(e=>\\{ console\\.error\\(e\\); process\\.exit\\(1\\); \\}\\);\"$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "/^node -e \"const http=require\\('http'\\); const data=JSON\\.stringify\\(\\{username:'admin',password:'admin123'\\}\\); const req=http\\.request\\(\\{hostname:'127\\.0\\.0\\.1',port:3000,path:'/api/auth/login',method:'POST',headers:\\{'Content-Type':'application/json','Content-Length':Buffer\\.byteLength\\(data\\)\\}\\},res=>\\{let b='';res\\.on\\('data',d=>b\\+=d\\);res\\.on\\('end',\\(\\)=>\\{console\\.log\\('status',res\\.statusCode\\);console\\.log\\('body',b\\);\\}\\);\\}\\); req\\.on\\('error',e=>\\{console\\.error\\('err',e\\.message\\); process\\.exit\\(1\\);\\}\\); req\\.write\\(data\\); req\\.end\\(\\);\"$/": {
+      "approve": true,
+      "matchCommandLine": true
+    }
+  }
+}
