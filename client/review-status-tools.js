@@ -9,6 +9,10 @@ window.createReviewStatusTools = function createReviewStatusTools(deps) {
     buildAnnotationList,
   } = deps;
 
+  /**
+   * @description 渲染当前选中标注的审校状态与审校人信息。
+   * @returns {void}
+   */
   function renderReviewStatus() {
     const ann = getSelectedAnnotation();
     if (!refs.reviewStatusSection) return;
@@ -28,6 +32,12 @@ window.createReviewStatusTools = function createReviewStatusTools(deps) {
     }
   }
 
+  /**
+   * @description 设置标注审校状态，支持显式传入 annotationId。
+   * @param {string|number} annotationIdOrStatus 标注 ID 或状态值。
+   * @param {string} [statusArg] 状态值（approved/rejected/pending）。
+   * @returns {Promise<void>}
+   */
   async function setReviewStatus(annotationIdOrStatus, statusArg) {
     let annId;
     let status;

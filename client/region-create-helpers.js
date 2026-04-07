@@ -11,6 +11,11 @@ window.createRegionCreateHelpers = function createRegionCreateHelpers(deps) {
     syncRegionAcrossPages,
   } = deps;
 
+  /**
+   * @description 以画框结果为基础构造新标注的草稿数据。
+   * @param {object} body 区域基础参数。
+   * @returns {object} 可直接提交到创建标注接口的 payload。
+   */
   function buildDraftPayload(body) {
     return {
       ...body,
@@ -28,6 +33,10 @@ window.createRegionCreateHelpers = function createRegionCreateHelpers(deps) {
     };
   }
 
+  /**
+   * @description 持久化区域拖拽（移动/缩放）结果；失败时回滚到原始坐标。
+   * @returns {Promise<boolean>} 有拖拽流程被处理时返回 true，否则 false。
+   */
   async function persistDraggedRegion() {
     const dragState = state.regionResize || state.regionMove;
     if (!dragState) return false;
@@ -85,6 +94,12 @@ window.createRegionCreateHelpers = function createRegionCreateHelpers(deps) {
     return true;
   }
 
+  /**
+   * @description 为已有标注追加一个区域，并刷新该页标注数据与选中状态。
+   * @param {object} page 当前页面对象。
+   * @param {object} body 新区域参数。
+   * @returns {Promise<void>}
+   */
   async function addRegionToExisting(page, body) {
     const targetAnnotationId = state.addingRegionForAnnotation;
     try {

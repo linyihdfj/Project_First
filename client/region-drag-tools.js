@@ -10,6 +10,14 @@ window.createRegionDragTools = function createRegionDragTools(deps) {
     MIN_REGION_SIZE,
   } = deps;
 
+  /**
+   * @description 开始区域缩放操作并记录初始状态。
+   * @param {MouseEvent} evt 鼠标事件。
+   * @param {number} annotationId 标注 ID。
+   * @param {number} regionId 区域 ID。
+   * @param {string} handle 缩放手柄方向。
+   * @returns {void}
+   */
   function startRegionResize(evt, annotationId, regionId, handle) {
     if (!isEditor()) {
       return;
@@ -45,6 +53,13 @@ window.createRegionDragTools = function createRegionDragTools(deps) {
     evt.stopPropagation();
   }
 
+  /**
+   * @description 开始区域平移操作并记录初始状态。
+   * @param {MouseEvent} evt 鼠标事件。
+   * @param {number} annotationId 标注 ID。
+   * @param {number} regionId 区域 ID。
+   * @returns {void}
+   */
   function startRegionMove(evt, annotationId, regionId) {
     if (!isEditor()) {
       return;
@@ -79,6 +94,11 @@ window.createRegionDragTools = function createRegionDragTools(deps) {
     evt.stopPropagation();
   }
 
+  /**
+   * @description 根据鼠标位移实时更新区域位置。
+   * @param {MouseEvent} evt 鼠标事件。
+   * @returns {void}
+   */
   function updateRegionMove(evt) {
     if (!state.regionMove) {
       return;
@@ -101,6 +121,11 @@ window.createRegionDragTools = function createRegionDragTools(deps) {
     });
   }
 
+  /**
+   * @description 根据鼠标位移实时更新区域尺寸与位置。
+   * @param {MouseEvent} evt 鼠标事件。
+   * @returns {void}
+   */
   function updateRegionResize(evt) {
     if (!state.regionResize) {
       return;

@@ -4,6 +4,10 @@ window.createCanvasNavigationTools = function createCanvasNavigationTools(
   const { state, refs, clampValue, renderAll, joinCurrentPageRoom } = deps;
   const WHEEL_LINE_PX = 16;
 
+  /**
+   * @description 获取当前选中的页面对象。
+   * @returns {object|null} 当前页面；索引越界时返回 null。
+   */
   function getCurrentPage() {
     if (
       state.currentPageIndex < 0 ||
@@ -14,6 +18,11 @@ window.createCanvasNavigationTools = function createCanvasNavigationTools(
     return state.pages[state.currentPageIndex];
   }
 
+  /**
+   * @description 计算指定缩放下画布可平移的边界范围。
+   * @param {number} [zoomValue=state.canvasView.zoom] 目标缩放值。
+   * @returns {{minX:number,maxX:number,minY:number,maxY:number}} 平移边界。
+   */
   function getCanvasViewBounds(zoomValue = state.canvasView.zoom) {
     const stageWidth = refs.canvasStage ? refs.canvasStage.clientWidth : 0;
     const stageHeight = refs.canvasStage ? refs.canvasStage.clientHeight : 0;
@@ -28,6 +37,13 @@ window.createCanvasNavigationTools = function createCanvasNavigationTools(
     };
   }
 
+  /**
+   * @description 将画布偏移量限制在可用边界内。
+   * @param {number} offsetX 目标 X 偏移。
+   * @param {number} offsetY 目标 Y 偏移。
+   * @param {number} [zoomValue=state.canvasView.zoom] 参与计算的缩放值。
+   * @returns {{x:number,y:number}} 夹取后的偏移。
+   */
   function clampCanvasView(
     offsetX,
     offsetY,
@@ -40,6 +56,10 @@ window.createCanvasNavigationTools = function createCanvasNavigationTools(
     };
   }
 
+  /**
+   * @description 将当前画布视图状态应用到 DOM（位移与缩放）。
+   * @returns {void}
+   */
   function applyCanvasView() {
     if (refs.canvasViewport) {
       refs.canvasViewport.style.transform = `translate(${state.canvasView.offsetX}px, ${state.canvasView.offsetY}px) scale(${state.canvasView.zoom})`;
@@ -49,6 +69,10 @@ window.createCanvasNavigationTools = function createCanvasNavigationTools(
     }
   }
 
+  /**
+   * @description 重置画布缩放和平移状态。
+   * @returns {void}
+   */
   function resetCanvasView() {
     state.canvasView.zoom = 1;
     state.canvasView.offsetX = 0;
@@ -60,6 +84,11 @@ window.createCanvasNavigationTools = function createCanvasNavigationTools(
     applyCanvasView();
   }
 
+  /**
+   * @description 切换页面并重置选择态、视图与协作房间。
+   * @param {number} step 页面步长（-1 上一页，+1 下一页）。
+   * @returns {void}
+   */
   function switchPage(step) {
     if (!state.pages.length) {
       return;
@@ -77,6 +106,13 @@ window.createCanvasNavigationTools = function createCanvasNavigationTools(
     joinCurrentPageRoom();
   }
 
+  /**
+   * @description 以指定锚点缩放画布，并保持锚点内容位置尽量不跳动。
+   * @param {number} nextZoom 目标缩放值。
+   * @param {number} [anchorClientX] 缩放锚点 X（客户端坐标）。
+   * @param {number} [anchorClientY] 缩放锚点 Y（客户端坐标）。
+   * @returns {void}
+   */
   function setCanvasZoom(nextZoom, anchorClientX, anchorClientY) {
     const oldZoom = state.canvasView.zoom;
     const zoom = clampValue(
@@ -111,6 +147,12 @@ window.createCanvasNavigationTools = function createCanvasNavigationTools(
     applyCanvasView();
   }
 
+  /**
+   * @description 按增量平移画布。
+   * @param {number} deltaX X 增量。
+   * @param {number} deltaY Y 增量。
+   * @returns {void}
+   */
   function panCanvasBy(deltaX, deltaY) {
     const clamped = clampCanvasView(
       state.canvasView.offsetX + deltaX,
@@ -121,10 +163,20 @@ window.createCanvasNavigationTools = function createCanvasNavigationTools(
     applyCanvasView();
   }
 
+  /**
+   * @description 判断当前事件是否应进入画布平移模式。
+   * @param {MouseEvent} evt 鼠标事件。
+   * @returns {boolean} 满足 Shift 或中键时返回 true。
+   */
   function shouldStartPanning(evt) {
     return !!evt && (evt.shiftKey || evt.button === 1);
   }
 
+  /**
+   * @description 开始画布平移并记录起点。
+   * @param {MouseEvent} evt 鼠标事件。
+   * @returns {void}
+   */
   function beginCanvasPan(evt) {
     state.canvasView.isPanning = true;
     state.canvasView.panStartClientX = evt.clientX;
@@ -135,6 +187,11 @@ window.createCanvasNavigationTools = function createCanvasNavigationTools(
     evt.preventDefault();
   }
 
+  /**
+   * @description 在平移模式中根据鼠标位移更新画布偏移。
+   * @param {MouseEvent} evt 鼠标事件。
+   * @returns {void}
+   */
   function moveCanvasPan(evt) {
     if (!state.canvasView.isPanning) {
       return;
@@ -151,6 +208,10 @@ window.createCanvasNavigationTools = function createCanvasNavigationTools(
     evt.preventDefault();
   }
 
+  /**
+   * @description 结束画布平移状态。
+   * @returns {void}
+   */
   function endCanvasPan() {
     if (!state.canvasView.isPanning) {
       return;
@@ -159,6 +220,12 @@ window.createCanvasNavigationTools = function createCanvasNavigationTools(
     refs.canvasStage.classList.remove("is-panning");
   }
 
+  /**
+   * @description 将不同 wheel deltaMode 统一换算为像素值。
+   * @param {number} rawDelta 原始滚轮增量。
+   * @param {number} deltaMode 滚轮模式（像素/行/页）。
+   * @returns {number} 像素单位增量。
+   */
   function normalizeWheelDelta(rawDelta, deltaMode) {
     if (!Number.isFinite(rawDelta)) {
       return 0;
@@ -172,6 +239,11 @@ window.createCanvasNavigationTools = function createCanvasNavigationTools(
     return rawDelta;
   }
 
+  /**
+   * @description 处理画布滚轮交互（横向平移、缩放或纵向平移）。
+   * @param {WheelEvent} evt 滚轮事件。
+   * @returns {void}
+   */
   function handleCanvasWheel(evt) {
     evt.preventDefault();
 

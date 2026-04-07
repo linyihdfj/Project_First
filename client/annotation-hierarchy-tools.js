@@ -17,6 +17,11 @@ window.createAnnotationHierarchyTools = function createAnnotationHierarchyTools(
     setReviewStatus,
   } = deps;
 
+  /**
+   * @description 根据子标注聚合父标注文本，并递归向上同步祖先节点。
+   * @param {string|null} parentId 父标注 ID。
+   * @returns {void}
+   */
   function recalcParentTextFromChildren(parentId) {
     if (!parentId) return;
     const currentPage = getCurrentPage();
@@ -40,6 +45,11 @@ window.createAnnotationHierarchyTools = function createAnnotationHierarchyTools(
 
     const childrenMap = new Map();
 
+    /**
+     * @description 计算文本完整度分数，用于在跨页副本中选出更完整的文本版本。
+     * @param {object} ann 标注对象。
+     * @returns {number} originalText 与 simplifiedText 的长度和。
+     */
     function scoreTextCompleteness(ann) {
       return (
         String(ann.originalText || "").length +
@@ -90,6 +100,12 @@ window.createAnnotationHierarchyTools = function createAnnotationHierarchyTools(
     }
   }
 
+  /**
+   * @description 将子标注挂到新父标注下，并同步顺序、父文本及后端数据。
+   * @param {string} childId 被移动的子标注 ID。
+   * @param {string} newParentId 新父标注 ID。
+   * @returns {Promise<void>}
+   */
   async function reparentAnnotation(childId, newParentId) {
     const page = getCurrentPage();
     if (!page) return;
@@ -157,6 +173,13 @@ window.createAnnotationHierarchyTools = function createAnnotationHierarchyTools(
     }
   }
 
+  /**
+   * @description 在同一层级中按目标位置重排标注顺序，并同步受影响父节点文本。
+   * @param {string} draggedId 被拖拽标注 ID。
+   * @param {string} targetId 目标标注 ID。
+   * @param {"before"|"after"} position 放置位置。
+   * @returns {Promise<void>}
+   */
   async function reorderAnnotation(draggedId, targetId, position) {
     const page = getCurrentPage();
     if (!page) return;
@@ -222,6 +245,10 @@ window.createAnnotationHierarchyTools = function createAnnotationHierarchyTools(
     renderAll();
   }
 
+  /**
+   * @description 构建并渲染当前页面的标注树列表，处理选中、拖拽、展开与审校状态交互。
+   * @returns {void}
+   */
   function buildAnnotationList() {
     const page = getCurrentPage();
     refs.annotationList.innerHTML = "";
@@ -235,6 +262,11 @@ window.createAnnotationHierarchyTools = function createAnnotationHierarchyTools(
       rejected: "驳回",
     };
 
+    /**
+     * @description 生成审校状态徽标 HTML。
+     * @param {object} ann 标注对象。
+     * @returns {string} 徽标 HTML 字符串。
+     */
     function makeReviewBadge(ann) {
       const st = ann.reviewStatus || "pending";
       return `<span class="review-badge-sm ${st}">${statusLabels[st] || st}</span>`;
@@ -260,6 +292,12 @@ window.createAnnotationHierarchyTools = function createAnnotationHierarchyTools(
 
     if (!state.annotationExpandedState) state.annotationExpandedState = {};
 
+    /**
+     * @description 递归渲染单个标注节点及其子节点，并绑定对应的交互事件。
+     * @param {object} ann 当前标注对象。
+     * @param {number} depth 当前节点深度。
+     * @returns {void}
+     */
     function renderAnnotationItem(ann, depth) {
       const item = document.createElement("li");
       item.className = "annotation-list-item";

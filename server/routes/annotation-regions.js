@@ -6,9 +6,11 @@ function registerAnnotationRegionRoutes(app, deps) {
     addAnnotationRegion,
     getRegionsByAnnotation,
     getRegionsByPage,
+    getAnnotationRegion,
     deleteAnnotationRegion,
     updateAnnotationRegion,
     reorderAnnotationRegions,
+    broadcastToPage,
   } = deps;
 
   app.post(
@@ -37,6 +39,11 @@ function registerAnnotationRegionRoutes(app, deps) {
           height,
         );
         res.json({ ok: true, region });
+        broadcastToPage(req, `page:${pageId}`, "annotation-region:created", {
+          annotationId,
+          pageId,
+          region,
+        });
       } catch (error) {
         sendError(res, error);
       }
@@ -75,8 +82,22 @@ function registerAnnotationRegionRoutes(app, deps) {
     requireRole("admin", "editor"),
     async (req, res) => {
       try {
+        const existingRegion = await getAnnotationRegion(req.params.regionId);
+        if (!existingRegion) {
+          throw new Error("区域不存在");
+        }
         await deleteAnnotationRegion(req.params.regionId);
         res.json({ ok: true });
+        broadcastToPage(
+          req,
+          `page:${existingRegion.pageId}`,
+          "annotation-region:deleted",
+          {
+            regionId: existingRegion.id,
+            annotationId: existingRegion.annotationId,
+            pageId: existingRegion.pageId,
+          },
+        );
       } catch (error) {
         sendError(res, error);
       }
@@ -101,6 +122,15 @@ function registerAnnotationRegionRoutes(app, deps) {
           height,
         });
         res.json({ ok: true, region });
+        broadcastToPage(
+          req,
+          `page:${region.pageId}`,
+          "annotation-region:updated",
+          {
+            pageId: region.pageId,
+            region,
+          },
+        );
       } catch (error) {
         sendError(res, error);
       }
@@ -120,6 +150,19 @@ function registerAnnotationRegionRoutes(app, deps) {
         }
         await reorderAnnotationRegions(annotationId, regionIds);
         res.json({ ok: true });
+        const regions = await getRegionsByAnnotation(annotationId);
+        if (regions.length) {
+          broadcastToPage(
+            req,
+            `page:${regions[0].pageId}`,
+            "annotation-region:reordered",
+            {
+              annotationId,
+              regionIds,
+              pageId: regions[0].pageId,
+            },
+          );
+        }
       } catch (error) {
         sendError(res, error);
       }

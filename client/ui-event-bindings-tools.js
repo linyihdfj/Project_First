@@ -42,6 +42,10 @@ window.createUiEventBindingsTools = function createUiEventBindingsTools(deps) {
     drawOverlay,
   } = deps;
 
+  /**
+   * @description 绑定文章元数据输入框事件（即时更新 + 防抖保存）。
+   * @returns {void}
+   */
   function bindMetaInputs() {
     const textInputs = [
       refs.metaTitle,
@@ -66,6 +70,10 @@ window.createUiEventBindingsTools = function createUiEventBindingsTools(deps) {
     });
   }
 
+  /**
+   * @description 绑定应用主要 UI 事件（登录、页面、画布、字库等）。
+   * @returns {void}
+   */
   function bindEvents() {
     if (refs.btnLogin) {
       refs.btnLogin.addEventListener("click", () => doLogin());
@@ -199,7 +207,9 @@ window.createUiEventBindingsTools = function createUiEventBindingsTools(deps) {
       passive: false,
     });
 
-    refs.annotationSvg.addEventListener("mousedown", beginDraw);
+    refs.annotationSvg.addEventListener("mousedown", (evt) => {
+      beginDraw(evt).catch((error) => alert(error.message));
+    });
     refs.annotationSvg.addEventListener("mousemove", moveDraw);
     refs.annotationSvg.addEventListener("mouseup", () => {
       finishDraw().catch((error) => alert(error.message));

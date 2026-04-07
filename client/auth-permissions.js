@@ -1,5 +1,9 @@
 (function exposeAuthPermissionsFactory(global) {
-
+  /**
+   * @description 创建认证与权限控制工具，负责登录态、角色能力和 UI 权限开关。
+   * @param {object} deps 依赖注入对象。
+   * @returns {object} 认证权限相关方法集合。
+   */
   function createAuthPermissions(deps) {
     const {
       refs,
@@ -16,14 +20,26 @@
       hideArticleSelect,
     } = deps;
 
+    /**
+     * @description 显示登录遮罩层。
+     * @returns {void}
+     */
     function showLoginOverlay() {
       if (refs.loginOverlay) refs.loginOverlay.hidden = false;
     }
 
+    /**
+     * @description 隐藏登录遮罩层。
+     * @returns {void}
+     */
     function hideLoginOverlay() {
       if (refs.loginOverlay) refs.loginOverlay.hidden = true;
     }
 
+    /**
+     * @description 判断当前用户是否具备编辑权限。
+     * @returns {boolean}
+     */
     function isEditor() {
       return (
         state.currentUser &&
@@ -32,10 +48,18 @@
       );
     }
 
+    /**
+     * @description 判断当前用户是否为管理员。
+     * @returns {boolean}
+     */
     function isAdmin() {
       return state.currentUser && state.currentUser.role === "admin";
     }
 
+    /**
+     * @description 判断当前用户是否具备审校权限。
+     * @returns {boolean}
+     */
     function canReview() {
       return (
         state.currentUser &&
@@ -44,6 +68,10 @@
       );
     }
 
+    /**
+     * @description 按角色更新工具栏和表单控件可编辑性。
+     * @returns {void}
+     */
     function applyPermissions() {
       const editable = isEditor();
       if (refs.toolbarEditControls) {
@@ -67,6 +95,10 @@
       }
     }
 
+    /**
+     * @description 更新顶部用户栏显示信息与管理按钮状态。
+     * @returns {void}
+     */
     function updateUserBar() {
       if (!refs.userBar) return;
       if (!state.currentUser) {
@@ -89,6 +121,10 @@
       }
     }
 
+    /**
+     * @description 执行登录流程，成功后初始化权限与协作连接。
+     * @returns {Promise<void>}
+     */
     async function doLogin() {
       const username = refs.loginUsername.value.trim();
       const password = refs.loginPassword.value;
@@ -124,6 +160,10 @@
       }
     }
 
+    /**
+     * @description 执行登出流程并回到登录/选文前状态。
+     * @returns {void}
+     */
     function doLogout() {
       const socket = getSocket();
       if (socket) {
@@ -138,6 +178,10 @@
       updateUserBar();
     }
 
+    /**
+     * @description 校验本地 token 并恢复会话。
+     * @returns {Promise<boolean>} 鉴权成功返回 true。
+     */
     async function checkAuth() {
       const token = getAuthToken();
       if (!token) {

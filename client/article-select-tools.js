@@ -12,6 +12,10 @@ window.createArticleSelectTools = function createArticleSelectTools(deps) {
     onManageAccess,
   } = deps;
 
+  /**
+   * @description 显示文章选择界面并刷新用户与文章列表信息。
+   * @returns {void}
+   */
   function showArticleSelect() {
     if (refs.articleSelectOverlay) refs.articleSelectOverlay.hidden = false;
     if (refs.btnBackToSelect) refs.btnBackToSelect.hidden = true;
@@ -49,10 +53,18 @@ window.createArticleSelectTools = function createArticleSelectTools(deps) {
     loadArticleList().catch((error) => alert(error.message));
   }
 
+  /**
+   * @description 隐藏文章选择界面。
+   * @returns {void}
+   */
   function hideArticleSelect() {
     if (refs.articleSelectOverlay) refs.articleSelectOverlay.hidden = true;
   }
 
+  /**
+   * @description 拉取文章列表并渲染卡片，同时预加载封面页。
+   * @returns {Promise<void>}
+   */
   async function loadArticleList() {
     try {
       const data = await apiRequest("/articles");
@@ -65,6 +77,12 @@ window.createArticleSelectTools = function createArticleSelectTools(deps) {
     }
   }
 
+  /**
+   * @description 导出指定文章为 XML 文件并触发浏览器下载。
+   * @param {string} articleId 文章 ID。
+   * @param {string} title 文章标题。
+   * @returns {Promise<void>}
+   */
   async function exportArticleXml(articleId, title) {
     try {
       const token = getAuthToken();
@@ -92,6 +110,12 @@ window.createArticleSelectTools = function createArticleSelectTools(deps) {
     }
   }
 
+  /**
+   * @description 删除指定文章并刷新文章列表。
+   * @param {string} articleId 文章 ID。
+   * @param {string} title 文章标题。
+   * @returns {Promise<void>}
+   */
   async function deleteArticleById(articleId, title) {
     if (!confirm(`确定删除文章「${title || articleId}」？此操作不可恢复。`))
       return;
@@ -105,6 +129,10 @@ window.createArticleSelectTools = function createArticleSelectTools(deps) {
     }
   }
 
+  /**
+   * @description 渲染文章卡片网格及其操作按钮。
+   * @returns {void}
+   */
   function renderArticleGrid() {
     if (!refs.articleGrid) return;
     refs.articleGrid.innerHTML = "";
@@ -163,17 +191,30 @@ window.createArticleSelectTools = function createArticleSelectTools(deps) {
     });
   }
 
+  /**
+   * @description 打开指定文章并加载其完整快照。
+   * @param {string} articleId 文章 ID。
+   * @returns {Promise<void>}
+   */
   async function openArticle(articleId) {
     hideArticleSelect();
     if (refs.btnBackToSelect) refs.btnBackToSelect.hidden = false;
     await loadSnapshot(articleId);
   }
 
+  /**
+   * @description 返回文章选择界面。
+   * @returns {void}
+   */
   function backToArticleSelect() {
     if (refs.btnBackToSelect) refs.btnBackToSelect.hidden = true;
     showArticleSelect();
   }
 
+  /**
+   * @description 根据输入信息创建新文章并刷新列表。
+   * @returns {Promise<void>}
+   */
   async function createNewArticle() {
     const title = refs.newArticleTitle ? refs.newArticleTitle.value.trim() : "";
     const subtitle = refs.newArticleSubtitle

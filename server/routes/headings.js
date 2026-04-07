@@ -1,3 +1,9 @@
+/**
+ * @description 注册标题相关路由，并在创建/更新/重排/删除后广播 heading 协作事件。
+ * @param {import("express").Express} app Express 应用实例。
+ * @param {object} deps 路由依赖集合。
+ * @returns {void}
+ */
 function registerHeadingRoutes(app, deps) {
   const {
     sendError,
@@ -6,9 +12,11 @@ function registerHeadingRoutes(app, deps) {
     requireRole,
     requireArticleAccess,
     createHeading,
+    getHeadingById,
     updateHeadingParent,
     reorderHeadings,
     deleteHeading,
+    broadcastToPage,
   } = deps;
 
   app.post(
@@ -21,6 +29,10 @@ function registerHeadingRoutes(app, deps) {
         const articleId = articleIdFromReq(req);
         const heading = await createHeading(articleId, req.body || {});
         res.json({ ok: true, heading });
+        broadcastToPage(req, `article:${articleId}`, "heading:created", {
+          articleId,
+          heading,
+        });
       } catch (error) {
         sendError(res, error);
       }
@@ -45,6 +57,10 @@ function registerHeadingRoutes(app, deps) {
           level !== undefined ? level : null,
         );
         res.json({ ok: true, heading });
+        broadcastToPage(req, `article:${articleId}`, "heading:updated", {
+          articleId,
+          heading,
+        });
       } catch (error) {
         sendError(res, error);
       }
@@ -67,6 +83,11 @@ function registerHeadingRoutes(app, deps) {
         }
         await reorderHeadings(articleId, parentId || null, orderedIds);
         res.json({ ok: true });
+        broadcastToPage(req, `article:${articleId}`, "heading:reordered", {
+          articleId,
+          parentId: parentId || null,
+          orderedIds,
+        });
       } catch (error) {
         sendError(res, error);
       }
@@ -79,8 +100,22 @@ function registerHeadingRoutes(app, deps) {
     requireRole("admin", "editor"),
     async (req, res) => {
       try {
-        await deleteHeading(req.params.headingId);
+        const headingId = req.params.headingId;
+        const existingHeading = await getHeadingById(headingId);
+        if (!existingHeading) {
+          throw new Error("标题不存在");
+        }
+        await deleteHeading(headingId);
         res.json({ ok: true });
+        broadcastToPage(
+          req,
+          `article:${existingHeading.articleId}`,
+          "heading:deleted",
+          {
+            articleId: existingHeading.articleId,
+            headingId,
+          },
+        );
       } catch (error) {
         sendError(res, error);
       }

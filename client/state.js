@@ -1,4 +1,8 @@
 (function exposeStateFactory(global) {
+  /**
+   * @description 创建应用初始状态，集中定义编辑器运行时数据模型。
+   * @returns {object} 应用初始状态对象。
+   */
   function createInitialState() {
     return {
       currentUser: null,

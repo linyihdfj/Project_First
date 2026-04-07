@@ -10,22 +10,41 @@ window.createGlyphPickerTools = function createGlyphPickerTools(deps) {
     drawOverlay,
   } = deps;
 
+  /**
+   * @description 根据 ID 查找字形对象。
+   * @param {string} glyphId 字形 ID。
+   * @returns {object|null}
+   */
   function getGlyphById(glyphId) {
     if (!glyphId) return null;
     return state.glyphs.find((item) => item.id === glyphId) || null;
   }
 
+  /**
+   * @description 生成字形展示文本。
+   * @param {object|null} glyph 字形对象。
+   * @returns {string}
+   */
   function glyphDisplayText(glyph) {
     if (!glyph) return "未关联造字";
     return `${glyph.code} - ${glyph.name || "未命名"}`;
   }
 
+  /**
+   * @description 关闭字形选择弹窗并重置查询状态。
+   * @returns {void}
+   */
   function hideGlyphPicker() {
     if (refs.glyphPickerDialog) refs.glyphPickerDialog.hidden = true;
     state.glyphPicker.annotationId = null;
     state.glyphPicker.query = "";
   }
 
+  /**
+   * @description 清空指定标注的字形关联。
+   * @param {number} annotationId 标注 ID。
+   * @returns {void}
+   */
   function clearGlyphRefForAnnotation(annotationId) {
     const ann = getAnnotationById(annotationId);
     if (!ann) return;
@@ -36,6 +55,11 @@ window.createGlyphPickerTools = function createGlyphPickerTools(deps) {
     scheduleAnnotationPersist(ann);
   }
 
+  /**
+   * @description 将选中字形应用到当前标注。
+   * @param {string} glyphId 字形 ID。
+   * @returns {void}
+   */
   function applyGlyphToCurrentAnnotation(glyphId) {
     const ann = getAnnotationById(
       state.glyphPicker.annotationId || state.selectedAnnotationId,
@@ -50,6 +74,10 @@ window.createGlyphPickerTools = function createGlyphPickerTools(deps) {
     scheduleAnnotationPersist(ann);
   }
 
+  /**
+   * @description 按查询条件渲染字形选择列表。
+   * @returns {void}
+   */
   function renderGlyphPickerList() {
     if (!refs.glyphPickerList) return;
 
@@ -94,6 +122,11 @@ window.createGlyphPickerTools = function createGlyphPickerTools(deps) {
     });
   }
 
+  /**
+   * @description 打开指定标注的字形选择弹窗。
+   * @param {number} annotationId 标注 ID。
+   * @returns {void}
+   */
   function openGlyphPickerForAnnotation(annotationId) {
     if (!annotationId || !refs.glyphPickerDialog) return;
     const ann = getAnnotationById(annotationId);
@@ -106,6 +139,13 @@ window.createGlyphPickerTools = function createGlyphPickerTools(deps) {
     if (refs.glyphPickerSearch) refs.glyphPickerSearch.focus();
   }
 
+  /**
+   * @description 在标注表单片段中填充字形关联控件。
+   * @param {DocumentFragment|HTMLElement} fragment 表单片段。
+   * @param {HTMLInputElement} glyphRefEl 隐藏域。
+   * @param {object} ann 标注对象。
+   * @returns {void}
+   */
   function fillGlyphRefControl(fragment, glyphRefEl, ann) {
     glyphRefEl.value = ann.glyphRef || "";
     const displayEl = fragment.querySelector('[data-role="glyph-display"]');

@@ -1,5 +1,14 @@
 (function exposeApiClientFactory(global) {
-
+  /**
+   * @description 创建统一的 API 请求函数，自动注入鉴权与协作上下文并处理错误。
+   * @param {object} deps 依赖注入对象。
+   * @param {(pathname:string)=>string} deps.apiPath 路径拼接函数。
+   * @param {()=>string} deps.getAuthToken 获取当前 token。
+   * @param {()=>void} deps.removeAuthToken 清除 token。
+   * @param {()=>string} deps.getSocketId 获取当前 socket id。
+   * @param {()=>void} [deps.onUnauthorized] 401 时回调。
+   * @returns {(pathname:string, options?:{method?:string,body?:any})=>Promise<any>} 请求函数。
+   */
   function createApiRequest({
     apiPath,
     getAuthToken,
@@ -7,6 +16,12 @@
     getSocketId,
     onUnauthorized,
   }) {
+    /**
+     * @description 发送 API 请求并返回 JSON 载荷；失败时抛出 Error。
+     * @param {string} pathname 接口路径。
+     * @param {{method?:string, body?:any}} [options={}] 请求选项。
+     * @returns {Promise<any>} 后端返回的 payload。
+     */
     return async function apiRequest(pathname, options = {}) {
       const method = options.method || "GET";
       const init = {

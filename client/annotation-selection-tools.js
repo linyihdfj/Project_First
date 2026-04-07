@@ -10,6 +10,10 @@ window.createAnnotationSelectionTools = function createAnnotationSelectionTools(
     renderAll,
   } = deps;
 
+  /**
+   * @description 获取当前页面中已选中的标注对象。
+   * @returns {object|null} 当前选中标注；未选中或当前页不存在时返回 null。
+   */
   function getSelectedAnnotation() {
     const page = getCurrentPage();
     if (!page || !state.selectedAnnotationId) {
@@ -21,6 +25,11 @@ window.createAnnotationSelectionTools = function createAnnotationSelectionTools(
     );
   }
 
+  /**
+   * @description 按标注 ID 在当前页优先、全页兜底地查找标注对象。
+   * @param {string} annotationId 标注 ID。
+   * @returns {object|null} 匹配标注；未找到时返回 null。
+   */
   function getAnnotationById(annotationId) {
     if (!annotationId) {
       return null;
@@ -43,6 +52,11 @@ window.createAnnotationSelectionTools = function createAnnotationSelectionTools(
     return null;
   }
 
+  /**
+   * @description 为标注安排防抖保存任务，300ms 内连续编辑只会提交最后一次。
+   * @param {object} ann 标注对象。
+   * @returns {void}
+   */
   function scheduleAnnotationPersist(ann) {
     if (!ann || !ann.id) {
       return;
@@ -76,6 +90,10 @@ window.createAnnotationSelectionTools = function createAnnotationSelectionTools(
     annotationSaveTimers.set(annotationId, timer);
   }
 
+  /**
+   * @description 删除当前选中标注，并同步清理父链文本、标题关联与本地选择状态。
+   * @returns {Promise<void>}
+   */
   async function removeSelectedAnnotation() {
     const page = getCurrentPage();
     if (!page || !state.selectedAnnotationId) {

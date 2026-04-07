@@ -1,5 +1,9 @@
 (function exposeFilePdfUtilsFactory(global) {
-
+  /**
+   * @description 创建 PDF/图片导入工具，支持 PDF 页面转图片。
+   * @param {(src:string,name:string,width:number,height:number)=>object} createPageFromImage 页面构造函数。
+   * @returns {object} 文件导入工具集合。
+   */
   function createFilePdfUtils(createPageFromImage) {
     const PDF_JS_SOURCES = [
       {
@@ -28,6 +32,11 @@
       readFileAsDataUrl,
     } = global.createFileHelpers();
 
+    /**
+     * @description 动态加载脚本（同一 src 仅加载一次）。
+     * @param {string} src 脚本地址。
+     * @returns {Promise<void>}
+     */
     function loadScriptOnce(src) {
       return new Promise((resolve, reject) => {
         const exists = document.querySelector(`script[data-src="${src}"]`);
@@ -66,6 +75,10 @@
       });
     }
 
+    /**
+     * @description 从多个 CDN 依次尝试加载 PDF.js。
+     * @returns {Promise<void>}
+     */
     async function loadPdfJsFromAnyCdn() {
       let lastError = null;
       for (const source of PDF_JS_SOURCES) {
@@ -81,6 +94,11 @@
       throw lastError || new Error("PDF 引擎脚本加载失败");
     }
 
+    /**
+     * @description 判断错误是否与 worker/cors 限制相关。
+     * @param {any} error 错误对象。
+     * @returns {boolean}
+     */
     function isWorkerLikelyBlocked(error) {
       const message = String((error && error.message) || error || "");
       return /worker|cross-origin|origin|Failed to construct 'Worker'|Cannot load script/i.test(
@@ -88,6 +106,12 @@
       );
     }
 
+    /**
+     * @description 加载 PDF 文档，必要时回退为主线程解析。
+     * @param {any} pdfjsLib PDF.js 实例。
+     * @param {ArrayBuffer|Uint8Array} buffer 文件数据。
+     * @returns {Promise<any>} PDF 文档对象。
+     */
     async function loadPdfDocument(pdfjsLib, buffer) {
       const data =
         buffer instanceof ArrayBuffer ? new Uint8Array(buffer) : buffer;
@@ -106,6 +130,10 @@
       }
     }
 
+    /**
+     * @description 确保 PDF.js 已初始化并返回可用实例。
+     * @returns {Promise<any>}
+     */
     async function ensurePdfJsLoaded() {
       if (window.pdfjsLib && window.pdfjsLib.getDocument) {
         window.pdfjsLib.GlobalWorkerOptions.workerSrc = activePdfWorkerSrc;
@@ -129,6 +157,12 @@
       return pdfJsLoadingPromise;
     }
 
+    /**
+     * @description 将 PDF 每一页渲染为 PNG，并转换为页面对象数组。
+     * @param {File} file PDF 文件。
+     * @param {{onProgress?:(info:{fileName:string,current:number,total:number})=>void}} [options={}] 配置项。
+     * @returns {Promise<Array<object>>}
+     */
     async function extractPdfPagesAsImages(file, options = {}) {
       const { onProgress } = options;
       const pdfjsLib = await ensurePdfJsLoaded();

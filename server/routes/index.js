@@ -86,9 +86,11 @@ function registerAllRoutes(app, deps) {
     addAnnotationRegion: deps.addAnnotationRegion,
     getRegionsByAnnotation: deps.getRegionsByAnnotation,
     getRegionsByPage: deps.getRegionsByPage,
+    getAnnotationRegion: deps.getAnnotationRegion,
     deleteAnnotationRegion: deps.deleteAnnotationRegion,
     updateAnnotationRegion: deps.updateAnnotationRegion,
     reorderAnnotationRegions: deps.reorderAnnotationRegions,
+    broadcastToPage: deps.broadcastToPage,
   });
 
   registerOcrRoutes(app, {
@@ -122,9 +124,11 @@ function registerAllRoutes(app, deps) {
     requireRole: deps.requireRole,
     requireArticleAccess: deps.requireArticleAccess,
     createHeading: deps.createHeading,
+    getHeadingById: deps.getHeadingById,
     updateHeadingParent: deps.updateHeadingParent,
     reorderHeadings: deps.reorderHeadings,
     deleteHeading: deps.deleteHeading,
+    broadcastToPage: deps.broadcastToPage,
   });
 
   registerHealthRoute(app, {

@@ -30,6 +30,12 @@ window.createRegionCreateTools = function createRegionCreateTools(deps) {
   let lastPointerClientX = null;
   let lastPointerClientY = null;
 
+  /**
+   * @description 根据指针与视口边缘距离计算自动滚动画布的纵向步进值。
+   * @param {number} clientY 鼠标当前 Y 坐标（视口坐标系）。
+   * @param {number} viewportHeight 视口高度。
+   * @returns {number} 向上滚动为正，向下滚动为负，0 表示无需自动滚动。
+   */
   function computeAutoPanDelta(clientY, viewportHeight) {
     if (!Number.isFinite(clientY) || !Number.isFinite(viewportHeight)) {
       return 0;
@@ -55,6 +61,10 @@ window.createRegionCreateTools = function createRegionCreateTools(deps) {
     return 0;
   }
 
+  /**
+   * @description 在自动滚动后用最新鼠标位置同步草绘终点，避免框选形状漂移。
+   * @returns {void}
+   */
   function syncDrawingPointer() {
     if (
       !state.drawing ||
@@ -71,6 +81,11 @@ window.createRegionCreateTools = function createRegionCreateTools(deps) {
     state.drawing.endY = pt.y;
   }
 
+  /**
+   * @description 应用自动滚动位移并返回画布偏移是否发生变化。
+   * @param {number} deltaY 纵向偏移量。
+   * @returns {boolean} 偏移发生变化时为 true。
+   */
   function applyAutoPanDelta(deltaY) {
     if (!deltaY) {
       return false;
@@ -84,6 +99,11 @@ window.createRegionCreateTools = function createRegionCreateTools(deps) {
     return false;
   }
 
+  /**
+   * @description 在绘制过程中按当前鼠标位置即时触发一次自动滚动检查。
+   * @param {MouseEvent} evt 鼠标事件。
+   * @returns {void}
+   */
   function maybeAutoPanWhileDrawing(evt) {
     if (!state.drawing) {
       return;
@@ -109,6 +129,10 @@ window.createRegionCreateTools = function createRegionCreateTools(deps) {
     }
   }
 
+  /**
+   * @description 启动自动滚动循环，在持续贴边绘制时按固定间隔推动画布。
+   * @returns {void}
+   */
   function startAutoPanLoop() {
     if (autoPanTimer) {
       return;
@@ -137,6 +161,10 @@ window.createRegionCreateTools = function createRegionCreateTools(deps) {
     }, AUTO_PAN_INTERVAL_MS);
   }
 
+  /**
+   * @description 停止自动滚动循环并清理本次绘制的指针缓存。
+   * @returns {void}
+   */
   function stopAutoPanLoop() {
     if (autoPanTimer) {
       window.clearInterval(autoPanTimer);
@@ -146,7 +174,16 @@ window.createRegionCreateTools = function createRegionCreateTools(deps) {
     lastPointerClientY = null;
   }
 
-  function beginDraw(evt) {
+  /**
+   * @description 处理绘制起点：清理选择状态、初始化草绘框与自动滚动状态。
+   * @param {MouseEvent} evt 鼠标按下事件。
+   * @returns {void}
+   */
+  async function flushPendingRegionEdit() {
+    return persistDraggedRegion();
+  }
+
+  async function beginDraw(evt) {
     if (shouldStartPanning(evt)) {
       beginCanvasPan(evt);
       return;
@@ -159,6 +196,7 @@ window.createRegionCreateTools = function createRegionCreateTools(deps) {
       state.selectedHeadingId ||
       state.selectedRegionId
     ) {
+      await flushPendingRegionEdit();
       state.selectedAnnotationId = null;
       state.selectedHeadingId = null;
       state.selectedRegionId = null;
@@ -185,6 +223,11 @@ window.createRegionCreateTools = function createRegionCreateTools(deps) {
     drawOverlay();
   }
 
+  /**
+   * @description 处理绘制过程中的鼠标移动，分发到平移、移动区域、缩放区域或草绘逻辑。
+   * @param {MouseEvent} evt 鼠标移动事件。
+   * @returns {void}
+   */
   function moveDraw(evt) {
     if (
       state.pendingRegionMove &&
@@ -251,6 +294,10 @@ window.createRegionCreateTools = function createRegionCreateTools(deps) {
     drawOverlay();
   }
 
+  /**
+   * @description 结束当前绘制流程：优先提交区域拖拽，再按草绘结果创建标注或追加区域。
+   * @returns {Promise<void>}
+   */
   async function finishDraw() {
     state.pendingRegionMove = null;
 
@@ -305,5 +352,5 @@ window.createRegionCreateTools = function createRegionCreateTools(deps) {
     renderAll();
   }
 
-  return { beginDraw, moveDraw, finishDraw };
+  return { beginDraw, moveDraw, finishDraw, flushPendingRegionEdit };
 };

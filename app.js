@@ -2,7 +2,9 @@ const NS_SVG = "http://www.w3.org/2000/svg";
 const API_BASE = "/api";
 const MIN_REGION_SIZE = 8;
 const BORDER_HIT_TOLERANCE_PX = 8;
-const HANDLE_HIT_RADIUS_PX = 10;
+const MIN_HANDLE_SIZE_PX = 6;
+const MAX_HANDLE_SIZE_PX = 9;
+const HANDLE_HIT_PADDING_PX = 2;
 
 const state = window.createInitialState();
 
@@ -159,6 +161,7 @@ const {
   getPointerPoint,
   getRegionFromAnnotation,
   syncRegionAcrossPages,
+  getResizeHandleMetrics,
   getResizeCursorByHandle,
   getRegionBorderHit,
   updateSvgCursor,
@@ -172,7 +175,9 @@ const {
   renderAll,
   joinCurrentPageRoom,
   BORDER_HIT_TOLERANCE_PX,
-  HANDLE_HIT_RADIUS_PX,
+  MIN_HANDLE_SIZE_PX,
+  MAX_HANDLE_SIZE_PX,
+  HANDLE_HIT_PADDING_PX,
 });
 
 pageImportTools = window.createPageImportTools({
@@ -198,6 +203,7 @@ const {
   beginDraw,
   moveDraw,
   finishDraw,
+  flushPendingRegionEdit,
 } = window.createRegionDrawTools({
   state,
   refs,
@@ -389,9 +395,11 @@ const overlayRenderTools = window.createOverlayRenderTools({
   state,
   isEditor,
   getCurrentPage,
+  getResizeHandleMetrics,
   getRegionBorderHit,
   startRegionResize,
   startRegionMove,
+  flushPendingRegionEdit,
   renderAll,
   renderAnnotationForm,
 });
@@ -668,6 +676,8 @@ socketCollab = window.createSocketCollabTools({
   getCurrentPage,
   apiRequest,
   drawOverlay,
+  renderHeadingIndex,
+  renderHeadingAddTip,
   buildAnnotationList,
   renderAnnotationForm,
   renderReviewStatus,

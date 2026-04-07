@@ -14,6 +14,11 @@ window.createPageImportTools = function createPageImportTools(deps) {
     renderAll,
   } = deps;
 
+  /**
+   * @description 预加载图片并读取其自然尺寸。
+   * @param {string} src 图片地址。
+   * @returns {Promise<{src:string,width:number,height:number}>}
+   */
   function loadImageBySrc(src) {
     return new Promise((resolve, reject) => {
       const img = new Image();
@@ -28,6 +33,11 @@ window.createPageImportTools = function createPageImportTools(deps) {
     });
   }
 
+  /**
+   * @description 将导入页面批量持久化到后端。
+   * @param {Array<object>} importedPages 待保存页面数组。
+   * @returns {Promise<Array<object>>} 已保存页面数组。
+   */
   async function persistNewPages(importedPages) {
     if (!importedPages.length) {
       return [];
@@ -50,6 +60,11 @@ window.createPageImportTools = function createPageImportTools(deps) {
     return result.pages || [];
   }
 
+  /**
+   * @description 处理页面文件上传（图片/PDF），并替换当前文章页面。
+   * @param {Event} event 文件选择事件。
+   * @returns {Promise<void>}
+   */
   async function handleImageUpload(event) {
     const files = Array.from(event.target.files || []);
     if (!files.length) {
@@ -113,6 +128,10 @@ window.createPageImportTools = function createPageImportTools(deps) {
     renderAll();
   }
 
+  /**
+   * @description 清空当前文章全部页面与标注。
+   * @returns {Promise<void>}
+   */
   async function clearAllPages() {
     if (!state.pages.length) {
       return;

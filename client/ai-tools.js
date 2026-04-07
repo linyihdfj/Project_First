@@ -13,12 +13,20 @@ window.createAiTools = function createAiTools(deps) {
     renderAll,
   } = deps;
 
+  /**
+   * @description 根据当前选中状态更新 AI 识别按钮可用性。
+   * @returns {void}
+   */
   function updateAiButtonStates() {
     if (refs.btnAiOcrRegion) {
       refs.btnAiOcrRegion.disabled = !state.selectedAnnotationId;
     }
   }
 
+  /**
+   * @description 对当前选中标注执行 AI 识别；字级直接识别文本，句/段级执行版面检测并生成子字标注。
+   * @returns {Promise<void>}
+   */
   async function aiRecognizeSelected() {
     const page = getCurrentPage();
     const ann = getSelectedAnnotation();

@@ -1,5 +1,8 @@
 (function exposeRefsFactory(global) {
-
+  /**
+   * @description 收集并缓存页面中常用 DOM 引用，避免重复查询。
+   * @returns {object} 各 UI 节点引用集合。
+   */
   function createRefs() {
     return {
       loginOverlay: document.getElementById("login-overlay"),

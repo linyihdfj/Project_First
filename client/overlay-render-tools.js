@@ -5,13 +5,22 @@ window.createOverlayRenderTools = function createOverlayRenderTools(deps) {
     state,
     isEditor,
     getCurrentPage,
+    getResizeHandleMetrics,
     getRegionBorderHit,
     startRegionResize,
     startRegionMove,
+    flushPendingRegionEdit,
     renderAll,
     renderAnnotationForm,
   } = deps;
 
+  /**
+   * @description 基于页面坐标构建单个标注区域 SVG 矩形元素。
+   * @param {object} ann 区域数据（包含 x/y/width/height 与 reviewStatus）。
+   * @param {object} page 当前页面对象。
+   * @param {boolean} selected 是否选中态。
+   * @returns {SVGRectElement} 区域矩形节点。
+   */
   function buildShapeElement(ann, page, selected) {
     const scaleX = refs.annotationSvg.clientWidth / page.width;
     const scaleY = refs.annotationSvg.clientHeight / page.height;
@@ -47,6 +56,13 @@ window.createOverlayRenderTools = function createOverlayRenderTools(deps) {
     return rect;
   }
 
+  /**
+   * @description 为当前区域构建 8 个缩放手柄并绑定事件。
+   * @param {number} annotationId 标注 ID。
+   * @param {object} region 区域对象。
+   * @param {object} page 当前页面对象。
+   * @returns {DocumentFragment} 含手柄节点的片段。
+   */
   function buildResizeHandles(annotationId, region, page) {
     const scaleX = refs.annotationSvg.clientWidth / page.width;
     const scaleY = refs.annotationSvg.clientHeight / page.height;
@@ -54,7 +70,8 @@ window.createOverlayRenderTools = function createOverlayRenderTools(deps) {
     const y = region.y * scaleY;
     const width = region.width * scaleX;
     const height = region.height * scaleY;
-    const handleSize = 10;
+    const { visualSizePx } = getResizeHandleMetrics(page);
+    const handleSize = Math.round(visualSizePx * 10) / 10;
 
     const handles = [
       { key: "nw", x, y, cursor: "nwse-resize" },
@@ -86,12 +103,20 @@ window.createOverlayRenderTools = function createOverlayRenderTools(deps) {
     return fragment;
   }
 
+  /**
+   * @description 计算当前页需要展示的标注 ID 集合。
+   * @returns {Set<number>} 可见标注 ID 集。
+   */
   function getVisibleAnnotationIds() {
     const page = getCurrentPage();
     if (!page || !state.selectedAnnotationId) return new Set();
     return new Set([state.selectedAnnotationId]);
   }
 
+  /**
+   * @description 重绘标注覆盖层，包括选中区域、手柄和临时绘制框。
+   * @returns {void}
+   */
   function drawOverlay() {
     const page = getCurrentPage();
     refs.annotationSvg.innerHTML = "";
@@ -145,28 +170,36 @@ window.createOverlayRenderTools = function createOverlayRenderTools(deps) {
             const isCurrent =
               state.selectedAnnotationId === ann.id &&
               state.selectedRegionId === region.id;
-            if (isCurrent) {
-              state.selectedRegionId = null;
-              state.pendingRegionMove = null;
+            const run = async () => {
+              if (isCurrent) {
+                await flushPendingRegionEdit();
+                state.selectedRegionId = null;
+                state.pendingRegionMove = null;
+                renderAll({ skipFormRebuild: true });
+                renderAnnotationForm();
+                return;
+              }
+              state.selectedAnnotationId = ann.id;
+              state.selectedHeadingId = null;
+              state.selectedRegionId = region.id;
               renderAll({ skipFormRebuild: true });
               renderAnnotationForm();
-              return;
-            }
-            state.selectedAnnotationId = ann.id;
-            state.selectedHeadingId = null;
-            state.selectedRegionId = region.id;
-            renderAll({ skipFormRebuild: true });
-            renderAnnotationForm();
+            };
+            run().catch((error) => alert(error.message));
           });
 
           shape.addEventListener("dblclick", (evt) => {
             evt.stopPropagation();
             if (state.selectedAnnotationId !== ann.id) return;
-            state.selectedAnnotationId = null;
-            state.selectedHeadingId = null;
-            state.selectedRegionId = null;
-            renderAll({ skipFormRebuild: true });
-            renderAnnotationForm();
+            const run = async () => {
+              await flushPendingRegionEdit();
+              state.selectedAnnotationId = null;
+              state.selectedHeadingId = null;
+              state.selectedRegionId = null;
+              renderAll({ skipFormRebuild: true });
+              renderAnnotationForm();
+            };
+            run().catch((error) => alert(error.message));
           });
 
           refs.annotationSvg.appendChild(shape);

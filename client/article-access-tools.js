@@ -1,6 +1,11 @@
 window.createArticleAccessTools = function createArticleAccessTools(deps) {
   const { refs, state, apiRequest, escapeHtml } = deps;
 
+  /**
+   * @description 加载文章授权用户列表并渲染。
+   * @param {string} articleId 文章 ID。
+   * @returns {Promise<void>}
+   */
   async function loadAccessList(articleId) {
     try {
       const data = await apiRequest(
@@ -12,6 +17,11 @@ window.createArticleAccessTools = function createArticleAccessTools(deps) {
     }
   }
 
+  /**
+   * @description 渲染已授权用户列表。
+   * @param {Array<object>} users 用户数组。
+   * @returns {void}
+   */
   function renderAccessList(users) {
     if (!refs.accessUserList) return;
     refs.accessUserList.innerHTML = "";
@@ -47,6 +57,12 @@ window.createArticleAccessTools = function createArticleAccessTools(deps) {
     });
   }
 
+  /**
+   * @description 打开权限管理弹窗并初始化候选用户与授权列表。
+   * @param {string} articleId 文章 ID。
+   * @param {string} title 文章标题。
+   * @returns {Promise<void>}
+   */
   async function showAccessDialog(articleId, title) {
     state.accessArticleId = articleId;
     if (refs.accessArticleTitle)
@@ -71,11 +87,19 @@ window.createArticleAccessTools = function createArticleAccessTools(deps) {
     await loadAccessList(articleId);
   }
 
+  /**
+   * @description 关闭权限管理弹窗并清理当前文章上下文。
+   * @returns {void}
+   */
   function hideAccessDialog() {
     if (refs.articleAccessDialog) refs.articleAccessDialog.hidden = true;
     state.accessArticleId = null;
   }
 
+  /**
+   * @description 为当前文章新增用户访问权限。
+   * @returns {Promise<void>}
+   */
   async function grantAccess() {
     if (!state.accessArticleId || !refs.accessUserSelect) return;
     const userId = refs.accessUserSelect.value;
@@ -95,6 +119,11 @@ window.createArticleAccessTools = function createArticleAccessTools(deps) {
     }
   }
 
+  /**
+   * @description 移除当前文章指定用户的访问权限。
+   * @param {string} userId 用户 ID。
+   * @returns {Promise<void>}
+   */
   async function revokeAccess(userId) {
     if (!state.accessArticleId) return;
 

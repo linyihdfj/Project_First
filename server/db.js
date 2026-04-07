@@ -1366,6 +1366,31 @@ async function getRegionsByAnnotation(annotationId) {
   }));
 }
 
+/**
+ * @description 按区域 ID 查询单个标注区域，供协作广播时补充 pageId / annotationId。
+ * @param {string} regionId 区域 ID。
+ * @returns {Promise<object|null>} 区域对象；不存在时返回 null。
+ */
+async function getAnnotationRegion(regionId) {
+  const row = await get("SELECT * FROM annotation_regions WHERE id = ?", [
+    regionId,
+  ]);
+  if (!row) {
+    return null;
+  }
+  return {
+    id: row.id,
+    annotationId: row.annotation_id,
+    pageId: row.page_id,
+    x: row.x,
+    y: row.y,
+    width: row.width,
+    height: row.height,
+    orderIndex: row.order_index || 0,
+    createdAt: row.created_at,
+  };
+}
+
 async function deleteAnnotationRegion(regionId) {
   await run("DELETE FROM annotation_regions WHERE id = ?", [regionId]);
 }
@@ -1536,6 +1561,22 @@ async function createHeading(articleId, payload) {
      LEFT JOIN pages p ON p.id = h.page_id
      WHERE h.id = ?`,
     [heading.id],
+  );
+  return row ? mapHeadingRow(row) : null;
+}
+
+/**
+ * @description 按标题 ID 查询单个标题，供删除前广播所属文章与标题信息。
+ * @param {string} headingId 标题 ID。
+ * @returns {Promise<object|null>} 标题对象；不存在时返回 null。
+ */
+async function getHeadingById(headingId) {
+  const row = await get(
+    `SELECT h.*, p.page_no
+     FROM headings h
+     LEFT JOIN pages p ON p.id = h.page_id
+     WHERE h.id = ?`,
+    [headingId],
   );
   return row ? mapHeadingRow(row) : null;
 }
@@ -1967,10 +2008,12 @@ module.exports = {
   getAnnotationsForPage,
   getRegionsByPage,
   getRegionsByAnnotation,
+  getAnnotationRegion,
   deleteAnnotationRegion,
   updateAnnotationRegion,
   reorderAnnotationRegions,
   getHeadingsByArticle,
+  getHeadingById,
   getPageIdsByArticle,
   createHeading,
   updateHeadingParent,

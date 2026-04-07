@@ -14,6 +14,10 @@ window.createAppStateTools = function createAppStateTools(deps) {
 
   let metaSaveTimer = null;
 
+  /**
+   * @description 将 state.article 同步到元数据表单输入框。
+   * @returns {void}
+   */
   function syncMetaInputsFromState() {
     refs.metaArticleId.value = state.article.id;
     refs.metaTitle.value = state.article.title;
@@ -25,6 +29,10 @@ window.createAppStateTools = function createAppStateTools(deps) {
     refs.metaWritingYear.value = state.article.writingYear;
   }
 
+  /**
+   * @description 从元数据表单读取值并写回 state.article。
+   * @returns {void}
+   */
   function updateArticleMetaFromForm() {
     state.article.id = normalizeArticleId(refs.metaArticleId.value);
     state.article.title = refs.metaTitle.value.trim();
@@ -36,6 +44,10 @@ window.createAppStateTools = function createAppStateTools(deps) {
     state.article.writingYear = refs.metaWritingYear.value.trim();
   }
 
+  /**
+   * @description 立即保存文章元数据到后端并刷新本地状态。
+   * @returns {Promise<void>}
+   */
   async function saveArticleMeta() {
     updateArticleMetaFromForm();
     const articleId = normalizeArticleId(state.article.id);
@@ -51,6 +63,10 @@ window.createAppStateTools = function createAppStateTools(deps) {
     syncMetaInputsFromState();
   }
 
+  /**
+   * @description 防抖触发文章元数据保存。
+   * @returns {void}
+   */
   function scheduleSaveArticleMeta() {
     if (metaSaveTimer) {
       clearTimeout(metaSaveTimer);
@@ -60,6 +76,11 @@ window.createAppStateTools = function createAppStateTools(deps) {
     }, 450);
   }
 
+  /**
+   * @description 加载文章快照并重置页面级选择与视图状态。
+   * @param {string} articleId 文章 ID。
+   * @returns {Promise<void>}
+   */
   async function loadSnapshot(articleId) {
     const payload = await apiRequest(
       `/articles/${encodeURIComponent(articleId)}/snapshot`,
@@ -81,6 +102,11 @@ window.createAppStateTools = function createAppStateTools(deps) {
     }
   }
 
+  /**
+   * @description 切换顶部标签页并更新对应面板可见性。
+   * @param {string} tabName 目标标签名。
+   * @returns {void}
+   */
   function setActiveTab(tabName) {
     refs.tabs.forEach((tab) => {
       const active = tab.dataset.tab === tabName;
@@ -91,6 +117,14 @@ window.createAppStateTools = function createAppStateTools(deps) {
     });
   }
 
+  /**
+   * @description 基于上传图片信息构造页面对象。
+   * @param {string} src 图片地址。
+   * @param {string} name 页面名称。
+   * @param {number} width 图片宽度。
+   * @param {number} height 图片高度。
+   * @returns {object} 页面数据对象。
+   */
   function createPageFromImage(src, name, width, height) {
     return {
       id: uid("page"),
