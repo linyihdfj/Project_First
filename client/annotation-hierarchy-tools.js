@@ -358,13 +358,21 @@ window.createAnnotationHierarchyTools = function createAnnotationHierarchyTools(
       }
 
       const brief = ann.originalText || ann.simplifiedText || "(未填文本)";
+      const originalText = String(ann.originalText || "").trim();
+      const simplifiedText = String(ann.simplifiedText || "").trim();
+      const listBrief =
+        ann.level === "char" && originalText && simplifiedText
+          ? originalText === simplifiedText
+            ? originalText
+            : `${originalText} / ${simplifiedText}`
+          : brief;
       const badge = makeReviewBadge(ann);
       const hasChildren =
         childMap.has(ann.id) && childMap.get(ann.id).length > 0;
       const isExpanded = state.annotationExpandedState[ann.id] === true;
       const expandIcon = hasChildren ? (isExpanded ? "▼" : "▶") : "  ";
 
-      item.innerHTML = `<span class="ann-expand">${expandIcon}</span><span class="ann-text-wrap">[${levelLabel(ann.level)}] ${escapeHtml(brief)}</span>${badge}`;
+      item.innerHTML = `<span class="ann-expand">${expandIcon}</span><span class="ann-text-wrap">[${levelLabel(ann.level)}] ${escapeHtml(listBrief)}</span>${badge}`;
 
       if (hasChildren) {
         item.querySelector(".ann-expand").style.cursor = "pointer";

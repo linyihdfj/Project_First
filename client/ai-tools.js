@@ -24,6 +24,28 @@ window.createAiTools = function createAiTools(deps) {
   }
 
   /**
+   * @description 调用后端将 OCR 原文转换为简体；失败时回退为原文。
+   * @param {string} text 原始文本。
+   * @returns {Promise<string>} 简体文本。
+   */
+  async function convertRecognizedText(text) {
+    const originalText = String(text || "");
+    if (!originalText) {
+      return "";
+    }
+    try {
+      const payload = await apiRequest("/text/convert-simplified", {
+        method: "POST",
+        body: { text: originalText },
+      });
+      return String(payload.simplifiedText || originalText);
+    } catch (error) {
+      console.warn("[AI] 简体转换失败，回退为原文", error);
+      return originalText;
+    }
+  }
+
+  /**
    * @description 对当前选中标注执行 AI 识别；字级直接识别文本，句/段级执行版面检测并生成子字标注。
    * @returns {Promise<void>}
    */
@@ -65,8 +87,9 @@ window.createAiTools = function createAiTools(deps) {
         });
         const texts = (payload.results || []).map((r) => r.text).join("");
         if (texts) {
+          const simplifiedText = await convertRecognizedText(texts);
           ann.originalText = texts;
-          ann.simplifiedText = texts;
+          ann.simplifiedText = simplifiedText;
           renderAnnotationForm();
           scheduleAnnotationPersist(ann);
         }
@@ -91,6 +114,7 @@ window.createAiTools = function createAiTools(deps) {
         }
 
         let allOriginalText = "";
+        let allSimplifiedText = "";
         let orderCounter = 0;
 
         for (const region of allRegions) {
@@ -111,14 +135,19 @@ window.createAiTools = function createAiTools(deps) {
           if (detectedRegions.length > 0) {
             const regionPage =
               state.pages.find((p) => p.id === regionPageId) || page;
-            const annotations = detectedRegions.map((r) => ({
+            const convertedTexts = await Promise.all(
+              detectedRegions.map((r) =>
+                convertRecognizedText(r.text || ""),
+              ),
+            );
+            const annotations = detectedRegions.map((r, index) => ({
               id: uid("ann"),
               charId: uid("char"),
               level: "char",
               style: "highlight",
               color: "#d5533f",
               originalText: r.text || "",
-              simplifiedText: r.text || "",
+              simplifiedText: convertedTexts[index] || r.text || "",
               note: "",
               noteType: "1",
               charCode: "",
@@ -138,15 +167,14 @@ window.createAiTools = function createAiTools(deps) {
             (batchPayload.annotations || []).forEach((a) =>
               regionPage.annotations.push(a),
             );
-            allOriginalText += detectedRegions
-              .map((r) => r.text || "")
-              .join("");
+            allOriginalText += detectedRegions.map((r) => r.text || "").join("");
+            allSimplifiedText += convertedTexts.join("");
           }
         }
 
         if (allOriginalText) {
           ann.originalText = allOriginalText;
-          ann.simplifiedText = allOriginalText;
+          ann.simplifiedText = allSimplifiedText || allOriginalText;
 
           if (annotationSaveTimers.has(ann.id)) {
             clearTimeout(annotationSaveTimers.get(ann.id));

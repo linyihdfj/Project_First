@@ -8,6 +8,7 @@ const registerAnnotationRegionRoutes = require("./annotation-regions");
 const registerOcrRoutes = require("./ocr");
 const registerGlyphRoutes = require("./glyphs");
 const registerHeadingRoutes = require("./headings");
+const registerTextConvertRoutes = require("./text-convert");
 const registerHealthRoute = require("./health");
 
 function registerAllRoutes(app, deps) {
@@ -129,6 +130,13 @@ function registerAllRoutes(app, deps) {
     reorderHeadings: deps.reorderHeadings,
     deleteHeading: deps.deleteHeading,
     broadcastToPage: deps.broadcastToPage,
+  });
+
+  registerTextConvertRoutes(app, {
+    sendError: deps.sendError,
+    requireAuth: deps.requireAuth,
+    requireRole: deps.requireRole,
+    convertToSimplified: deps.convertToSimplified,
   });
 
   registerHealthRoute(app, {

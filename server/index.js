@@ -9,6 +9,7 @@ const { articleIdFromReq } = require("./http/request");
 const { createAuthMiddlewares } = require("./middleware/auth");
 const { registerAllRoutes } = require("./routes");
 const { generateXmlFromSnapshot } = require("./xml");
+const { convertToSimplified } = require("./text-convert");
 
 const { getProvider, cropImage, readImageBuffer } = require("./ocr");
 
@@ -137,6 +138,7 @@ registerAllRoutes(app, {
   updateHeadingParent,
   reorderHeadings,
   deleteHeading,
+  convertToSimplified,
 });
 
 registerStaticRoutes(app, PROJECT_ROOT);
