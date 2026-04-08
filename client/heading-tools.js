@@ -14,55 +14,24 @@ window.createHeadingTools = function createHeadingTools(deps) {
     joinCurrentPageRoom,
   } = deps;
 
-  /**
-   * @description 将标注层级值转换为中文显示文本。
-   * @param {string} level 标注层级值。
-   * @returns {string} 层级显示文本。
-   */
   function levelLabel(level) {
-    if (level === "char") {
-      return "字";
-    }
-    if (level === "sentence") {
-      return "句";
-    }
-    if (level === "image") {
-      return "图";
-    }
+    if (level === "char") return "字";
+    if (level === "sentence") return "句";
+    if (level === "image") return "图";
     return "段";
   }
 
-  /**
-   * @description 将标题深度级别转换为中文显示文本。
-   * @param {number} level 标题级别数字。
-   * @returns {string} 标题级别显示文本。
-   */
   function headingLevelLabel(level) {
-    if (level === 1) {
-      return "大标题";
-    }
-    if (level === 2) {
-      return "子标题";
-    }
-    if (level === 3) {
-      return "子子标题";
-    }
+    if (level === 1) return "一级标题";
+    if (level === 2) return "二级标题";
+    if (level === 3) return "三级标题";
     return "四级标题";
   }
 
-  /**
-   * @description 按页面 ID 查找页面索引。
-   * @param {string} pageId 页面 ID。
-   * @returns {number} 页面索引，未找到返回 -1。
-   */
   function findPageIndexById(pageId) {
     return state.pages.findIndex((page) => page.id === pageId);
   }
 
-  /**
-   * @description 基于当前选中标注或输入文本创建新标题并加入索引。
-   * @returns {Promise<void>}
-   */
   async function addHeadingFromSelection() {
     const page = getCurrentPage();
     if (!page) {
@@ -116,11 +85,6 @@ window.createHeadingTools = function createHeadingTools(deps) {
     renderAll();
   }
 
-  /**
-   * @description 删除指定标题并同步更新当前选中状态。
-   * @param {string} headingId 标题 ID。
-   * @returns {Promise<void>}
-   */
   async function deleteHeadingById(headingId) {
     if (!window.confirm("确定删除该标题吗？")) {
       return;
@@ -137,11 +101,6 @@ window.createHeadingTools = function createHeadingTools(deps) {
     renderAll();
   }
 
-  /**
-   * @description 计算标题在树中的深度（根为 0）。
-   * @param {string} headingId 标题 ID。
-   * @returns {number} 深度值。
-   */
   function calcHeadingDepth(headingId) {
     let depth = 0;
     let currentId = headingId;
@@ -156,11 +115,6 @@ window.createHeadingTools = function createHeadingTools(deps) {
     return depth;
   }
 
-  /**
-   * @description 从指定父节点开始递归刷新其所有子孙标题的级别字段。
-   * @param {string|null} parentId 父标题 ID。
-   * @returns {void}
-   */
   function updateChildLevels(parentId) {
     state.headings.forEach((heading) => {
       if (heading.parentId === parentId) {
@@ -170,12 +124,6 @@ window.createHeadingTools = function createHeadingTools(deps) {
     });
   }
 
-  /**
-   * @description 判断某标题是否为另一个标题的后代节点，用于避免拖拽成环。
-   * @param {string} headingId 待判断标题 ID。
-   * @param {string} ancestorId 祖先标题 ID。
-   * @returns {boolean} 是后代返回 true。
-   */
   function isDescendantOf(headingId, ancestorId) {
     let currentId = headingId;
     const visited = new Set();
@@ -189,13 +137,6 @@ window.createHeadingTools = function createHeadingTools(deps) {
     return false;
   }
 
-  /**
-   * @description 移动标题到新父节点与新顺序，并同步后端与本地树结构。
-   * @param {string} headingId 被移动标题 ID。
-   * @param {string|null} newParentId 新父标题 ID，null 表示顶级。
-   * @param {number} newOrderIndex 新顺序索引。
-   * @returns {Promise<void>}
-   */
   async function moveHeading(headingId, newParentId, newOrderIndex) {
     const articleId = normalizeArticleId(state.article.id);
     const newLevel = newParentId ? calcHeadingDepth(newParentId) + 2 : 1;
@@ -248,11 +189,6 @@ window.createHeadingTools = function createHeadingTools(deps) {
     renderHeadingIndex();
   }
 
-  /**
-   * @description 跳转到指定标题关联的页面和标注位置。
-   * @param {object} heading 标题对象。
-   * @returns {void}
-   */
   function jumpToHeading(heading) {
     const pageIndex = findPageIndexById(heading.pageId);
     if (pageIndex < 0) {
@@ -280,10 +216,6 @@ window.createHeadingTools = function createHeadingTools(deps) {
     renderAll();
   }
 
-  /**
-   * @description 渲染标题索引树，并绑定展开、拖拽、跳转与删除事件。
-   * @returns {void}
-   */
   function renderHeadingIndex() {
     if (!refs.headingIndexList) {
       return;
@@ -342,12 +274,6 @@ window.createHeadingTools = function createHeadingTools(deps) {
       });
     }
 
-    /**
-     * @description 递归渲染指定父节点下的标题树。
-     * @param {string} parentId 父标题 ID。
-     * @param {number} depth 当前深度。
-     * @returns {void}
-     */
     function renderHeadingTree(parentId, depth = 0) {
       const children = tree[parentId] || [];
       if (children.length === 0) {
@@ -410,7 +336,7 @@ window.createHeadingTools = function createHeadingTools(deps) {
         link.className = "index-link";
         link.style.flex = "1";
         link.draggable = isEditor();
-        link.innerHTML = `<span>${escapeHtml(heading.titleText)}</span><small>P${pageNo} · ${depthLabel}</small>`;
+        link.innerHTML = `<span>${escapeHtml(heading.titleText)}</span><small>第${pageNo}页 · ${depthLabel}</small>`;
         link.addEventListener("click", () => {
           jumpToHeading(heading);
         });
@@ -529,10 +455,6 @@ window.createHeadingTools = function createHeadingTools(deps) {
     renderHeadingTree("root");
   }
 
-  /**
-   * @description 刷新“添加标题”提示文案，反映当前页面与选中标注状态。
-   * @returns {void}
-   */
   function renderHeadingAddTip() {
     if (!refs.headingAddTip) {
       return;
@@ -553,7 +475,7 @@ window.createHeadingTools = function createHeadingTools(deps) {
     }
 
     refs.headingAddTip.textContent =
-      "当前未选标注，添加后将按页面顶部位置跳转。";
+      "当前未选中标注，添加后将按页面顶部位置跳转。";
   }
 
   return {

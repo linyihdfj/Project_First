@@ -8,6 +8,7 @@ const registerAnnotationRegionRoutes = require("./annotation-regions");
 const registerOcrRoutes = require("./ocr");
 const registerGlyphRoutes = require("./glyphs");
 const registerHeadingRoutes = require("./headings");
+const registerArticleInviteRoutes = require("./article-invites");
 const registerTextConvertRoutes = require("./text-convert");
 const registerHealthRoute = require("./health");
 
@@ -21,6 +22,8 @@ function registerAllRoutes(app, deps) {
     createToken: deps.createToken,
     getUserById: deps.getUserById,
     createUser: deps.createUser,
+    resolveArticleInvite: deps.resolveArticleInvite,
+    acceptArticleInvite: deps.acceptArticleInvite,
   });
 
   registerUserRoutes(app, {
@@ -44,18 +47,31 @@ function registerAllRoutes(app, deps) {
     deleteArticle: deps.deleteArticle,
     getArticleAccessUsers: deps.getArticleAccessUsers,
     removeArticleAccess: deps.removeArticleAccess,
+    getArticleMembershipRole: deps.getArticleMembershipRole,
     ensureArticle: deps.ensureArticle,
     upsertArticle: deps.upsertArticle,
     getPageSrcsByArticle: deps.getPageSrcsByArticle,
     getSnapshot: deps.getSnapshot,
   });
 
+  registerArticleInviteRoutes(app, {
+    sendError: deps.sendError,
+    articleIdFromReq: deps.articleIdFromReq,
+    requireAuth: deps.requireAuth,
+    requireArticleCapability: deps.requireArticleCapability,
+    createArticleInvite: deps.createArticleInvite,
+    listArticleInvites: deps.listArticleInvites,
+    getArticleInviteById: deps.getArticleInviteById,
+    deactivateArticleInvite: deps.deactivateArticleInvite,
+    resolveArticleInvite: deps.resolveArticleInvite,
+    acceptArticleInvite: deps.acceptArticleInvite,
+  });
+
   registerArticlePageRoutes(app, {
     sendError: deps.sendError,
     articleIdFromReq: deps.articleIdFromReq,
     requireAuth: deps.requireAuth,
-    requireRole: deps.requireRole,
-    requireArticleAccess: deps.requireArticleAccess,
+    requireArticleCapability: deps.requireArticleCapability,
     createPages: deps.createPages,
     clearPagesByArticle: deps.clearPagesByArticle,
   });
@@ -72,7 +88,9 @@ function registerAllRoutes(app, deps) {
   registerAnnotationRoutes(app, {
     sendError: deps.sendError,
     requireAuth: deps.requireAuth,
-    requireRole: deps.requireRole,
+    requireArticleCapability: deps.requireArticleCapability,
+    getPageArticleId: deps.getPageArticleId,
+    getAnnotationArticleId: deps.getAnnotationArticleId,
     createAnnotation: deps.createAnnotation,
     updateAnnotation: deps.updateAnnotation,
     deleteAnnotation: deps.deleteAnnotation,
@@ -83,7 +101,10 @@ function registerAllRoutes(app, deps) {
   registerAnnotationRegionRoutes(app, {
     sendError: deps.sendError,
     requireAuth: deps.requireAuth,
-    requireRole: deps.requireRole,
+    requireArticleCapability: deps.requireArticleCapability,
+    getAnnotationArticleId: deps.getAnnotationArticleId,
+    getRegionArticleId: deps.getRegionArticleId,
+    getPageArticleId: deps.getPageArticleId,
     addAnnotationRegion: deps.addAnnotationRegion,
     getRegionsByAnnotation: deps.getRegionsByAnnotation,
     getRegionsByPage: deps.getRegionsByPage,
@@ -109,9 +130,9 @@ function registerAllRoutes(app, deps) {
     sendError: deps.sendError,
     articleIdFromReq: deps.articleIdFromReq,
     requireAuth: deps.requireAuth,
-    requireRole: deps.requireRole,
-    requireArticleAccess: deps.requireArticleAccess,
+    requireArticleCapability: deps.requireArticleCapability,
     getGlyphsByArticle: deps.getGlyphsByArticle,
+    getGlyphArticleId: deps.getGlyphArticleId,
     createGlyph: deps.createGlyph,
     importGlyph: deps.importGlyph,
     deleteGlyph: deps.deleteGlyph,
@@ -122,10 +143,10 @@ function registerAllRoutes(app, deps) {
     sendError: deps.sendError,
     articleIdFromReq: deps.articleIdFromReq,
     requireAuth: deps.requireAuth,
-    requireRole: deps.requireRole,
-    requireArticleAccess: deps.requireArticleAccess,
+    requireArticleCapability: deps.requireArticleCapability,
     createHeading: deps.createHeading,
     getHeadingById: deps.getHeadingById,
+    getHeadingArticleId: deps.getHeadingArticleId,
     updateHeadingParent: deps.updateHeadingParent,
     reorderHeadings: deps.reorderHeadings,
     deleteHeading: deps.deleteHeading,

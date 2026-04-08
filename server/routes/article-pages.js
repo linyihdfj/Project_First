@@ -3,8 +3,7 @@ function registerArticlePageRoutes(app, deps) {
     sendError,
     articleIdFromReq,
     requireAuth,
-    requireRole,
-    requireArticleAccess,
+    requireArticleCapability,
     createPages,
     clearPagesByArticle,
   } = deps;
@@ -12,8 +11,7 @@ function registerArticlePageRoutes(app, deps) {
   app.post(
     "/api/articles/:articleId/pages/bulk",
     requireAuth,
-    requireArticleAccess,
-    requireRole("admin", "editor"),
+    requireArticleCapability((req) => articleIdFromReq(req), "editor"),
     async (req, res) => {
       try {
         const articleId = articleIdFromReq(req);
@@ -31,8 +29,7 @@ function registerArticlePageRoutes(app, deps) {
   app.delete(
     "/api/articles/:articleId/pages",
     requireAuth,
-    requireArticleAccess,
-    requireRole("admin", "editor"),
+    requireArticleCapability((req) => articleIdFromReq(req), "editor"),
     async (req, res) => {
       try {
         const articleId = articleIdFromReq(req);

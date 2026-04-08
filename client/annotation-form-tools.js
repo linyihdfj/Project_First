@@ -16,16 +16,6 @@ window.createAnnotationFormTools = function createAnnotationFormTools(deps) {
     renderAll,
   } = deps;
 
-  /**
-   * @description 按拖拽结果重排区域顺序并同步到后端。
-   * @param {string} annotationId 标注 ID。
-   * @param {Array<object>} regions 当前区域列表。
-   * @param {string} draggedId 被拖拽区域 ID。
-   * @param {string} targetId 目标区域 ID。
-   * @param {"before"|"after"} position 放置位置。
-   * @param {HTMLElement} container 区域列表容器。
-   * @returns {Promise<void>}
-   */
   async function reorderRegions(
     annotationId,
     regions,
@@ -64,12 +54,6 @@ window.createAnnotationFormTools = function createAnnotationFormTools(deps) {
     }
   }
 
-  /**
-   * @description 加载并渲染指定标注的区域列表，绑定选中、拖拽排序和删除交互。
-   * @param {string} annotationId 标注 ID。
-   * @param {HTMLElement} container 区域列表容器。
-   * @returns {Promise<void>}
-   */
   async function loadAnnotationRegions(annotationId, container) {
     try {
       const payload = await apiRequest(
@@ -102,13 +86,13 @@ window.createAnnotationFormTools = function createAnnotationFormTools(deps) {
         const label = page ? page.name : region.pageId;
         const isCurrent = currentPage && region.pageId === currentPage.id;
         const handleHtml = editable
-          ? '<span class="region-drag-handle">⠿</span>'
+          ? '<span class="region-drag-handle">⋮⋮</span>'
           : "";
         const deleteHtml = editable
           ? `<button class="ai-btn-sm reject" data-region-id="${escapeHtml(region.id)}">×</button>`
           : "";
         div.innerHTML = `${handleHtml}
-        <span class="region-label">${escapeHtml(label)} (${region.x},${region.y} ${region.width}x${region.height})${isCurrent ? " ★" : ""}</span>
+        <span class="region-label">${escapeHtml(label)} (${region.x},${region.y} ${region.width}x${region.height})${isCurrent ? " 当前页" : ""}</span>
         ${deleteHtml}`;
 
         div.addEventListener("click", (evt) => {
@@ -207,10 +191,6 @@ window.createAnnotationFormTools = function createAnnotationFormTools(deps) {
     }
   }
 
-  /**
-   * @description 渲染当前选中标注的属性表单，并根据权限/层级附加对应交互。
-   * @returns {void}
-   */
   function renderAnnotationForm() {
     refs.annotationForm.innerHTML = "";
     const ann = getSelectedAnnotation();
@@ -357,7 +337,7 @@ window.createAnnotationFormTools = function createAnnotationFormTools(deps) {
           const tip = document.createElement("p");
           tip.className = "region-tip";
           tip.textContent =
-            "请在当前页面或切换到目标页面后，在 canvas 上画框标记该标注的区域。";
+            "请在当前页面，或切换到目标页面后，在画布上框选该标注对应的区域。";
           crossDiv.appendChild(tip);
         }
       }

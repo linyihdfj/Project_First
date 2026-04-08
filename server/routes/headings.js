@@ -1,18 +1,12 @@
-/**
- * @description 注册标题相关路由，并在创建/更新/重排/删除后广播 heading 协作事件。
- * @param {import("express").Express} app Express 应用实例。
- * @param {object} deps 路由依赖集合。
- * @returns {void}
- */
 function registerHeadingRoutes(app, deps) {
   const {
     sendError,
     articleIdFromReq,
     requireAuth,
-    requireRole,
-    requireArticleAccess,
+    requireArticleCapability,
     createHeading,
     getHeadingById,
+    getHeadingArticleId,
     updateHeadingParent,
     reorderHeadings,
     deleteHeading,
@@ -22,8 +16,7 @@ function registerHeadingRoutes(app, deps) {
   app.post(
     "/api/articles/:articleId/headings",
     requireAuth,
-    requireArticleAccess,
-    requireRole("admin", "editor"),
+    requireArticleCapability((req) => articleIdFromReq(req), "editor"),
     async (req, res) => {
       try {
         const articleId = articleIdFromReq(req);
@@ -42,8 +35,7 @@ function registerHeadingRoutes(app, deps) {
   app.patch(
     "/api/articles/:articleId/headings/:headingId",
     requireAuth,
-    requireArticleAccess,
-    requireRole("admin", "editor"),
+    requireArticleCapability((req) => articleIdFromReq(req), "editor"),
     async (req, res) => {
       try {
         const articleId = articleIdFromReq(req);
@@ -70,8 +62,7 @@ function registerHeadingRoutes(app, deps) {
   app.post(
     "/api/articles/:articleId/headings/reorder",
     requireAuth,
-    requireArticleAccess,
-    requireRole("admin", "editor"),
+    requireArticleCapability((req) => articleIdFromReq(req), "editor"),
     async (req, res) => {
       try {
         const articleId = articleIdFromReq(req);
@@ -79,7 +70,7 @@ function registerHeadingRoutes(app, deps) {
         if (!Array.isArray(orderedIds)) {
           return res
             .status(400)
-            .json({ ok: false, error: "orderedIds must be an array" });
+            .json({ ok: false, error: "orderedIds 必须是数组" });
         }
         await reorderHeadings(articleId, parentId || null, orderedIds);
         res.json({ ok: true });
@@ -97,7 +88,10 @@ function registerHeadingRoutes(app, deps) {
   app.delete(
     "/api/headings/:headingId",
     requireAuth,
-    requireRole("admin", "editor"),
+    requireArticleCapability(
+      (req) => getHeadingArticleId(req.params.headingId),
+      "editor",
+    ),
     async (req, res) => {
       try {
         const headingId = req.params.headingId;

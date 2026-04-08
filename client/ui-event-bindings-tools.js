@@ -7,12 +7,16 @@ window.createUiEventBindingsTools = function createUiEventBindingsTools(deps) {
     updateArticleMetaFromForm,
     scheduleSaveArticleMeta,
     doLogin,
+    doInviteRegister,
+    showInviteLoginMode,
+    showInviteRegisterMode,
     doLogout,
     backToArticleSelect,
     createNewArticle,
     showUserManageDialog,
     hideAccessDialog,
     grantAccess,
+    createInvite,
     hideUserManageDialog,
     hideGlyphPicker,
     renderGlyphPickerList,
@@ -24,6 +28,7 @@ window.createUiEventBindingsTools = function createUiEventBindingsTools(deps) {
     clearAllPages,
     exportArticleXml,
     switchPage,
+    jumpToPage,
     setCanvasZoom,
     resetCanvasView,
     handleCanvasWheel,
@@ -55,7 +60,7 @@ window.createUiEventBindingsTools = function createUiEventBindingsTools(deps) {
       refs.metaVolume,
       refs.metaPublishYear,
       refs.metaWritingYear,
-    ];
+    ].filter(Boolean);
 
     textInputs.forEach((input) => {
       input.addEventListener("input", () => {
@@ -64,10 +69,12 @@ window.createUiEventBindingsTools = function createUiEventBindingsTools(deps) {
       });
     });
 
-    refs.metaArticleId.addEventListener("change", () => {
-      const targetId = normalizeArticleId(refs.metaArticleId.value);
-      loadSnapshot(targetId).catch((error) => alert(error.message));
-    });
+    if (refs.metaArticleId) {
+      refs.metaArticleId.addEventListener("change", () => {
+        const targetId = normalizeArticleId(refs.metaArticleId.value);
+        loadSnapshot(targetId).catch((error) => alert(error.message));
+      });
+    }
   }
 
   /**
@@ -77,6 +84,19 @@ window.createUiEventBindingsTools = function createUiEventBindingsTools(deps) {
   function bindEvents() {
     if (refs.btnLogin) {
       refs.btnLogin.addEventListener("click", () => doLogin());
+    }
+    if (refs.btnInviteRegister) {
+      refs.btnInviteRegister.addEventListener("click", () => doInviteRegister());
+    }
+    if (refs.btnShowInviteRegister) {
+      refs.btnShowInviteRegister.addEventListener("click", () =>
+        showInviteRegisterMode(),
+      );
+    }
+    if (refs.btnShowInviteLogin) {
+      refs.btnShowInviteLogin.addEventListener("click", () =>
+        showInviteLoginMode(),
+      );
     }
     if (refs.loginPassword) {
       refs.loginPassword.addEventListener("keydown", (evt) => {
@@ -110,6 +130,9 @@ window.createUiEventBindingsTools = function createUiEventBindingsTools(deps) {
     }
     if (refs.btnGrantAccess) {
       refs.btnGrantAccess.addEventListener("click", () => grantAccess());
+    }
+    if (refs.btnCreateInvite) {
+      refs.btnCreateInvite.addEventListener("click", () => createInvite());
     }
 
     if (refs.btnUserManage) {
@@ -184,6 +207,18 @@ window.createUiEventBindingsTools = function createUiEventBindingsTools(deps) {
 
     refs.btnPrevPage.addEventListener("click", () => switchPage(-1));
     refs.btnNextPage.addEventListener("click", () => switchPage(1));
+    if (refs.btnPageJump) {
+      refs.btnPageJump.addEventListener("click", () => {
+        jumpToPage(refs.pageJumpInput ? refs.pageJumpInput.value : "");
+      });
+    }
+    if (refs.pageJumpInput) {
+      refs.pageJumpInput.addEventListener("keydown", (evt) => {
+        if (evt.key === "Enter") {
+          jumpToPage(refs.pageJumpInput.value);
+        }
+      });
+    }
 
     if (refs.btnZoomOut) {
       refs.btnZoomOut.addEventListener("click", () => {

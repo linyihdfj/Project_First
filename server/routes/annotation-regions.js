@@ -2,7 +2,10 @@ function registerAnnotationRegionRoutes(app, deps) {
   const {
     sendError,
     requireAuth,
-    requireRole,
+    requireArticleCapability,
+    getAnnotationArticleId,
+    getRegionArticleId,
+    getPageArticleId,
     addAnnotationRegion,
     getRegionsByAnnotation,
     getRegionsByPage,
@@ -16,7 +19,10 @@ function registerAnnotationRegionRoutes(app, deps) {
   app.post(
     "/api/annotations/:annotationId/regions",
     requireAuth,
-    requireRole("admin", "editor"),
+    requireArticleCapability(
+      (req) => getAnnotationArticleId(req.params.annotationId),
+      "editor",
+    ),
     async (req, res) => {
       try {
         const { annotationId } = req.params;
@@ -53,6 +59,7 @@ function registerAnnotationRegionRoutes(app, deps) {
   app.get(
     "/api/annotations/:annotationId/regions",
     requireAuth,
+    requireArticleCapability((req) => getAnnotationArticleId(req.params.annotationId)),
     async (req, res) => {
       try {
         const regions = await getRegionsByAnnotation(req.params.annotationId);
@@ -66,6 +73,7 @@ function registerAnnotationRegionRoutes(app, deps) {
   app.get(
     "/api/pages/:pageId/cross-page-annotations",
     requireAuth,
+    requireArticleCapability((req) => getPageArticleId(req.params.pageId)),
     async (req, res) => {
       try {
         const annotations = await getRegionsByPage(req.params.pageId);
@@ -79,7 +87,10 @@ function registerAnnotationRegionRoutes(app, deps) {
   app.delete(
     "/api/annotation-regions/:regionId",
     requireAuth,
-    requireRole("admin", "editor"),
+    requireArticleCapability(
+      (req) => getRegionArticleId(req.params.regionId),
+      "editor",
+    ),
     async (req, res) => {
       try {
         const existingRegion = await getAnnotationRegion(req.params.regionId);
@@ -107,7 +118,10 @@ function registerAnnotationRegionRoutes(app, deps) {
   app.put(
     "/api/annotation-regions/:regionId",
     requireAuth,
-    requireRole("admin", "editor"),
+    requireArticleCapability(
+      (req) => getRegionArticleId(req.params.regionId),
+      "editor",
+    ),
     async (req, res) => {
       try {
         const { regionId } = req.params;
@@ -140,7 +154,10 @@ function registerAnnotationRegionRoutes(app, deps) {
   app.put(
     "/api/annotations/:annotationId/regions/reorder",
     requireAuth,
-    requireRole("admin", "editor"),
+    requireArticleCapability(
+      (req) => getAnnotationArticleId(req.params.annotationId),
+      "editor",
+    ),
     async (req, res) => {
       try {
         const { annotationId } = req.params;

@@ -3,9 +3,9 @@ function registerGlyphRoutes(app, deps) {
     sendError,
     articleIdFromReq,
     requireAuth,
-    requireRole,
-    requireArticleAccess,
+    requireArticleCapability,
     getGlyphsByArticle,
+    getGlyphArticleId,
     createGlyph,
     importGlyph,
     deleteGlyph,
@@ -15,7 +15,7 @@ function registerGlyphRoutes(app, deps) {
   app.get(
     "/api/articles/:articleId/glyphs",
     requireAuth,
-    requireArticleAccess,
+    requireArticleCapability((req) => articleIdFromReq(req)),
     async (req, res) => {
       try {
         const articleId = articleIdFromReq(req);
@@ -30,8 +30,7 @@ function registerGlyphRoutes(app, deps) {
   app.post(
     "/api/articles/:articleId/glyphs",
     requireAuth,
-    requireArticleAccess,
-    requireRole("admin", "editor"),
+    requireArticleCapability((req) => articleIdFromReq(req), "editor"),
     async (req, res) => {
       try {
         const articleId = articleIdFromReq(req);
@@ -50,7 +49,7 @@ function registerGlyphRoutes(app, deps) {
   app.delete(
     "/api/glyphs/:glyphId",
     requireAuth,
-    requireRole("admin", "editor"),
+    requireArticleCapability((req) => getGlyphArticleId(req.params.glyphId), "editor"),
     async (req, res) => {
       try {
         const glyph = await deleteGlyph(req.params.glyphId);
@@ -70,8 +69,7 @@ function registerGlyphRoutes(app, deps) {
   app.post(
     "/api/articles/:articleId/glyphs/import",
     requireAuth,
-    requireArticleAccess,
-    requireRole("admin", "editor"),
+    requireArticleCapability((req) => articleIdFromReq(req), "editor"),
     async (req, res) => {
       try {
         const articleId = articleIdFromReq(req);

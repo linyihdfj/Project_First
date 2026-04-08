@@ -14,11 +14,6 @@ window.createGlyphLibraryTools = function createGlyphLibraryTools(deps) {
     setActiveTab,
   } = deps;
 
-  /**
-   * @description 预加载图片并返回 HTMLImageElement。
-   * @param {string} src 图片地址。
-   * @returns {Promise<HTMLImageElement>}
-   */
   function loadImageElement(src) {
     return new Promise((resolve, reject) => {
       const img = new Image();
@@ -28,12 +23,6 @@ window.createGlyphLibraryTools = function createGlyphLibraryTools(deps) {
     });
   }
 
-  /**
-   * @description 设置字形截取预览图及提示文案。
-   * @param {string} dataUrl 截图数据。
-   * @param {string} [tipText] 提示文案。
-   * @returns {void}
-   */
   function setGlyphCaptureImage(dataUrl, tipText) {
     state.glyphCaptureDataUrl = dataUrl || "";
 
@@ -57,16 +46,12 @@ window.createGlyphLibraryTools = function createGlyphLibraryTools(deps) {
     refs.glyphCapturePreviewWrap.hidden = true;
   }
 
-  /**
-   * @description 从当前选中标注区域裁剪字形图并切换到造字库页。
-   * @returns {Promise<void>}
-   */
   async function captureGlyphFromSelection() {
     const page = getCurrentPage();
     const ann = getSelectedAnnotation();
 
     if (!page || !ann) {
-      throw new Error("请先在编辑器中框选并选中一个标注，再执行截取");
+      throw new Error("请先在编辑器中框选并选中一个标注，再执行截取。");
     }
 
     const region = (ann.regions || [])[0];
@@ -96,15 +81,11 @@ window.createGlyphLibraryTools = function createGlyphLibraryTools(deps) {
 
     setGlyphCaptureImage(
       captured,
-      `已截取字样图 (${sw}x${sh})，可直接点击“加入造字库”保存`,
+      `已截取字样图 (${sw}x${sh})，可直接点击“加入造字库”保存。`,
     );
     setActiveTab("glyph");
   }
 
-  /**
-   * @description 渲染造字库列表。
-   * @returns {void}
-   */
   function renderGlyphList() {
     refs.glyphList.innerHTML = "";
     if (!state.glyphs.length) {
@@ -135,11 +116,6 @@ window.createGlyphLibraryTools = function createGlyphLibraryTools(deps) {
     });
   }
 
-  /**
-   * @description 删除字形并清理关联标注引用。
-   * @param {object} glyph 字形对象。
-   * @returns {Promise<void>}
-   */
   async function deleteGlyph(glyph) {
     await apiRequest(`/glyphs/${encodeURIComponent(glyph.id)}`, {
       method: "DELETE",
@@ -155,10 +131,6 @@ window.createGlyphLibraryTools = function createGlyphLibraryTools(deps) {
     renderAll();
   }
 
-  /**
-   * @description 新增字形（文件上传或使用当前截取图）。
-   * @returns {Promise<void>}
-   */
   async function addGlyph() {
     const code = refs.glyphCode.value.trim().toUpperCase();
     const name = refs.glyphName.value.trim();
@@ -195,10 +167,6 @@ window.createGlyphLibraryTools = function createGlyphLibraryTools(deps) {
     renderAll();
   }
 
-  /**
-   * @description 将当前造字库导出为 JSON 文件。
-   * @returns {void}
-   */
   function exportGlyphJson() {
     const payload = JSON.stringify(
       {
@@ -221,11 +189,6 @@ window.createGlyphLibraryTools = function createGlyphLibraryTools(deps) {
     URL.revokeObjectURL(url);
   }
 
-  /**
-   * @description 从 JSON 导入造字数据并合并到当前文章。
-   * @param {Event} event 文件选择事件。
-   * @returns {Promise<void>}
-   */
   async function importGlyphJson(event) {
     const file = event.target.files && event.target.files[0];
     if (!file) return;

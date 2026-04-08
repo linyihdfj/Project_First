@@ -10,7 +10,7 @@ function registerUserRoutes(app, deps) {
 
   app.get("/api/users", requireAuth, requireRole("admin"), async (req, res) => {
     try {
-      const users = await listUsers();
+      const users = await listUsers(req.query.q || "");
       res.json({ ok: true, users });
     } catch (error) {
       sendError(res, error, 500);

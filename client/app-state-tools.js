@@ -86,6 +86,10 @@ window.createAppStateTools = function createAppStateTools(deps) {
       `/articles/${encodeURIComponent(articleId)}/snapshot`,
     );
     state.article = payload.article;
+    state.currentArticleRole =
+      payload.article && payload.article.articleRole
+        ? payload.article.articleRole
+        : "";
     state.pages = payload.pages || [];
     state.glyphs = payload.glyphs || [];
     state.headings = payload.headings || [];

@@ -2,7 +2,9 @@ function registerAnnotationRoutes(app, deps) {
   const {
     sendError,
     requireAuth,
-    requireRole,
+    requireArticleCapability,
+    getPageArticleId,
+    getAnnotationArticleId,
     createAnnotation,
     updateAnnotation,
     deleteAnnotation,
@@ -13,7 +15,7 @@ function registerAnnotationRoutes(app, deps) {
   app.post(
     "/api/pages/:pageId/annotations",
     requireAuth,
-    requireRole("admin", "editor"),
+    requireArticleCapability((req) => getPageArticleId(req.params.pageId), "editor"),
     async (req, res) => {
       try {
         const annotation = await createAnnotation(
@@ -39,7 +41,10 @@ function registerAnnotationRoutes(app, deps) {
   app.put(
     "/api/annotations/:annotationId",
     requireAuth,
-    requireRole("admin", "editor"),
+    requireArticleCapability(
+      (req) => getAnnotationArticleId(req.params.annotationId),
+      "editor",
+    ),
     async (req, res) => {
       try {
         const annotation = await updateAnnotation(
@@ -66,13 +71,19 @@ function registerAnnotationRoutes(app, deps) {
   app.patch(
     "/api/annotations/:annotationId",
     requireAuth,
-    requireRole("admin", "reviewer"),
+    requireArticleCapability(
+      (req) => getAnnotationArticleId(req.params.annotationId),
+      "reviewer",
+    ),
     async (req, res) => {
       try {
-        const { reviewStatus, reviewedBy } = req.body || {};
+        const { reviewStatus, reviewedBy, reviewComment, reviewedAt } =
+          req.body || {};
         const annotation = await updateAnnotation(req.params.annotationId, {
           reviewStatus,
           reviewedBy,
+          reviewComment,
+          reviewedAt,
         });
         res.json({ ok: true, annotation });
         const allPageIds = new Set([
@@ -94,7 +105,10 @@ function registerAnnotationRoutes(app, deps) {
   app.delete(
     "/api/annotations/:annotationId",
     requireAuth,
-    requireRole("admin", "editor"),
+    requireArticleCapability(
+      (req) => getAnnotationArticleId(req.params.annotationId),
+      "editor",
+    ),
     async (req, res) => {
       try {
         const result = await deleteAnnotation(req.params.annotationId);
@@ -119,7 +133,7 @@ function registerAnnotationRoutes(app, deps) {
   app.post(
     "/api/pages/:pageId/annotations/batch",
     requireAuth,
-    requireRole("admin", "editor"),
+    requireArticleCapability((req) => getPageArticleId(req.params.pageId), "editor"),
     async (req, res) => {
       try {
         const { annotations: items } = req.body || {};
@@ -148,14 +162,19 @@ function registerAnnotationRoutes(app, deps) {
     },
   );
 
-  app.get("/api/pages/:pageId/annotations", requireAuth, async (req, res) => {
-    try {
-      const annotations = await getAnnotationsForPage(req.params.pageId);
-      res.json({ ok: true, annotations });
-    } catch (error) {
-      sendError(res, error);
-    }
-  });
+  app.get(
+    "/api/pages/:pageId/annotations",
+    requireAuth,
+    requireArticleCapability((req) => getPageArticleId(req.params.pageId)),
+    async (req, res) => {
+      try {
+        const annotations = await getAnnotationsForPage(req.params.pageId);
+        res.json({ ok: true, annotations });
+      } catch (error) {
+        sendError(res, error);
+      }
+    },
+  );
 }
 
 module.exports = registerAnnotationRoutes;

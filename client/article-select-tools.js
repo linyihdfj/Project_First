@@ -9,14 +9,17 @@ window.createArticleSelectTools = function createArticleSelectTools(deps) {
     getAuthToken,
     preloadArticleFirstPages,
     loadSnapshot,
+    showAppShell,
+    hideAppShell,
     onManageAccess,
   } = deps;
 
-  /**
-   * @description 显示文章选择界面并刷新用户与文章列表信息。
-   * @returns {void}
-   */
+  function articleRoleLabel(role) {
+    return role === "reviewer" ? "审校者" : "编辑者";
+  }
+
   function showArticleSelect() {
+    hideAppShell();
     if (refs.articleSelectOverlay) refs.articleSelectOverlay.hidden = false;
     if (refs.btnBackToSelect) refs.btnBackToSelect.hidden = true;
 
@@ -26,13 +29,13 @@ window.createArticleSelectTools = function createArticleSelectTools(deps) {
           state.currentUser.displayName || state.currentUser.username;
       }
       if (refs.selectUserRoleBadge) {
-        const roleLabels = {
+        const labels = {
           admin: "管理员",
           editor: "编辑者",
           reviewer: "审校者",
         };
         refs.selectUserRoleBadge.textContent =
-          roleLabels[state.currentUser.role] || state.currentUser.role;
+          labels[state.currentUser.role] || state.currentUser.role;
         refs.selectUserRoleBadge.className = `role-badge ${state.currentUser.role}`;
       }
     }
@@ -40,8 +43,7 @@ window.createArticleSelectTools = function createArticleSelectTools(deps) {
     if (refs.articleCreateSection) {
       refs.articleCreateSection.hidden = !(
         state.currentUser &&
-        (state.currentUser.role === "admin" ||
-          state.currentUser.role === "editor")
+        (state.currentUser.role === "admin" || state.currentUser.role === "editor")
       );
     }
     if (refs.btnSelectUserManage) {
@@ -51,38 +53,32 @@ window.createArticleSelectTools = function createArticleSelectTools(deps) {
     }
 
     loadArticleList().catch((error) => alert(error.message));
-  }
+  };
 
-  /**
-   * @description 隐藏文章选择界面。
-   * @returns {void}
-   */
   function hideArticleSelect() {
     if (refs.articleSelectOverlay) refs.articleSelectOverlay.hidden = true;
   }
 
-  /**
-   * @description 拉取文章列表并渲染卡片，同时预加载封面页。
-   * @returns {Promise<void>}
-   */
   async function loadArticleList() {
     try {
       const data = await apiRequest("/articles");
       state.articleList = data.articles || [];
       renderArticleGrid();
       preloadArticleFirstPages(state.articleList);
+
+      if (state.inviteTargetArticleId) {
+        const targetId = state.inviteTargetArticleId;
+        state.inviteTargetArticleId = "";
+        if (state.articleList.some((article) => article.id === targetId)) {
+          await openArticle(targetId);
+        }
+      }
     } catch (error) {
       state.articleList = [];
       renderArticleGrid();
     }
   }
 
-  /**
-   * @description 导出指定文章为 XML 文件并触发浏览器下载。
-   * @param {string} articleId 文章 ID。
-   * @param {string} title 文章标题。
-   * @returns {Promise<void>}
-   */
   async function exportArticleXml(articleId, title) {
     try {
       const token = getAuthToken();
@@ -110,15 +106,8 @@ window.createArticleSelectTools = function createArticleSelectTools(deps) {
     }
   }
 
-  /**
-   * @description 删除指定文章并刷新文章列表。
-   * @param {string} articleId 文章 ID。
-   * @param {string} title 文章标题。
-   * @returns {Promise<void>}
-   */
   async function deleteArticleById(articleId, title) {
-    if (!confirm(`确定删除文章「${title || articleId}」？此操作不可恢复。`))
-      return;
+    if (!confirm(`确定删除文章“${title || articleId}”吗？`)) return;
     try {
       await apiRequest(`/articles/${encodeURIComponent(articleId)}`, {
         method: "DELETE",
@@ -129,17 +118,13 @@ window.createArticleSelectTools = function createArticleSelectTools(deps) {
     }
   }
 
-  /**
-   * @description 渲染文章卡片网格及其操作按钮。
-   * @returns {void}
-   */
   function renderArticleGrid() {
     if (!refs.articleGrid) return;
     refs.articleGrid.innerHTML = "";
 
     if (!state.articleList.length) {
       refs.articleGrid.innerHTML =
-        '<p style="color:#7f6348;grid-column:1/-1">暂无可访问的文章</p>';
+        '<p style="color:#7f6348;grid-column:1/-1">暂无可访问文章。</p>';
       return;
     }
 
@@ -149,7 +134,8 @@ window.createArticleSelectTools = function createArticleSelectTools(deps) {
       card.innerHTML = `
         <h3>${escapeHtml(article.title || "未命名文章")}</h3>
         <p>${escapeHtml(article.subtitle || "")}</p>
-        <p>作者: ${escapeHtml(article.author || "未知")}</p>
+        <p>作者：${escapeHtml(article.author || "未知")}</p>
+        <p><span class="role-badge ${(article.articleRole || "editor") === "reviewer" ? "reviewer" : "editor"}">${escapeHtml(articleRoleLabel(article.articleRole || "editor"))}</span></p>
         <p style="font-size:11px;color:#a08060">${escapeHtml(article.id)}</p>
         <div class="article-card-actions"></div>
       `;
@@ -160,23 +146,24 @@ window.createArticleSelectTools = function createArticleSelectTools(deps) {
       });
 
       const actions = card.querySelector(".article-card-actions");
+
       const exportBtn = document.createElement("button");
-      exportBtn.textContent = "导出XML";
+      exportBtn.textContent = "导出 XML";
       exportBtn.addEventListener("click", (evt) => {
         evt.stopPropagation();
         exportArticleXml(article.id, article.title);
       });
       actions.appendChild(exportBtn);
 
-      if (isAdmin()) {
-        const accessBtn = document.createElement("button");
-        accessBtn.textContent = "权限管理";
-        accessBtn.addEventListener("click", (evt) => {
-          evt.stopPropagation();
-          onManageAccess(article.id, article.title);
-        });
-        actions.appendChild(accessBtn);
+      const accessBtn = document.createElement("button");
+      accessBtn.textContent = "成员与邀请";
+      accessBtn.addEventListener("click", (evt) => {
+        evt.stopPropagation();
+        onManageAccess(article.id, article.title);
+      });
+      actions.appendChild(accessBtn);
 
+      if (isAdmin()) {
         const delBtn = document.createElement("button");
         delBtn.textContent = "删除";
         delBtn.className = "danger";
@@ -191,30 +178,20 @@ window.createArticleSelectTools = function createArticleSelectTools(deps) {
     });
   }
 
-  /**
-   * @description 打开指定文章并加载其完整快照。
-   * @param {string} articleId 文章 ID。
-   * @returns {Promise<void>}
-   */
   async function openArticle(articleId) {
     hideArticleSelect();
     if (refs.btnBackToSelect) refs.btnBackToSelect.hidden = false;
     await loadSnapshot(articleId);
+    showAppShell();
   }
 
-  /**
-   * @description 返回文章选择界面。
-   * @returns {void}
-   */
   function backToArticleSelect() {
+    state.currentArticleRole = "";
+    hideAppShell();
     if (refs.btnBackToSelect) refs.btnBackToSelect.hidden = true;
     showArticleSelect();
   }
 
-  /**
-   * @description 根据输入信息创建新文章并刷新列表。
-   * @returns {Promise<void>}
-   */
   async function createNewArticle() {
     const title = refs.newArticleTitle ? refs.newArticleTitle.value.trim() : "";
     const subtitle = refs.newArticleSubtitle
@@ -223,8 +200,9 @@ window.createArticleSelectTools = function createArticleSelectTools(deps) {
     const author = refs.newArticleAuthor
       ? refs.newArticleAuthor.value.trim()
       : "";
+
     if (!title) {
-      alert("请输入文章标题");
+      alert("请输入文章标题。");
       return;
     }
 

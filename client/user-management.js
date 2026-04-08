@@ -1,16 +1,18 @@
 (function exposeUserManagementFactory(global) {
-  /**
-   * @description 创建用户管理工具，负责用户列表与账号操作。
-   * @param {object} deps 依赖注入对象。
-   * @returns {object} 用户管理方法集合。
-   */
   function createUserManagement(deps) {
     const { refs, apiRequest, escapeHtml } = deps;
+    let userSearchTimer = null;
 
-    /**
-     * @description 打开用户管理弹窗并加载用户列表。
-     * @returns {void}
-     */
+    function roleLabel(role) {
+      return (
+        {
+          admin: "管理员",
+          editor: "编辑者",
+          reviewer: "审校者",
+        }[role] || role
+      );
+    }
+
     function showUserManageDialog() {
       if (refs.userManageDialog) {
         refs.userManageDialog.hidden = false;
@@ -18,47 +20,42 @@
       }
     }
 
-    /**
-     * @description 关闭用户管理弹窗。
-     * @returns {void}
-     */
     function hideUserManageDialog() {
       if (refs.userManageDialog) refs.userManageDialog.hidden = true;
     }
 
-    /**
-     * @description 拉取并渲染全部用户列表。
-     * @returns {Promise<void>}
-     */
     async function loadUserList() {
       if (!refs.userList) return;
+      const query = refs.userSearchInput ? refs.userSearchInput.value.trim() : "";
       try {
-        const data = await apiRequest("/users");
+        const data = await apiRequest(
+          `/users${query ? `?q=${encodeURIComponent(query)}` : ""}`,
+        );
         refs.userList.innerHTML = "";
+        if (!(data.users || []).length) {
+          refs.userList.innerHTML =
+            '<div class="empty-hint">没有找到匹配的用户。</div>';
+          return;
+        }
         (data.users || []).forEach((user) => {
           const div = document.createElement("div");
           div.className = "user-item";
-          const roleLabels = {
-            admin: "管理员",
-            editor: "编辑者",
-            reviewer: "审校者",
-          };
           div.innerHTML = `
             <div class="user-item-info">
               <strong>${escapeHtml(user.displayName || user.username)}</strong>
-              <span class="role-badge ${user.role}">${roleLabels[user.role] || user.role}</span>
-              <small>(${escapeHtml(user.username)})</small>
+              <span class="role-badge ${user.role}">${roleLabel(user.role)}</span>
+              <small>@${escapeHtml(user.username)}</small>
             </div>
             <div class="user-item-actions"></div>
           `;
           const actions = div.querySelector(".user-item-actions");
 
           const roleSelect = document.createElement("select");
-          ["admin", "editor", "reviewer"].forEach((r) => {
+          ["admin", "editor", "reviewer"].forEach((role) => {
             const opt = document.createElement("option");
-            opt.value = r;
-            opt.textContent = roleLabels[r];
-            if (r === user.role) opt.selected = true;
+            opt.value = role;
+            opt.textContent = roleLabel(role);
+            opt.selected = role === user.role;
             roleSelect.appendChild(opt);
           });
           roleSelect.addEventListener("change", () => {
@@ -69,7 +66,7 @@
           const resetBtn = document.createElement("button");
           resetBtn.textContent = "重置密码";
           resetBtn.addEventListener("click", () => {
-            const newPw = prompt("输入新密码：");
+            const newPw = prompt(`请输入用户 ${user.username} 的新密码`);
             if (newPw) resetUserPassword(user.id, newPw);
           });
           actions.appendChild(resetBtn);
@@ -79,7 +76,7 @@
             delBtn.textContent = "删除";
             delBtn.className = "danger";
             delBtn.addEventListener("click", () => {
-              if (confirm(`确定删除用户 ${user.username}？`)) {
+              if (confirm(`确定删除用户 ${user.username} 吗？`)) {
                 deleteUserById(user.id);
               }
             });
@@ -89,14 +86,10 @@
           refs.userList.appendChild(div);
         });
       } catch (error) {
-        alert(error.message);
+        refs.userList.innerHTML = `<div class="empty-hint">${escapeHtml(error.message)}</div>`;
       }
     }
 
-    /**
-     * @description 创建新用户。
-     * @returns {Promise<void>}
-     */
     async function createNewUser() {
       const username = refs.newUserUsername.value.trim();
       const password = refs.newUserPassword.value;
@@ -120,12 +113,6 @@
       }
     }
 
-    /**
-     * @description 修改用户角色。
-     * @param {string} userId 用户 ID。
-     * @param {string} role 角色值。
-     * @returns {Promise<void>}
-     */
     async function changeUserRole(userId, role) {
       try {
         await apiRequest(`/users/${encodeURIComponent(userId)}`, {
@@ -138,12 +125,6 @@
       }
     }
 
-    /**
-     * @description 重置用户密码。
-     * @param {string} userId 用户 ID。
-     * @param {string} password 新密码。
-     * @returns {Promise<void>}
-     */
     async function resetUserPassword(userId, password) {
       try {
         await apiRequest(`/users/${encodeURIComponent(userId)}`, {
@@ -156,11 +137,6 @@
       }
     }
 
-    /**
-     * @description 删除指定用户。
-     * @param {string} userId 用户 ID。
-     * @returns {Promise<void>}
-     */
     async function deleteUserById(userId) {
       try {
         await apiRequest(`/users/${encodeURIComponent(userId)}`, {
@@ -170,6 +146,15 @@
       } catch (error) {
         alert(error.message);
       }
+    }
+
+    if (refs.userSearchInput) {
+      refs.userSearchInput.addEventListener("input", () => {
+        window.clearTimeout(userSearchTimer);
+        userSearchTimer = window.setTimeout(() => {
+          loadUserList();
+        }, 250);
+      });
     }
 
     return {

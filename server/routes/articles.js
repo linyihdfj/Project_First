@@ -11,6 +11,7 @@ function registerArticleRoutes(app, deps) {
     deleteArticle,
     getArticleAccessUsers,
     removeArticleAccess,
+    getArticleMembershipRole,
     ensureArticle,
     upsertArticle,
     getPageSrcsByArticle,
@@ -37,8 +38,8 @@ function registerArticleRoutes(app, deps) {
       try {
         const payload = req.body || {};
         const article = await createArticleRecord(payload);
-        await assignArticleAccess(req.user.userId, article.id);
-        res.json({ ok: true, article });
+        await assignArticleAccess(req.user.userId, article.id, "editor");
+        res.json({ ok: true, article: { ...article, articleRole: "editor" } });
       } catch (error) {
         sendError(res, error);
       }
@@ -63,7 +64,7 @@ function registerArticleRoutes(app, deps) {
   app.get(
     "/api/articles/:articleId/access",
     requireAuth,
-    requireRole("admin"),
+    requireArticleAccess,
     async (req, res) => {
       try {
         const articleId = articleIdFromReq(req);
@@ -82,11 +83,11 @@ function registerArticleRoutes(app, deps) {
     async (req, res) => {
       try {
         const articleId = articleIdFromReq(req);
-        const { userId } = req.body || {};
+        const { userId, articleRole } = req.body || {};
         if (!userId) {
           return sendError(res, new Error("请指定用户"));
         }
-        await assignArticleAccess(userId, articleId);
+        await assignArticleAccess(userId, articleId, articleRole || "editor");
         res.json({ ok: true });
       } catch (error) {
         sendError(res, error);
@@ -117,7 +118,12 @@ function registerArticleRoutes(app, deps) {
       try {
         const articleId = articleIdFromReq(req);
         const article = await ensureArticle(articleId);
-        res.json({ ok: true, article });
+        const articleRole = await getArticleMembershipRole(
+          req.user.userId,
+          articleId,
+          req.user.role,
+        );
+        res.json({ ok: true, article: { ...article, articleRole } });
       } catch (error) {
         sendError(res, error, 500);
       }
@@ -128,10 +134,17 @@ function registerArticleRoutes(app, deps) {
     "/api/articles/:articleId",
     requireAuth,
     requireArticleAccess,
-    requireRole("admin", "editor"),
     async (req, res) => {
       try {
         const articleId = articleIdFromReq(req);
+        const articleRole = await getArticleMembershipRole(
+          req.user.userId,
+          articleId,
+          req.user.role,
+        );
+        if (!["admin", "editor"].includes(articleRole)) {
+          return sendError(res, new Error("鏉冮檺涓嶈冻"), 403);
+        }
         const payload = req.body || {};
         const article = await upsertArticle({
           id: articleId,
@@ -176,6 +189,14 @@ function registerArticleRoutes(app, deps) {
       try {
         const articleId = articleIdFromReq(req);
         const snapshot = await getSnapshot(articleId);
+        const articleRole = await getArticleMembershipRole(
+          req.user.userId,
+          articleId,
+          req.user.role,
+        );
+        if (snapshot.article) {
+          snapshot.article.articleRole = articleRole;
+        }
         res.json({ ok: true, ...snapshot });
       } catch (error) {
         sendError(res, error, 500);

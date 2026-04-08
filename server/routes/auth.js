@@ -8,13 +8,15 @@ function registerAuthRoutes(app, deps) {
     createToken,
     getUserById,
     createUser,
+    resolveArticleInvite,
+    acceptArticleInvite,
   } = deps;
 
   app.post("/api/auth/login", async (req, res) => {
     try {
       const { username, password } = req.body || {};
       if (!username || !password) {
-        return sendError(res, new Error("请输入用户名和密码"));
+        return sendError(res, new Error("请输入用户名和密码。"));
       }
       const user = await getUserByUsername(username);
       if (!user) {
@@ -68,6 +70,41 @@ function registerAuthRoutes(app, deps) {
       }
     },
   );
+
+  app.post("/api/auth/register-by-invite", async (req, res) => {
+    try {
+      const { username, password, displayName, token } = req.body || {};
+      if (!username || !password || !token) {
+        return sendError(
+          res,
+          new Error("缺少用户名、密码或邀请令牌。"),
+        );
+      }
+      const invite = await resolveArticleInvite(token);
+      if (!invite) {
+        return sendError(res, new Error("邀请链接无效。"), 404);
+      }
+      const user = await createUser(username, password, displayName, "reviewer");
+      await acceptArticleInvite(token, user.id);
+      const loginUser = await getUserById(user.id);
+      const authUser = loginUser || user;
+      const authRole = authUser.role || "reviewer";
+      const resolvedUser = {
+        id: authUser.id,
+        username: authUser.username,
+        displayName: authUser.displayName || authUser.display_name,
+        role: authRole,
+      };
+      res.json({
+        ok: true,
+        token: createToken(authUser.id, authRole),
+        user: resolvedUser,
+        invite,
+      });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
 }
 
 module.exports = registerAuthRoutes;

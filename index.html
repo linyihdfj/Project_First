@@ -7,28 +7,117 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <!-- 登录遮罩 -->
     <div id="login-overlay" class="login-overlay">
       <div class="login-box">
-        <h1>古籍在线编辑系统</h1>
-        <p>多人协同编辑与审校系统</p>
-        <div class="login-form">
-          <label
-            >用户名<input id="login-username" placeholder="请输入用户名"
-          /></label>
-          <label
-            >密码<input
+        <h1>📜 古籍在线编辑系统</h1>
+        <p>多人协同编辑与审校</p>
+
+        <div id="invite-info-box" class="invite-info-box" hidden>
+          <div class="invite-info-title">邀请加入文章</div>
+          <div class="invite-meta">
+            <div class="invite-meta-row">
+              <span class="invite-meta-label">文章</span>
+              <div class="invite-meta-value invite-article-line">
+                <strong id="invite-article-title"></strong>
+                <span id="invite-role-badge" class="role-badge"></span>
+              </div>
+            </div>
+            <div class="invite-meta-row">
+              <span class="invite-meta-label">邀请人</span>
+              <span id="invite-created-by" class="invite-meta-value"></span>
+            </div>
+          </div>
+        </div>
+
+        <div id="invite-login-form" class="login-form auth-panel">
+          <div class="auth-panel-header">
+            <h3 id="auth-panel-title">账号登录</h3>
+            <p id="auth-panel-description">登录后进入文章选择页面。</p>
+          </div>
+          <p id="invite-login-hint" class="invite-login-hint" hidden>
+            登录已有账号后，将自动加入这篇文章。
+          </p>
+          <label>
+            用户名
+            <input id="login-username" placeholder="请输入用户名" />
+          </label>
+          <label>
+            密码
+            <input
               id="login-password"
               type="password"
               placeholder="请输入密码"
-          /></label>
+            />
+          </label>
           <p id="login-error" class="login-error" hidden></p>
-          <button id="btn-login" class="primary">登录</button>
+          <div class="auth-panel-actions">
+            <button
+              id="btn-login"
+              class="primary auth-submit-btn"
+              type="button"
+            >
+              登录
+            </button>
+            <button
+              id="btn-show-invite-register"
+              class="text-button auth-mode-toggle"
+              type="button"
+              hidden
+            >
+              没有账号？去注册
+            </button>
+          </div>
+        </div>
+
+        <div
+          id="invite-register-form"
+          class="invite-register-form auth-panel"
+          hidden
+        >
+          <div class="auth-panel-header">
+            <h3 id="invite-register-title">注册新账号</h3>
+            <p id="invite-register-description">
+              创建账号后将自动加入这篇文章。
+            </p>
+          </div>
+          <div class="form-grid">
+            <label>
+              用户名
+              <input id="invite-register-username" placeholder="输入用户名" />
+            </label>
+            <label>
+              密码
+              <input
+                id="invite-register-password"
+                type="password"
+                placeholder="输入密码"
+              />
+            </label>
+            <label>
+              显示名
+              <input id="invite-register-display-name" placeholder="显示名称" />
+            </label>
+          </div>
+          <div class="auth-panel-actions">
+            <button
+              id="btn-invite-register"
+              class="primary auth-submit-btn"
+              type="button"
+            >
+              注册并加入
+            </button>
+            <button
+              id="btn-show-invite-login"
+              class="text-button auth-mode-toggle back-to-login"
+              type="button"
+            >
+              已有账号？返回登录
+            </button>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- 文章选择遮罩 -->
     <div id="article-select-overlay" class="article-select-overlay" hidden>
       <div class="article-select-container">
         <div class="article-select-header">
@@ -37,7 +126,7 @@
             <span id="select-user-display-name"></span>
             <span id="select-user-role-badge" class="role-badge"></span>
             <button id="btn-select-user-manage" class="secondary" hidden>
-              用户管理
+              ⚙️ 用户管理
             </button>
             <button id="btn-select-logout">退出</button>
           </div>
@@ -46,17 +135,18 @@
         <div id="article-create-section" class="article-create-section" hidden>
           <h3>创建新文章</h3>
           <div class="form-grid">
-            <label
-              >标题 *<input id="new-article-title" placeholder="如：周易注"
-            /></label>
-            <label
-              >子标题<input
-                id="new-article-subtitle"
-                placeholder="选填，如：卷一"
-            /></label>
-            <label
-              >作者<input id="new-article-author" placeholder="选填，如：王弼"
-            /></label>
+            <label>
+              标题 *
+              <input id="new-article-title" placeholder="如：周易注" />
+            </label>
+            <label>
+              子标题
+              <input id="new-article-subtitle" placeholder="选填，如：卷一" />
+            </label>
+            <label>
+              作者
+              <input id="new-article-author" placeholder="选填，如：王弼" />
+            </label>
           </div>
           <button id="btn-create-article" class="primary">创建文章</button>
         </div>
@@ -65,28 +155,28 @@
       </div>
     </div>
 
-    <header class="topbar">
+    <header id="app-topbar" class="topbar" hidden>
       <div class="brand">
-        <h1>📜 古籍在线编辑系统 <small>多人协同编辑与审校系统</small></h1>
+        <h1>古籍在线编辑系统 <small>多人协同编辑与审校</small></h1>
       </div>
       <div class="top-actions">
-        <button id="btn-back-to-select" hidden>↩ 返回选择</button>
+        <button id="btn-back-to-select" hidden>返回选择</button>
         <span id="user-bar" class="user-bar" hidden>
           <span id="user-display-name"></span>
           <span id="user-role-badge" class="role-badge"></span>
-          <button id="btn-user-manage" hidden>⚙️ 用户管理</button>
+          <button id="btn-user-manage" hidden>用户管理</button>
           <button id="btn-logout">退出</button>
         </span>
       </div>
     </header>
 
-    <nav class="tabs">
+    <nav id="app-tabs" class="tabs" hidden>
       <button class="tab active" data-tab="editor">📖 编辑器</button>
       <button class="tab" data-tab="article">📜 文章信息</button>
       <button class="tab" data-tab="glyph">🖋️ 造字库</button>
     </nav>
 
-    <main>
+    <main id="app-main" hidden>
       <section id="tab-editor" class="tab-pane active">
         <div class="toolbar card">
           <div class="toolbar-group" id="toolbar-edit-controls">
@@ -120,7 +210,7 @@
             <button
               id="btn-ai-ocr-region"
               disabled
-              title="识别选中标注区域的文字"
+              title="识别选中标注区域中的文字"
             >
               🔍 识别文字
             </button>
@@ -129,7 +219,7 @@
 
         <div class="layout">
           <aside class="index-sidebar card">
-            <h2>📑 索引栏</h2>
+            <h2>📑 索引目录</h2>
             <section class="index-section" id="heading-add-section">
               <h3>🔖 添加标题</h3>
               <div class="form-grid index-form-grid">
@@ -145,7 +235,7 @@
                 添加标题
               </button>
               <p id="heading-add-tip" class="index-tip">
-                可先选中一个标注，标题将绑定该位置并支持精准跳转。
+                可先选中一个标注，标题将关联该位置并支持精准跳转。
               </p>
             </section>
 
@@ -160,7 +250,7 @@
 
           <section class="canvas-area card">
             <div class="canvas-header">
-              <strong>📄 页面标注画布</strong>
+              <strong>页面标注画布</strong>
               <div id="presence-bar" class="presence-bar"></div>
               <div class="canvas-controls">
                 <button id="btn-zoom-out" type="button" title="缩小">-</button>
@@ -178,8 +268,8 @@
               </div>
             </div>
             <div class="hint">
-              鼠标滚轮缩放；按住 Shift
-              拖拽可平移画布；在页面上拖拽即可创建标注。
+              鼠标滚轮可缩放；按住 Shift
+              拖动画布可平移；在页面上拖拽即可创建标注。
             </div>
           </section>
 
@@ -189,13 +279,12 @@
               <p class="empty-tip">当前未选中标注。</p>
             </div>
 
-            <!-- 审批状态区域 -->
             <div
               id="review-status-section"
               class="review-status-section"
               hidden
             >
-              <h2>✅ 审批状态</h2>
+              <h2>审校状态</h2>
               <div
                 id="review-status-display"
                 class="review-status-display"
@@ -212,16 +301,38 @@
         <div class="article-info-page card">
           <h2>📜 文章信息</h2>
           <div class="form-grid meta-grid" id="meta-form">
-            <label
-              >文章ID<input id="meta-article-id" value="article-1"
-            /></label>
-            <label>标题原文<input id="meta-title" value="周易注" /></label>
-            <label>子标题<input id="meta-subtitle" value="卷一" /></label>
-            <label>作者<input id="meta-author" value="王弼" /></label>
-            <label>书名<input id="meta-book" value="周易注" /></label>
-            <label>卷<input id="meta-volume" value="卷一" /></label>
-            <label>出版年<input id="meta-publish-year" value="AD249" /></label>
-            <label>创作年<input id="meta-writing-year" value="AD240" /></label>
+            <label>
+              文章 ID
+              <input id="meta-article-id" value="article-1" />
+            </label>
+            <label>
+              标题原文
+              <input id="meta-title" value="周易注" />
+            </label>
+            <label>
+              子标题
+              <input id="meta-subtitle" value="卷一" />
+            </label>
+            <label>
+              作者
+              <input id="meta-author" value="王弼" />
+            </label>
+            <label>
+              书名
+              <input id="meta-book" value="周易注" />
+            </label>
+            <label>
+              卷次
+              <input id="meta-volume" value="卷一" />
+            </label>
+            <label>
+              出版年
+              <input id="meta-publish-year" value="AD249" />
+            </label>
+            <label>
+              创作年
+              <input id="meta-writing-year" value="AD240" />
+            </label>
           </div>
           <div class="article-info-actions">
             <button id="btn-export-xml" class="primary">📤 导出 XML</button>
@@ -234,20 +345,22 @@
           <section class="card">
             <h2>新增造字</h2>
             <div class="form-grid">
-              <label
-                >编码（如 U+E001）<input id="glyph-code" placeholder="U+E001"
-              /></label>
-              <label
-                >字样说明<input id="glyph-name" placeholder="可输入异体字描述"
-              /></label>
-              <label
-                >说明备注<input
-                  id="glyph-note"
-                  placeholder="该字的来源、用途等"
-              /></label>
-              <label
-                >字样图片<input id="glyph-image" type="file" accept="image/*"
-              /></label>
+              <label>
+                编码（如 U+E001）
+                <input id="glyph-code" placeholder="U+E001" />
+              </label>
+              <label>
+                字样说明
+                <input id="glyph-name" placeholder="可输入异体字描述" />
+              </label>
+              <label>
+                说明备注
+                <input id="glyph-note" placeholder="该字的来源、用途等" />
+              </label>
+              <label>
+                字样图片
+                <input id="glyph-image" type="file" accept="image/*" />
+              </label>
             </div>
             <div class="glyph-capture-actions">
               <button id="btn-capture-glyph" type="button">
@@ -258,7 +371,7 @@
               </button>
             </div>
             <p id="glyph-capture-tip" class="glyph-capture-tip">
-              先在编辑器页框选并选中一个"字"，再点击"从当前标注截取字样图"。
+              先在编辑器页面框选并选中一个“字”级标注，再点击“从当前标注截取字样图”。
             </p>
             <div
               id="glyph-capture-preview-wrap"
@@ -277,9 +390,9 @@
               <button id="btn-export-glyph" type="button">
                 📤 导出造字映射
               </button>
-              <label class="file-btn" for="glyph-import-file"
-                >📥 导入造字映射</label
-              >
+              <label class="file-btn" for="glyph-import-file">
+                📥 导入造字映射
+              </label>
               <input
                 id="glyph-import-file"
                 type="file"
@@ -293,7 +406,6 @@
       </section>
     </main>
 
-    <!-- 文章权限管理弹窗 -->
     <div id="article-access-dialog" class="dialog-overlay" hidden>
       <div class="dialog-box">
         <div class="dialog-header">
@@ -303,17 +415,43 @@
           </button>
         </div>
         <div class="dialog-body">
-          <div class="access-add-form">
-            <select id="access-user-select"></select>
-            <button id="btn-grant-access" class="primary">授权</button>
+          <div id="access-direct-grant-section" class="access-panel-section">
+            <div class="access-add-form access-search-form">
+              <input
+                id="access-user-search"
+                placeholder="按显示名或用户名搜索用户"
+              />
+              <select id="access-article-role">
+                <option value="editor">共同编辑</option>
+                <option value="reviewer">参与审校</option>
+              </select>
+              <select id="access-user-select" hidden></select>
+              <button id="btn-grant-access" class="primary">授权</button>
+            </div>
+            <h3>已授权用户</h3>
+            <div id="access-selected-user" class="access-selected-user">
+              尚未选择用户
+            </div>
+            <div id="access-user-results" class="user-list"></div>
           </div>
-          <h3>已授权用户</h3>
+          <div id="access-invite-section" class="access-panel-section">
+            <h3>邀请链接</h3>
+            <div class="access-add-form">
+              <select id="access-invite-role">
+                <option value="editor">共同编辑</option>
+                <option value="reviewer">参与审校</option>
+              </select>
+              <button id="btn-create-invite" class="primary">
+                生成邀请链接
+              </button>
+            </div>
+            <div id="access-invite-list" class="user-list"></div>
+          </div>
           <div id="access-user-list" class="user-list"></div>
         </div>
       </div>
     </div>
 
-    <!-- 用户管理弹窗 -->
     <div id="user-manage-dialog" class="dialog-overlay" hidden>
       <div class="dialog-box">
         <div class="dialog-header">
@@ -326,20 +464,24 @@
           <div class="user-create-form">
             <h3>创建新用户</h3>
             <div class="form-grid">
-              <label
-                >用户名<input id="new-user-username" placeholder="用户名"
-              /></label>
-              <label
-                >密码<input
+              <label>
+                用户名
+                <input id="new-user-username" placeholder="用户名" />
+              </label>
+              <label>
+                密码
+                <input
                   id="new-user-password"
                   type="password"
                   placeholder="密码"
-              /></label>
-              <label
-                >显示名<input id="new-user-display-name" placeholder="显示名"
-              /></label>
-              <label
-                >角色
+                />
+              </label>
+              <label>
+                显示名
+                <input id="new-user-display-name" placeholder="显示名" />
+              </label>
+              <label>
+                角色
                 <select id="new-user-role">
                   <option value="editor">编辑者</option>
                   <option value="reviewer">审校者</option>
@@ -350,12 +492,15 @@
             <button id="btn-create-user" class="primary">创建用户</button>
           </div>
           <h3>用户列表</h3>
+          <input
+            id="user-search-input"
+            placeholder="按显示名或用户名搜索用户"
+          />
           <div id="user-list" class="user-list"></div>
         </div>
       </div>
     </div>
 
-    <!-- 关联造字弹窗 -->
     <div
       id="glyph-picker-dialog"
       class="dialog-overlay glyph-picker-dialog"
@@ -372,7 +517,7 @@
           <input
             id="glyph-picker-search"
             class="glyph-picker-search"
-            placeholder="按编码/字样说明/备注搜索"
+            placeholder="按编码、字样说明或备注搜索"
           />
           <div id="glyph-picker-list" class="glyph-picker-list"></div>
         </div>
@@ -381,8 +526,8 @@
 
     <template id="annotation-form-template">
       <label>ID<input data-field="id" disabled /></label>
-      <label
-        >层级
+      <label>
+        层级
         <select data-field="level">
           <option value="char">字</option>
           <option value="sentence">句</option>
@@ -390,25 +535,27 @@
           <option value="image">图</option>
         </select>
       </label>
-      <label
-        >标记方式
+      <label>
+        标记方式
         <select data-field="style">
           <option value="highlight">颜色高亮</option>
           <option value="box">画框</option>
-          <option value="underline">划线</option>
+          <option value="underline">下划线</option>
         </select>
       </label>
       <label>颜色<input data-field="color" type="color" /></label>
-      <label
-        >原文<input data-field="originalText" placeholder="原文或异体字"
-      /></label>
-      <label
-        >简体<input data-field="simplifiedText" placeholder="简体转写"
-      /></label>
+      <label>
+        原文
+        <input data-field="originalText" placeholder="原文或异体字" />
+      </label>
+      <label>
+        简体
+        <input data-field="simplifiedText" placeholder="简体转写" />
+      </label>
       <label>注释<input data-field="note" placeholder="注释内容" /></label>
       <div class="annotation-inline-row">
-        <label
-          >注释类型
+        <label>
+          注释类型
           <select data-field="noteType">
             <option value="1">文中注释</option>
             <option value="2">角注</option>
@@ -416,8 +563,8 @@
             <option value="4">批注</option>
           </select>
         </label>
-        <label
-          >关联造字
+        <label>
+          关联造字
           <input data-field="glyphRef" type="hidden" />
           <input data-role="glyph-display" readonly placeholder="未关联造字" />
           <div class="glyph-picker-inline">
@@ -430,9 +577,10 @@
           </div>
         </label>
       </div>
-      <label
-        >Unicode 编码<input data-field="charCode" placeholder="U+4E00"
-      /></label>
+      <label>
+        Unicode 编码
+        <input data-field="charCode" placeholder="U+4E00" />
+      </label>
       <label>X<input data-field="x" disabled /></label>
       <label>Y<input data-field="y" disabled /></label>
       <label>宽<input data-field="width" disabled /></label>
@@ -453,9 +601,9 @@
     <script src="client/app-state-tools.js?v=20260406-1"></script>
     <script src="client/annotation-selection-tools.js?v=20260406-1"></script>
     <script src="client/file-pdf-utils.js?v=20260405-4"></script>
-    <script src="client/auth-permissions.js?v=20260405-5"></script>
+    <script src="client/auth-permissions.js?v=20260408-6"></script>
     <script src="client/user-management.js?v=20260405-6"></script>
-    <script src="client/article-access-tools.js?v=20260406-1"></script>
+    <script src="client/article-access-tools.js?v=20260408-2"></script>
     <script src="client/article-select-tools.js?v=20260406-1"></script>
     <script src="client/glyph-picker-tools.js?v=20260406-1"></script>
     <script src="client/canvas-navigation-tools.js?v=20260406-2"></script>

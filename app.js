@@ -29,7 +29,12 @@ const apiRequest = window.createApiRequest({
 const {
   showLoginOverlay,
   hideLoginOverlay,
+  showAppShell,
+  hideAppShell,
   doLogin,
+  doInviteRegister,
+  showInviteLoginMode,
+  showInviteRegisterMode,
   doLogout,
   checkAuth,
   updateUserBar,
@@ -52,6 +57,9 @@ const {
   },
   showArticleSelect,
   hideArticleSelect,
+  onInviteAccepted: (articleId) => {
+    state.inviteTargetArticleId = articleId;
+  },
 });
 const {
   preloadImage,
@@ -500,6 +508,8 @@ articleSelectTools = window.createArticleSelectTools({
   getAuthToken,
   preloadArticleFirstPages,
   loadSnapshot,
+  showAppShell,
+  hideAppShell,
   onManageAccess: (articleId, title) => showAccessDialog(articleId, title),
 });
 
@@ -553,6 +563,10 @@ function renderAccessList(users) {
 
 async function grantAccess() {
   await articleAccessTools.grantAccess();
+}
+
+async function createInvite() {
+  await articleAccessTools.createInvite();
 }
 
 async function revokeAccess(userId) {
@@ -609,12 +623,16 @@ const uiEventBindingsTools = window.createUiEventBindingsTools({
   updateArticleMetaFromForm,
   scheduleSaveArticleMeta,
   doLogin,
+  doInviteRegister,
+  showInviteLoginMode,
+  showInviteRegisterMode,
   doLogout,
   backToArticleSelect,
   createNewArticle,
   showUserManageDialog,
   hideAccessDialog,
   grantAccess,
+  createInvite,
   hideUserManageDialog,
   hideGlyphPicker,
   renderGlyphPickerList,
@@ -626,6 +644,7 @@ const uiEventBindingsTools = window.createUiEventBindingsTools({
   clearAllPages,
   exportArticleXml,
   switchPage,
+  jumpToPage,
   setCanvasZoom,
   resetCanvasView,
   handleCanvasWheel,
@@ -650,6 +669,43 @@ function bindMetaInputs() {
 
 function bindEvents() {
   return uiEventBindingsTools.bindEvents();
+}
+
+function ensurePageJumpControls() {
+  if (refs.pageJumpInput && refs.btnPageJump) return;
+  if (!refs.pageIndicator || !refs.pageIndicator.parentElement) return;
+
+  const input = document.createElement("input");
+  input.id = "page-jump-input";
+  input.type = "number";
+  input.min = "1";
+  input.step = "1";
+  input.placeholder = "页码";
+
+  const button = document.createElement("button");
+  button.id = "btn-page-jump";
+  button.type = "button";
+  button.textContent = "跳转";
+
+  refs.pageIndicator.parentElement.appendChild(input);
+  refs.pageIndicator.parentElement.appendChild(button);
+  refs.pageJumpInput = input;
+  refs.btnPageJump = button;
+}
+
+function jumpToPage(pageNumber) {
+  const targetIndex = Number(pageNumber) - 1;
+  if (!Number.isInteger(targetIndex)) {
+    alert("请输入有效的页码。");
+    return;
+  }
+  if (targetIndex < 0 || targetIndex >= state.pages.length) {
+    alert(`页码必须在 1 到 ${state.pages.length || 1} 之间。`);
+    return;
+  }
+  const delta = targetIndex - state.currentPageIndex;
+  if (delta === 0) return;
+  switchPage(delta);
 }
 
 function renderAll(opts = {}) {
@@ -746,6 +802,7 @@ function renderPresenceBar() {
 }
 
 async function bootstrap() {
+  ensurePageJumpControls();
   bindEvents();
   setGlyphCaptureImage("");
 

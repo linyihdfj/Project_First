@@ -39,9 +39,9 @@ function createSocketLayer({
   io.on("connection", async (socket) => {
     try {
       const user = await getUserById(socket.userId);
-      socket.displayName = user ? user.displayName : "Unknown";
+      socket.displayName = user ? user.displayName : "未知用户";
     } catch {
-      socket.displayName = "Unknown";
+      socket.displayName = "未知用户";
     }
 
     socket.on("join-page", async ({ pageId }) => {

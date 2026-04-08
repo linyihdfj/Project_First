@@ -1,11 +1,80 @@
 window.createArticleAccessTools = function createArticleAccessTools(deps) {
   const { refs, state, apiRequest, escapeHtml } = deps;
+  let accessSearchTimer = null;
+  let selectedAccessUser = null;
+  const inviteTokensById = new Map();
 
-  /**
-   * @description 加载文章授权用户列表并渲染。
-   * @param {string} articleId 文章 ID。
-   * @returns {Promise<void>}
-   */
+  function roleLabel(role) {
+    const labels = {
+      admin: "管理员",
+      editor: "编辑者",
+      reviewer: "审校者",
+    };
+    return labels[role] || role;
+  }
+
+  function canManageInvites() {
+    if (!state.currentUser) return false;
+    return (
+      state.currentUser.role === "admin" ||
+      state.currentArticleRole === "editor" ||
+      state.currentArticleRole === "reviewer"
+    );
+  }
+
+  function canDirectGrant() {
+    return !!(state.currentUser && state.currentUser.role === "admin");
+  }
+
+  function renderSelectedAccessUser() {
+    if (!refs.accessSelectedUser) return;
+
+    if (!selectedAccessUser) {
+      refs.accessSelectedUser.textContent = "尚未选择用户。";
+      return;
+    }
+
+    refs.accessSelectedUser.innerHTML = `已选择：<strong>${escapeHtml(
+      selectedAccessUser.displayName || selectedAccessUser.username,
+    )}</strong> <span class="muted">@${escapeHtml(
+      selectedAccessUser.username,
+    )}</span>`;
+  }
+
+  function renderAccessList(users) {
+    if (!refs.accessUserList) return;
+    refs.accessUserList.innerHTML = "";
+
+    if (!users.length) {
+      refs.accessUserList.innerHTML =
+        '<div class="empty-hint">暂无可见文章成员。</div>';
+      return;
+    }
+
+    users.forEach((user) => {
+      const div = document.createElement("div");
+      div.className = "user-item";
+      div.innerHTML = `
+        <div class="user-item-info">
+          <strong>${escapeHtml(user.displayName || user.username)}</strong>
+          <span class="role-badge ${user.articleRole || "editor"}">${roleLabel(user.articleRole || "editor")}</span>
+          <small>@${escapeHtml(user.username)}</small>
+        </div>
+        <div class="user-item-actions"></div>
+      `;
+
+      const actions = div.querySelector(".user-item-actions");
+      if (canDirectGrant()) {
+        const removeBtn = document.createElement("button");
+        removeBtn.textContent = "移除";
+        removeBtn.className = "danger";
+        removeBtn.addEventListener("click", () => revokeAccess(user.id));
+        actions.appendChild(removeBtn);
+      }
+      refs.accessUserList.appendChild(div);
+    });
+  }
+
   async function loadAccessList(articleId) {
     try {
       const data = await apiRequest(
@@ -17,100 +86,223 @@ window.createArticleAccessTools = function createArticleAccessTools(deps) {
     }
   }
 
-  /**
-   * @description 渲染已授权用户列表。
-   * @param {Array<object>} users 用户数组。
-   * @returns {void}
-   */
-  function renderAccessList(users) {
-    if (!refs.accessUserList) return;
-    refs.accessUserList.innerHTML = "";
+  function renderUserSearchResults(users, errorMessage) {
+    if (!refs.accessUserResults) return;
+    refs.accessUserResults.innerHTML = "";
 
-    if (!users.length) {
-      refs.accessUserList.innerHTML =
-        '<p style="color:#7f6348;font-size:13px">暂无已授权用户</p>';
+    if (errorMessage) {
+      refs.accessUserResults.innerHTML = `<div class="empty-hint">${escapeHtml(
+        errorMessage,
+      )}</div>`;
       return;
     }
 
-    const roleLabels = {
-      admin: "管理员",
-      editor: "编辑者",
-      reviewer: "审校者",
-    };
+    if (!users.length) {
+      refs.accessUserResults.innerHTML =
+        '<div class="empty-hint">未找到匹配用户。</div>';
+      return;
+    }
+
     users.forEach((user) => {
-      const div = document.createElement("div");
-      div.className = "user-item";
-      div.innerHTML = `
-        <div class="user-item-info">
-          <strong>${escapeHtml(user.displayName || user.username)}</strong>
-          <span class="role-badge ${user.role}">${roleLabels[user.role] || user.role}</span>
-        </div>
-        <div class="user-item-actions"></div>
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "search-result-item";
+      button.innerHTML = `
+        <strong>${escapeHtml(user.displayName || user.username)}</strong>
+        <span>@${escapeHtml(user.username)}</span>
+        <small>${roleLabel(user.role)}</small>
       `;
-      const actions = div.querySelector(".user-item-actions");
-      const removeBtn = document.createElement("button");
-      removeBtn.textContent = "移除";
-      removeBtn.className = "danger";
-      removeBtn.addEventListener("click", () => revokeAccess(user.id));
-      actions.appendChild(removeBtn);
-      refs.accessUserList.appendChild(div);
+      button.addEventListener("click", () => {
+        selectedAccessUser = user;
+        if (refs.accessUserSelect) refs.accessUserSelect.value = user.id;
+        renderSelectedAccessUser();
+      });
+      refs.accessUserResults.appendChild(button);
     });
   }
 
-  /**
-   * @description 打开权限管理弹窗并初始化候选用户与授权列表。
-   * @param {string} articleId 文章 ID。
-   * @param {string} title 文章标题。
-   * @returns {Promise<void>}
-   */
-  async function showAccessDialog(articleId, title) {
-    state.accessArticleId = articleId;
-    if (refs.accessArticleTitle)
-      refs.accessArticleTitle.textContent = title || articleId;
-    if (refs.articleAccessDialog) refs.articleAccessDialog.hidden = false;
+  async function searchUsers() {
+    if (!canDirectGrant()) return;
+
+    const query = refs.accessUserSearch ? refs.accessUserSearch.value.trim() : "";
+    if (!query) {
+      renderUserSearchResults([], "请输入用户名或显示名进行搜索。");
+      return;
+    }
 
     try {
-      const data = await apiRequest("/users");
+      const data = await apiRequest(`/users?q=${encodeURIComponent(query)}`);
+      const users = data.users || [];
       if (refs.accessUserSelect) {
         refs.accessUserSelect.innerHTML = "";
-        (data.users || []).forEach((user) => {
+        users.forEach((user) => {
           const opt = document.createElement("option");
           opt.value = user.id;
-          opt.textContent = `${user.displayName || user.username} (${user.username})`;
+          opt.textContent = `${user.displayName || user.username} (@${user.username})`;
           refs.accessUserSelect.appendChild(opt);
         });
       }
+      renderUserSearchResults(users);
+    } catch (error) {
+      renderUserSearchResults([], error.message);
+    }
+  }
+
+  function buildInviteUrl(token) {
+    const url = new URL(window.location.origin + window.location.pathname);
+    url.searchParams.set("invite", token);
+    return url.toString();
+  }
+
+  function formatInviteCreatedAt(value) {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toLocaleString();
+  }
+
+  async function loadInviteList(articleId) {
+    if (!canManageInvites() || !refs.accessInviteList) return;
+
+    try {
+      const data = await apiRequest(
+        `/articles/${encodeURIComponent(articleId)}/invites`,
+      );
+      const invites = data.invites || [];
+      refs.accessInviteList.innerHTML = "";
+
+      if (!invites.length) {
+        refs.accessInviteList.innerHTML =
+          '<div class="empty-hint">暂无邀请链接。</div>';
+        return;
+      }
+
+      invites.forEach((invite) => {
+        if (invite.token) {
+          inviteTokensById.set(invite.id, invite.token);
+        }
+
+        const row = document.createElement("div");
+        row.className = "user-item";
+        row.innerHTML = `
+          <div class="user-item-info">
+            <strong>${roleLabel(invite.role)}</strong>
+            <small>${escapeHtml(invite.createdByDisplayName || "")}</small>
+            <small>${escapeHtml(formatInviteCreatedAt(invite.createdAt))}</small>
+          </div>
+          <div class="user-item-actions"></div>
+        `;
+
+        const actions = row.querySelector(".user-item-actions");
+        const token = invite.token || inviteTokensById.get(invite.id) || "";
+
+        if (token) {
+          const copyBtn = document.createElement("button");
+          copyBtn.textContent = "📋 复制链接";
+          copyBtn.addEventListener("click", async () => {
+            await navigator.clipboard.writeText(buildInviteUrl(token));
+            alert("邀请链接已复制。");
+          });
+          actions.appendChild(copyBtn);
+        }
+
+        const stopBtn = document.createElement("button");
+        stopBtn.textContent = "🛑 停用";
+        stopBtn.className = "danger";
+        stopBtn.addEventListener("click", async () => {
+          if (!confirm("确定停用这条邀请链接吗？")) return;
+          await apiRequest(
+            `/article-invites/${encodeURIComponent(invite.id)}`,
+            { method: "DELETE" },
+          );
+          inviteTokensById.delete(invite.id);
+          await loadInviteList(articleId);
+        });
+        actions.appendChild(stopBtn);
+
+        refs.accessInviteList.appendChild(row);
+      });
+    } catch (error) {
+      refs.accessInviteList.innerHTML = `<div class="empty-hint">${escapeHtml(
+        error.message,
+      )}</div>`;
+    }
+  }
+
+  async function createInvite() {
+    if (!state.accessArticleId || !refs.accessInviteRole) return;
+
+    try {
+      const data = await apiRequest(
+        `/articles/${encodeURIComponent(state.accessArticleId)}/invites`,
+        {
+          method: "POST",
+          body: { role: refs.accessInviteRole.value },
+        },
+      );
+      if (data.invite && data.invite.id && data.invite.token) {
+        inviteTokensById.set(data.invite.id, data.invite.token);
+        await navigator.clipboard.writeText(buildInviteUrl(data.invite.token));
+      }
+      await loadInviteList(state.accessArticleId);
+      alert("邀请链接已生成并复制。");
     } catch (error) {
       alert(error.message);
     }
-
-    await loadAccessList(articleId);
   }
 
-  /**
-   * @description 关闭权限管理弹窗并清理当前文章上下文。
-   * @returns {void}
-   */
+  async function showAccessDialog(articleId, title) {
+    state.accessArticleId = articleId;
+    selectedAccessUser = null;
+    renderSelectedAccessUser();
+
+    if (refs.accessArticleTitle) {
+      refs.accessArticleTitle.textContent = title || articleId;
+    }
+    if (refs.articleAccessDialog) refs.articleAccessDialog.hidden = false;
+    if (refs.accessDirectGrantSection) {
+      refs.accessDirectGrantSection.hidden = !canDirectGrant();
+    }
+    if (refs.accessInviteSection) {
+      refs.accessInviteSection.hidden = !canManageInvites();
+    }
+    if (refs.accessUserResults) refs.accessUserResults.innerHTML = "";
+    if (refs.accessInviteList) refs.accessInviteList.innerHTML = "";
+    if (refs.accessUserSearch) refs.accessUserSearch.value = "";
+
+    await loadAccessList(articleId);
+    await loadInviteList(articleId);
+  }
+
   function hideAccessDialog() {
     if (refs.articleAccessDialog) refs.articleAccessDialog.hidden = true;
     state.accessArticleId = null;
+    selectedAccessUser = null;
   }
 
-  /**
-   * @description 为当前文章新增用户访问权限。
-   * @returns {Promise<void>}
-   */
   async function grantAccess() {
-    if (!state.accessArticleId || !refs.accessUserSelect) return;
-    const userId = refs.accessUserSelect.value;
-    if (!userId) return;
+    if (!state.accessArticleId || !canDirectGrant()) return;
+
+    const userId =
+      (selectedAccessUser && selectedAccessUser.id) ||
+      (refs.accessUserSelect && refs.accessUserSelect.value);
+
+    if (!userId) {
+      alert("请先搜索并选择一个用户。");
+      return;
+    }
 
     try {
       await apiRequest(
         `/articles/${encodeURIComponent(state.accessArticleId)}/access`,
         {
           method: "POST",
-          body: { userId },
+          body: {
+            userId,
+            articleRole: refs.accessArticleRole
+              ? refs.accessArticleRole.value
+              : "editor",
+          },
         },
       );
       await loadAccessList(state.accessArticleId);
@@ -119,14 +311,8 @@ window.createArticleAccessTools = function createArticleAccessTools(deps) {
     }
   }
 
-  /**
-   * @description 移除当前文章指定用户的访问权限。
-   * @param {string} userId 用户 ID。
-   * @returns {Promise<void>}
-   */
   async function revokeAccess(userId) {
     if (!state.accessArticleId) return;
-
     try {
       await apiRequest(
         `/articles/${encodeURIComponent(state.accessArticleId)}/access/${encodeURIComponent(userId)}`,
@@ -138,6 +324,15 @@ window.createArticleAccessTools = function createArticleAccessTools(deps) {
     }
   }
 
+  if (refs.accessUserSearch) {
+    refs.accessUserSearch.addEventListener("input", () => {
+      window.clearTimeout(accessSearchTimer);
+      accessSearchTimer = window.setTimeout(() => {
+        searchUsers();
+      }, 250);
+    });
+  }
+
   return {
     showAccessDialog,
     hideAccessDialog,
@@ -145,5 +340,6 @@ window.createArticleAccessTools = function createArticleAccessTools(deps) {
     renderAccessList,
     grantAccess,
     revokeAccess,
+    createInvite,
   };
 };

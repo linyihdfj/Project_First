@@ -110,6 +110,10 @@ function mapArticleRow(row) {
   };
 }
 
+function normalizeArticleRole(articleRole) {
+  return articleRole === "reviewer" ? "reviewer" : "editor";
+}
+
 function mapPageRow(row) {
   return {
     id: row.id,
@@ -141,6 +145,8 @@ function mapAnnotationRow(row) {
     height: row.height,
     reviewStatus: row.review_status || "pending",
     reviewedBy: row.reviewed_by || "",
+    reviewComment: row.review_comment || "",
+    reviewedAt: row.reviewed_at || "",
     parentId: row.parent_id || null,
     orderIndex: row.order_index || 0,
     regions: [],
@@ -269,11 +275,13 @@ async function initDatabase() {
       glyph_ref TEXT,
       x INTEGER NOT NULL,
       y INTEGER NOT NULL,
-      width INTEGER NOT NULL,
-      height INTEGER NOT NULL,
-      review_status TEXT DEFAULT 'pending',
-      reviewed_by TEXT,
-      created_at TEXT NOT NULL,
+        width INTEGER NOT NULL,
+        height INTEGER NOT NULL,
+        review_status TEXT DEFAULT 'pending',
+        reviewed_by TEXT,
+        review_comment TEXT,
+        reviewed_at TEXT,
+        created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       FOREIGN KEY(article_id) REFERENCES articles(id) ON DELETE CASCADE,
       FOREIGN KEY(page_id) REFERENCES pages(id) ON DELETE CASCADE
@@ -384,6 +392,12 @@ async function initDatabase() {
     if (!annCols.some((col) => col.name === "reviewed_by")) {
       await run("ALTER TABLE annotations ADD COLUMN reviewed_by TEXT");
     }
+    if (!annCols.some((col) => col.name === "review_comment")) {
+      await run("ALTER TABLE annotations ADD COLUMN review_comment TEXT");
+    }
+    if (!annCols.some((col) => col.name === "reviewed_at")) {
+      await run("ALTER TABLE annotations ADD COLUMN reviewed_at TEXT");
+    }
     if (!annCols.some((col) => col.name === "parent_id")) {
       await run("ALTER TABLE annotations ADD COLUMN parent_id TEXT");
     }
@@ -422,12 +436,45 @@ async function initDatabase() {
     CREATE TABLE IF NOT EXISTS user_articles (
       user_id TEXT NOT NULL,
       article_id TEXT NOT NULL,
+      article_role TEXT NOT NULL DEFAULT 'editor',
       assigned_at TEXT NOT NULL,
       PRIMARY KEY (user_id, article_id),
       FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY(article_id) REFERENCES articles(id) ON DELETE CASCADE
     )
   `);
+
+  try {
+    const userArticleCols = await all("PRAGMA table_info(user_articles)");
+    if (!userArticleCols.some((col) => col.name === "article_role")) {
+      await run(
+        "ALTER TABLE user_articles ADD COLUMN article_role TEXT NOT NULL DEFAULT 'editor'",
+      );
+    }
+  } catch (e) {}
+
+  await run(`
+    CREATE TABLE IF NOT EXISTS article_invites (
+      id TEXT PRIMARY KEY,
+      article_id TEXT NOT NULL,
+      role TEXT NOT NULL,
+      token TEXT,
+      token_hash TEXT NOT NULL UNIQUE,
+      created_by TEXT NOT NULL,
+      is_active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(article_id) REFERENCES articles(id) ON DELETE CASCADE,
+      FOREIGN KEY(created_by) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+
+  try {
+    const inviteCols = await all("PRAGMA table_info(article_invites)");
+    if (!inviteCols.some((col) => col.name === "token")) {
+      await run("ALTER TABLE article_invites ADD COLUMN token TEXT");
+    }
+  } catch (e) {}
 
   await ensureAdminUser();
 
@@ -587,8 +634,20 @@ async function getUserById(userId) {
   return row ? mapUserRow(row) : null;
 }
 
-async function listUsers() {
-  const rows = await all("SELECT * FROM users ORDER BY created_at ASC");
+async function listUsers(query = "") {
+  const keyword = String(query || "").trim();
+  let rows = [];
+  if (!keyword) {
+    rows = await all("SELECT * FROM users ORDER BY created_at ASC");
+  } else {
+    const like = `%${keyword.toLowerCase()}%`;
+    rows = await all(
+      `SELECT * FROM users
+       WHERE LOWER(username) LIKE ? OR LOWER(display_name) LIKE ?
+       ORDER BY created_at ASC`,
+      [like, like],
+    );
+  }
   return rows.map(mapUserRow);
 }
 
@@ -831,6 +890,7 @@ async function getPagesByArticle(articleId) {
             a.id AS ann_id, a.char_id, a.level, a.style, a.color,
             a.original_text, a.simplified_text, a.note, a.note_type,
             a.char_code, a.glyph_ref, a.review_status, a.reviewed_by,
+            a.review_comment, a.reviewed_at,
             a.parent_id, a.order_index
      FROM annotation_regions ar
      JOIN annotations a ON a.id = ar.annotation_id
@@ -998,6 +1058,41 @@ async function getPageRow(pageId) {
   return get("SELECT * FROM pages WHERE id = ?", [pageId]);
 }
 
+async function getPageArticleId(pageId) {
+  const row = await get("SELECT article_id FROM pages WHERE id = ?", [pageId]);
+  return row ? row.article_id : "";
+}
+
+async function getAnnotationArticleId(annotationId) {
+  const row = await get("SELECT article_id FROM annotations WHERE id = ?", [
+    annotationId,
+  ]);
+  return row ? row.article_id : "";
+}
+
+async function getRegionArticleId(regionId) {
+  const row = await get(
+    `SELECT a.article_id
+     FROM annotation_regions ar
+     INNER JOIN annotations a ON a.id = ar.annotation_id
+     WHERE ar.id = ?`,
+    [regionId],
+  );
+  return row ? row.article_id : "";
+}
+
+async function getGlyphArticleId(glyphId) {
+  const row = await get("SELECT article_id FROM glyphs WHERE id = ?", [glyphId]);
+  return row ? row.article_id : "";
+}
+
+async function getHeadingArticleId(headingId) {
+  const row = await get("SELECT article_id FROM headings WHERE id = ?", [
+    headingId,
+  ]);
+  return row ? row.article_id : "";
+}
+
 async function createAnnotation(pageId, payload) {
   const page = await get("SELECT * FROM pages WHERE id = ?", [pageId]);
   if (!page) {
@@ -1109,18 +1204,20 @@ async function updateAnnotation(annotationId, payload) {
     x: Number(payload.x ?? row.x),
     y: Number(payload.y ?? row.y),
     width: Number(payload.width ?? row.width),
-    height: Number(payload.height ?? row.height),
-    reviewStatus: payload.reviewStatus ?? row.review_status ?? "pending",
-    reviewedBy: payload.reviewedBy ?? row.reviewed_by ?? "",
-    parentId:
-      payload.parentId !== undefined ? payload.parentId : row.parent_id || null,
-    orderIndex: Number(payload.orderIndex ?? row.order_index ?? 0),
+      height: Number(payload.height ?? row.height),
+      reviewStatus: payload.reviewStatus ?? row.review_status ?? "pending",
+      reviewedBy: payload.reviewedBy ?? row.reviewed_by ?? "",
+      reviewComment: payload.reviewComment ?? row.review_comment ?? "",
+      reviewedAt: payload.reviewedAt ?? row.reviewed_at ?? "",
+      parentId:
+        payload.parentId !== undefined ? payload.parentId : row.parent_id || null,
+      orderIndex: Number(payload.orderIndex ?? row.order_index ?? 0),
   };
 
   await run(
     `UPDATE annotations
-     SET char_id = ?, level = ?, style = ?, color = ?, original_text = ?, simplified_text = ?, note = ?, note_type = ?, char_code = ?, glyph_ref = ?, x = ?, y = ?, width = ?, height = ?, review_status = ?, reviewed_by = ?, parent_id = ?, order_index = ?, updated_at = ?
-     WHERE id = ?`,
+       SET char_id = ?, level = ?, style = ?, color = ?, original_text = ?, simplified_text = ?, note = ?, note_type = ?, char_code = ?, glyph_ref = ?, x = ?, y = ?, width = ?, height = ?, review_status = ?, reviewed_by = ?, review_comment = ?, reviewed_at = ?, parent_id = ?, order_index = ?, updated_at = ?
+       WHERE id = ?`,
     [
       merged.charId,
       merged.level,
@@ -1135,11 +1232,13 @@ async function updateAnnotation(annotationId, payload) {
       merged.x,
       merged.y,
       merged.width,
-      merged.height,
-      merged.reviewStatus,
-      merged.reviewedBy,
-      merged.parentId,
-      merged.orderIndex,
+        merged.height,
+        merged.reviewStatus,
+        merged.reviewedBy,
+        merged.reviewComment,
+        merged.reviewedAt,
+        merged.parentId,
+        merged.orderIndex,
       nowIso(),
       annotationId,
     ],
@@ -1314,7 +1413,7 @@ async function getRegionsByPage(pageId) {
   const rows = await all(
     `SELECT ar.*, a.level, a.style, a.color, a.original_text, a.simplified_text,
             a.note, a.note_type, a.char_id, a.char_code, a.glyph_ref,
-            a.review_status, a.reviewed_by, a.parent_id, a.order_index, a.page_id AS ann_page_id
+            a.review_status, a.reviewed_by, a.review_comment, a.reviewed_at, a.parent_id, a.order_index, a.page_id AS ann_page_id
      FROM annotation_regions ar
      JOIN annotations a ON a.id = ar.annotation_id
      WHERE ar.page_id = ?`,
@@ -1342,6 +1441,8 @@ async function getRegionsByPage(pageId) {
     glyphRef: row.glyph_ref || "",
     reviewStatus: row.review_status || "pending",
     reviewedBy: row.reviewed_by || "",
+    reviewComment: row.review_comment || "",
+    reviewedAt: row.reviewed_at || "",
     parentId: row.parent_id || null,
     orderIndex: row.order_index || 0,
     originalPageId: row.ann_page_id,
@@ -1887,16 +1988,23 @@ async function listArticles() {
 
 async function listArticlesForUser(userId, role) {
   if (role === "admin") {
-    return listArticles();
+    const articles = await listArticles();
+    return articles.map((article) => ({
+      ...article,
+      articleRole: "admin",
+    }));
   }
   const rows = await all(
-    `SELECT a.* FROM articles a
+    `SELECT a.*, ua.article_role FROM articles a
      INNER JOIN user_articles ua ON ua.article_id = a.id
-     WHERE ua.user_id = ?
-     ORDER BY a.updated_at DESC`,
+      WHERE ua.user_id = ?
+      ORDER BY a.updated_at DESC`,
     [userId],
   );
-  return rows.map(mapArticleRow);
+  return rows.map((row) => ({
+    ...mapArticleRow(row),
+    articleRole: normalizeArticleRole(row.article_role),
+  }));
 }
 
 async function checkArticleAccess(userId, articleId, role) {
@@ -1908,11 +2016,26 @@ async function checkArticleAccess(userId, articleId, role) {
   return !!row;
 }
 
-async function assignArticleAccess(userId, articleId) {
+async function getArticleMembershipRole(userId, articleId, globalRole) {
+  if (globalRole === "admin") {
+    return "admin";
+  }
+  const row = await get(
+    "SELECT article_role FROM user_articles WHERE user_id = ? AND article_id = ?",
+    [userId, articleId],
+  );
+  return row ? normalizeArticleRole(row.article_role) : "";
+}
+
+async function assignArticleAccess(userId, articleId, articleRole = "editor") {
   const now = nowIso();
+  const normalizedRole = normalizeArticleRole(articleRole);
   await run(
-    "INSERT OR IGNORE INTO user_articles (user_id, article_id, assigned_at) VALUES (?, ?, ?)",
-    [userId, articleId, now],
+    `INSERT INTO user_articles (user_id, article_id, article_role, assigned_at)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT(user_id, article_id)
+     DO UPDATE SET article_role = excluded.article_role`,
+    [userId, articleId, normalizedRole, now],
   );
 }
 
@@ -1925,7 +2048,7 @@ async function removeArticleAccess(userId, articleId) {
 
 async function getArticleAccessUsers(articleId) {
   const rows = await all(
-    `SELECT u.id, u.username, u.display_name, u.role, ua.assigned_at
+    `SELECT u.id, u.username, u.display_name, u.role, ua.assigned_at, ua.article_role
      FROM user_articles ua
      INNER JOIN users u ON u.id = ua.user_id
      WHERE ua.article_id = ?
@@ -1937,8 +2060,123 @@ async function getArticleAccessUsers(articleId) {
     username: row.username,
     displayName: row.display_name,
     role: row.role,
+    articleRole: normalizeArticleRole(row.article_role),
     assignedAt: row.assigned_at,
   }));
+}
+
+function createInviteToken() {
+  return crypto.randomBytes(24).toString("hex");
+}
+
+function hashInviteToken(token) {
+  return crypto.createHash("sha256").update(String(token || "")).digest("hex");
+}
+
+async function createArticleInvite(articleId, inviteRole, createdBy) {
+  await ensureArticle(articleId);
+  const id = uid("invite");
+  const token = createInviteToken();
+  const now = nowIso();
+  const role = normalizeArticleRole(inviteRole);
+  await run(
+    `INSERT INTO article_invites
+     (id, article_id, role, token, token_hash, created_by, is_active, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+    [id, articleId, role, token, hashInviteToken(token), createdBy, now, now],
+  );
+  return {
+    id,
+    articleId,
+    role,
+    token,
+    createdBy,
+    isActive: true,
+    createdAt: now,
+  };
+}
+
+async function listArticleInvites(articleId, requesterUserId, requesterRole) {
+  await ensureArticle(articleId);
+  const params = [articleId];
+  let where = "ai.article_id = ? AND ai.is_active = 1";
+  if (requesterRole !== "admin") {
+    where += " AND ai.created_by = ?";
+    params.push(requesterUserId);
+  }
+  const rows = await all(
+    `SELECT ai.*, u.display_name, u.username
+     FROM article_invites ai
+     INNER JOIN users u ON u.id = ai.created_by
+     WHERE ${where}
+     ORDER BY ai.created_at DESC`,
+    params,
+  );
+  return rows.map((row) => ({
+    id: row.id,
+    articleId: row.article_id,
+    role: normalizeArticleRole(row.role),
+    createdBy: row.created_by,
+    createdByDisplayName: row.display_name || row.username,
+    token: row.token || "",
+    isActive: true,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }));
+}
+
+async function getArticleInviteById(inviteId) {
+  return get("SELECT * FROM article_invites WHERE id = ?", [inviteId]);
+}
+
+async function deactivateArticleInvite(inviteId) {
+  await run(
+    "UPDATE article_invites SET is_active = 0, updated_at = ? WHERE id = ?",
+    [nowIso(), inviteId],
+  );
+}
+
+async function resolveArticleInvite(token) {
+  const tokenHash = hashInviteToken(token);
+  const row = await get(
+    `SELECT ai.*, a.title AS article_title, u.display_name, u.username
+     FROM article_invites ai
+     INNER JOIN articles a ON a.id = ai.article_id
+     INNER JOIN users u ON u.id = ai.created_by
+     WHERE ai.token_hash = ?`,
+    [tokenHash],
+  );
+  if (!row || row.is_active !== 1) {
+    return null;
+  }
+  return {
+    id: row.id,
+    articleId: row.article_id,
+    articleTitle: row.article_title,
+    role: normalizeArticleRole(row.role),
+    createdBy: row.created_by,
+    createdByDisplayName: row.display_name || row.username,
+    isActive: row.is_active === 1,
+    createdAt: row.created_at,
+  };
+}
+
+async function acceptArticleInvite(token, userId) {
+  const invite = await resolveArticleInvite(token);
+  if (!invite) {
+    throw new Error("邀请链接无效或已失效");
+  }
+  await assignArticleAccess(userId, invite.articleId, invite.role);
+  return invite;
+}
+
+async function acceptArticleInvite(token, userId) {
+  const invite = await resolveArticleInvite(token);
+  if (!invite) {
+    throw new Error("邀请链接无效或已失效。");
+  }
+  await assignArticleAccess(userId, invite.articleId, invite.role);
+  return invite;
 }
 
 async function createArticleRecord(payload) {
@@ -2050,4 +2288,16 @@ module.exports = {
   getArticleAccessUsers,
   createArticleRecord,
   deleteArticle,
+  getArticleMembershipRole,
+  getPageArticleId,
+  getAnnotationArticleId,
+  getRegionArticleId,
+  getGlyphArticleId,
+  getHeadingArticleId,
+  createArticleInvite,
+  listArticleInvites,
+  getArticleInviteById,
+  deactivateArticleInvite,
+  resolveArticleInvite,
+  acceptArticleInvite,
 };
