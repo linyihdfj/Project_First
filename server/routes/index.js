@@ -41,6 +41,7 @@ function registerAllRoutes(app, deps) {
     requireAuth: deps.requireAuth,
     requireRole: deps.requireRole,
     requireArticleAccess: deps.requireArticleAccess,
+    requireArticleCapability: deps.requireArticleCapability,
     listArticlesForUser: deps.listArticlesForUser,
     createArticleRecord: deps.createArticleRecord,
     assignArticleAccess: deps.assignArticleAccess,
@@ -118,7 +119,7 @@ function registerAllRoutes(app, deps) {
   registerOcrRoutes(app, {
     sendError: deps.sendError,
     requireAuth: deps.requireAuth,
-    requireRole: deps.requireRole,
+    getArticleMembershipRole: deps.getArticleMembershipRole,
     getProvider: deps.getProvider,
     getPageRow: deps.getPageRow,
     cropImage: deps.cropImage,
@@ -156,7 +157,6 @@ function registerAllRoutes(app, deps) {
   registerTextConvertRoutes(app, {
     sendError: deps.sendError,
     requireAuth: deps.requireAuth,
-    requireRole: deps.requireRole,
     convertToSimplified: deps.convertToSimplified,
   });
 

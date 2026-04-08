@@ -44,6 +44,16 @@
       if (element) element.textContent = text;
     }
 
+    function globalRoleLabel(role) {
+      return role === "admin" ? "管理员" : "用户";
+    }
+
+    function articleRoleLabel(role) {
+      if (role === "admin") return "文章管理员";
+      if (role === "reviewer") return "审校者";
+      return "编辑者";
+    }
+
     function applyStaticCopy() {
       const loginBox = document.querySelector(".login-box");
       if (loginBox) {
@@ -55,6 +65,7 @@
 
       const inviteInfoTitle = document.querySelector(".invite-info-title");
       if (inviteInfoTitle) inviteInfoTitle.textContent = "邀请加入文章";
+
       setText("btn-login", "🔐 登录");
       setText("btn-show-invite-register", "✨ 没有账号？去注册");
       setText("btn-invite-register", "✨ 注册并加入");
@@ -74,15 +85,6 @@
 
       const importLabel = document.querySelector('label[for="image-upload"]');
       if (importLabel) importLabel.textContent = "📥 导入古籍";
-    }
-
-    function roleLabel(role) {
-      const labels = {
-        admin: "管理员",
-        editor: "编辑者",
-        reviewer: "审校者",
-      };
-      return labels[role] || role;
     }
 
     function showLoginOverlay() {
@@ -110,7 +112,10 @@
     function isEditor() {
       if (!state.currentUser) return false;
       if (state.currentUser.role === "admin") return true;
-      return state.currentArticleRole === "editor";
+      return (
+        state.currentArticleRole === "admin" ||
+        state.currentArticleRole === "editor"
+      );
     }
 
     function isAdmin() {
@@ -120,7 +125,10 @@
     function canReview() {
       if (!state.currentUser) return false;
       if (state.currentUser.role === "admin") return true;
-      return state.currentArticleRole === "reviewer";
+      return (
+        state.currentArticleRole === "admin" ||
+        state.currentArticleRole === "reviewer"
+      );
     }
 
     function setInviteAuthMode(mode) {
@@ -205,7 +213,7 @@
           invite.articleTitle || invite.articleId || "";
       }
       if (refs.inviteRoleBadge) {
-        refs.inviteRoleBadge.textContent = roleLabel(invite.role);
+        refs.inviteRoleBadge.textContent = articleRoleLabel(invite.role);
         refs.inviteRoleBadge.className = `role-badge ${invite.role || "editor"}`;
       }
       if (refs.inviteCreatedBy) {
@@ -216,6 +224,11 @@
 
     function applyPermissions() {
       const editable = isEditor();
+      const canManagePages = !!(
+        state.currentUser &&
+        (state.currentUser.role === "admin" ||
+          state.currentArticleRole === "admin")
+      );
 
       if (refs.toolbarEditControls) {
         refs.toolbarEditControls.style.display = editable ? "" : "none";
@@ -240,6 +253,19 @@
       if (refs.annotationSvg) {
         refs.annotationSvg.style.cursor = editable ? "crosshair" : "default";
       }
+
+      if (refs.imageUpload) {
+        refs.imageUpload.disabled = !canManagePages;
+      }
+
+      const importLabel = document.querySelector('label[for="image-upload"]');
+      if (importLabel) {
+        importLabel.style.display = canManagePages ? "" : "none";
+      }
+
+      if (refs.btnClearPages) {
+        refs.btnClearPages.style.display = canManagePages ? "" : "none";
+      }
     }
 
     function updateUserBar() {
@@ -253,7 +279,7 @@
       refs.userBar.hidden = false;
       refs.userDisplayName.textContent =
         state.currentUser.displayName || state.currentUser.username;
-      refs.userRoleBadge.textContent = roleLabel(state.currentUser.role);
+      refs.userRoleBadge.textContent = globalRoleLabel(state.currentUser.role);
       refs.userRoleBadge.className = `role-badge ${state.currentUser.role}`;
 
       if (refs.btnUserManage) {

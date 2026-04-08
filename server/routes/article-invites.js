@@ -1,6 +1,10 @@
 function canCreateInvite(globalRole, articleRole, inviteRole) {
   if (globalRole === "admin" || articleRole === "admin") {
-    return inviteRole === "editor" || inviteRole === "reviewer";
+    return (
+      inviteRole === "admin" ||
+      inviteRole === "editor" ||
+      inviteRole === "reviewer"
+    );
   }
   if (articleRole === "editor") {
     return inviteRole === "editor";
@@ -76,7 +80,7 @@ function registerArticleInviteRoutes(app, deps) {
   app.post(
     "/api/articles/:articleId/invites",
     requireAuth,
-    requireArticleCapability((req) => articleIdFromReq(req), "editor", "reviewer"),
+    requireArticleCapability((req) => articleIdFromReq(req), "admin", "editor", "reviewer"),
     async (req, res) => {
       try {
         const articleId = articleIdFromReq(req);

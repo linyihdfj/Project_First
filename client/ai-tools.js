@@ -78,6 +78,7 @@ window.createAiTools = function createAiTools(deps) {
         const payload = await apiRequest("/ocr/recognize", {
           method: "POST",
           body: {
+            articleId: state.article && state.article.id ? state.article.id : "",
             pageId: region.pageId || page.id,
             x: region.x,
             y: region.y,
@@ -104,9 +105,22 @@ window.createAiTools = function createAiTools(deps) {
             }
           }
           for (const { annotation: child, page: childPage } of childChars) {
-            await apiRequest(`/annotations/${encodeURIComponent(child.id)}`, {
-              method: "DELETE",
-            });
+            try {
+              await apiRequest(`/annotations/${encodeURIComponent(child.id)}`, {
+                method: "DELETE",
+              });
+            } catch (error) {
+              const message = String(
+                error && error.message ? error.message : "",
+              );
+              if (
+                !message.includes("未找到对应文章") &&
+                !message.includes("not found") &&
+                !message.includes("404")
+              ) {
+                throw error;
+              }
+            }
             childPage.annotations = childPage.annotations.filter(
               (a) => a.id !== child.id,
             );
@@ -122,6 +136,8 @@ window.createAiTools = function createAiTools(deps) {
           const payload = await apiRequest("/ocr/layout-detect", {
             method: "POST",
             body: {
+              articleId:
+                state.article && state.article.id ? state.article.id : "",
               pageId: regionPageId,
               level: "char",
               x: region.x,

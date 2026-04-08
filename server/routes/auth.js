@@ -25,16 +25,19 @@ function registerAuthRoutes(app, deps) {
       if (!verifyPassword(password, user.password_hash)) {
         return sendError(res, new Error("用户名或密码错误"), 401);
       }
-      const token = createToken(user.id, user.role);
+      const resolvedUser = await getUserById(user.id);
+      const authUser = resolvedUser || {
+        id: user.id,
+        username: user.username,
+        displayName: user.display_name,
+        role: user.role,
+      };
+      const authRole = authUser.role || "user";
+      const token = createToken(authUser.id, authRole);
       res.json({
         ok: true,
         token,
-        user: {
-          id: user.id,
-          username: user.username,
-          displayName: user.display_name,
-          role: user.role,
-        },
+        user: authUser,
       });
     } catch (error) {
       sendError(res, error, 500);
@@ -84,11 +87,11 @@ function registerAuthRoutes(app, deps) {
       if (!invite) {
         return sendError(res, new Error("邀请链接无效。"), 404);
       }
-      const user = await createUser(username, password, displayName, "reviewer");
+      const user = await createUser(username, password, displayName, "user");
       await acceptArticleInvite(token, user.id);
       const loginUser = await getUserById(user.id);
       const authUser = loginUser || user;
-      const authRole = authUser.role || "reviewer";
+      const authRole = authUser.role || "user";
       const resolvedUser = {
         id: authUser.id,
         username: authUser.username,

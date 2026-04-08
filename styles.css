@@ -1308,7 +1308,7 @@ textarea {
 }
 
 .article-select-container {
-  max-width: 900px;
+  max-width: min(1400px, calc(100vw - 48px));
   margin: 0 auto;
   padding: 40px 24px;
 }
@@ -1340,6 +1340,9 @@ textarea {
   padding: 16px;
   background: var(--card);
   margin-bottom: 24px;
+  max-width: 860px;
+  margin-left: auto;
+  margin-right: auto;
   box-shadow: var(--shadow);
 }
 
@@ -1355,8 +1358,9 @@ textarea {
 
 .article-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 420px));
+  justify-content: center;
+  gap: 20px;
 }
 
 .article-card {

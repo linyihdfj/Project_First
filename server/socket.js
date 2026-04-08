@@ -23,7 +23,7 @@ function createSocketLayer({
     const data = verifyToken(token);
     if (!data) return next(new Error("登录已过期"));
     socket.userId = data.userId;
-    socket.userRole = data.role;
+    socket.userRole = data.role === "admin" ? "admin" : "user";
     next();
   });
 

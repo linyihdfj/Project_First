@@ -8,14 +8,12 @@ function registerTextConvertRoutes(app, deps) {
   const {
     sendError,
     requireAuth,
-    requireRole,
     convertToSimplified,
   } = deps;
 
   app.post(
     "/api/text/convert-simplified",
     requireAuth,
-    requireRole("admin", "editor"),
     async (req, res) => {
       try {
         const text = String((req.body || {}).text || "");

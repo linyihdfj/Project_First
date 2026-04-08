@@ -125,6 +125,7 @@ appStateTools = window.createAppStateTools({
   refs,
   normalizeArticleId,
   apiRequest,
+  applyPermissions,
   resetCanvasView: (...args) => resetCanvasView(...args),
   renderAll: (...args) => renderAll(...args),
   joinCurrentArticleRoom: (...args) => joinCurrentArticleRoom(...args),

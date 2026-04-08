@@ -110,8 +110,14 @@ function mapArticleRow(row) {
   };
 }
 
+function normalizeGlobalRole(role) {
+  return role === "admin" ? "admin" : "user";
+}
+
 function normalizeArticleRole(articleRole) {
-  return articleRole === "reviewer" ? "reviewer" : "editor";
+  if (articleRole === "admin") return "admin";
+  if (articleRole === "reviewer") return "reviewer";
+  return "editor";
 }
 
 function mapPageRow(row) {
@@ -360,7 +366,7 @@ async function initDatabase() {
       username TEXT NOT NULL UNIQUE,
       password_hash TEXT NOT NULL,
       display_name TEXT NOT NULL,
-      role TEXT NOT NULL DEFAULT 'editor',
+      role TEXT NOT NULL DEFAULT 'user',
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     )
@@ -451,6 +457,13 @@ async function initDatabase() {
         "ALTER TABLE user_articles ADD COLUMN article_role TEXT NOT NULL DEFAULT 'editor'",
       );
     }
+  } catch (e) {}
+
+  try {
+    await run(
+      "UPDATE users SET role = 'user', updated_at = ? WHERE role IN ('editor', 'reviewer')",
+      [nowIso()],
+    );
   } catch (e) {}
 
   await run(`
@@ -618,7 +631,7 @@ function mapUserRow(row) {
     id: row.id,
     username: row.username,
     displayName: row.display_name,
-    role: row.role,
+    role: normalizeGlobalRole(row.role),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -661,7 +674,7 @@ async function createUser(username, password, displayName, role) {
     id: uid("user"),
     username,
     displayName: displayName || username,
-    role: role || "editor",
+    role: normalizeGlobalRole(role),
     createdAt: now,
     updatedAt: now,
   };
@@ -687,7 +700,7 @@ async function updateUser(userId, updates) {
   const now = nowIso();
   if (updates.role) {
     await run("UPDATE users SET role = ?, updated_at = ? WHERE id = ?", [
-      updates.role,
+      normalizeGlobalRole(updates.role),
       now,
       userId,
     ]);
@@ -2059,7 +2072,7 @@ async function getArticleAccessUsers(articleId) {
     id: row.id,
     username: row.username,
     displayName: row.display_name,
-    role: row.role,
+    role: normalizeGlobalRole(row.role),
     articleRole: normalizeArticleRole(row.article_role),
     assignedAt: row.assigned_at,
   }));

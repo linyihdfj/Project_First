@@ -16,7 +16,7 @@ function createAuthMiddlewares({
         .status(401)
         .json({ ok: false, message: "登录已过期，请重新登录" });
     }
-    req.user = { userId: data.userId, role: data.role };
+    req.user = { userId: data.userId, role: data.role === "admin" ? "admin" : "user" };
     next();
   }
 

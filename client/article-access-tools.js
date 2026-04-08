@@ -4,26 +4,54 @@ window.createArticleAccessTools = function createArticleAccessTools(deps) {
   let selectedAccessUser = null;
   const inviteTokensById = new Map();
 
-  function roleLabel(role) {
-    const labels = {
-      admin: "管理员",
-      editor: "编辑者",
-      reviewer: "审校者",
-    };
-    return labels[role] || role;
+  function globalRoleLabel(role) {
+    return role === "admin" ? "管理员" : "用户";
+  }
+
+  function articleRoleLabel(role) {
+    if (role === "admin") return "文章管理员";
+    if (role === "reviewer") return "审校者";
+    return "编辑者";
   }
 
   function canManageInvites() {
     if (!state.currentUser) return false;
     return (
       state.currentUser.role === "admin" ||
+      state.currentArticleRole === "admin" ||
       state.currentArticleRole === "editor" ||
       state.currentArticleRole === "reviewer"
     );
   }
 
   function canDirectGrant() {
-    return !!(state.currentUser && state.currentUser.role === "admin");
+    return !!(
+      state.currentUser &&
+      (state.currentUser.role === "admin" || state.currentArticleRole === "admin")
+    );
+  }
+
+  function applyAccessRoleOptions() {
+    if (refs.accessArticleRole) {
+      refs.accessArticleRole.innerHTML = `
+        <option value="admin">文章管理员</option>
+        <option value="editor">共同编辑</option>
+        <option value="reviewer">参与审校</option>
+      `;
+    }
+
+    if (!refs.accessInviteRole) return;
+    const options = [];
+    if (state.currentUser && (state.currentUser.role === "admin" || state.currentArticleRole === "admin")) {
+      options.push('<option value="admin">文章管理员</option>');
+      options.push('<option value="editor">共同编辑</option>');
+      options.push('<option value="reviewer">参与审校</option>');
+    } else if (state.currentArticleRole === "editor") {
+      options.push('<option value="editor">共同编辑</option>');
+    } else if (state.currentArticleRole === "reviewer") {
+      options.push('<option value="reviewer">参与审校</option>');
+    }
+    refs.accessInviteRole.innerHTML = options.join("");
   }
 
   function renderSelectedAccessUser() {
@@ -57,8 +85,9 @@ window.createArticleAccessTools = function createArticleAccessTools(deps) {
       div.innerHTML = `
         <div class="user-item-info">
           <strong>${escapeHtml(user.displayName || user.username)}</strong>
-          <span class="role-badge ${user.articleRole || "editor"}">${roleLabel(user.articleRole || "editor")}</span>
+          <span class="role-badge ${user.articleRole || "editor"}">${articleRoleLabel(user.articleRole || "editor")}</span>
           <small>@${escapeHtml(user.username)}</small>
+          <small>${globalRoleLabel(user.role)}</small>
         </div>
         <div class="user-item-actions"></div>
       `;
@@ -110,7 +139,7 @@ window.createArticleAccessTools = function createArticleAccessTools(deps) {
       button.innerHTML = `
         <strong>${escapeHtml(user.displayName || user.username)}</strong>
         <span>@${escapeHtml(user.username)}</span>
-        <small>${roleLabel(user.role)}</small>
+        <small>${globalRoleLabel(user.role)}</small>
       `;
       button.addEventListener("click", () => {
         selectedAccessUser = user;
@@ -186,7 +215,7 @@ window.createArticleAccessTools = function createArticleAccessTools(deps) {
         row.className = "user-item";
         row.innerHTML = `
           <div class="user-item-info">
-            <strong>${roleLabel(invite.role)}</strong>
+            <strong>${articleRoleLabel(invite.role)}</strong>
             <small>${escapeHtml(invite.createdByDisplayName || "")}</small>
             <small>${escapeHtml(formatInviteCreatedAt(invite.createdAt))}</small>
           </div>
@@ -255,6 +284,7 @@ window.createArticleAccessTools = function createArticleAccessTools(deps) {
     state.accessArticleId = articleId;
     selectedAccessUser = null;
     renderSelectedAccessUser();
+    applyAccessRoleOptions();
 
     if (refs.accessArticleTitle) {
       refs.accessArticleTitle.textContent = title || articleId;

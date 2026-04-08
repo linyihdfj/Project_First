@@ -4,6 +4,7 @@ window.createAppStateTools = function createAppStateTools(deps) {
     refs,
     normalizeArticleId,
     apiRequest,
+    applyPermissions,
     resetCanvasView,
     renderAll,
     joinCurrentArticleRoom,
@@ -98,6 +99,9 @@ window.createAppStateTools = function createAppStateTools(deps) {
     state.selectedHeadingId = null;
     resetCanvasView();
     syncMetaInputsFromState();
+    if (typeof applyPermissions === "function") {
+      applyPermissions();
+    }
     renderAll();
     joinCurrentArticleRoom();
     joinCurrentPageRoom();

@@ -7,13 +7,21 @@
       return (
         {
           admin: "管理员",
-          editor: "编辑者",
-          reviewer: "审校者",
+          user: "用户",
         }[role] || role
       );
     }
 
+    function applyRoleOptions() {
+      if (!refs.newUserRole) return;
+      refs.newUserRole.innerHTML = `
+        <option value="user">普通用户</option>
+        <option value="admin">管理员</option>
+      `;
+    }
+
     function showUserManageDialog() {
+      applyRoleOptions();
       if (refs.userManageDialog) {
         refs.userManageDialog.hidden = false;
         loadUserList();
@@ -37,6 +45,7 @@
             '<div class="empty-hint">没有找到匹配的用户。</div>';
           return;
         }
+
         (data.users || []).forEach((user) => {
           const div = document.createElement("div");
           div.className = "user-item";
@@ -51,7 +60,7 @@
           const actions = div.querySelector(".user-item-actions");
 
           const roleSelect = document.createElement("select");
-          ["admin", "editor", "reviewer"].forEach((role) => {
+          ["user", "admin"].forEach((role) => {
             const opt = document.createElement("option");
             opt.value = role;
             opt.textContent = roleLabel(role);
@@ -96,7 +105,7 @@
       const displayName = refs.newUserDisplayName.value.trim();
       const role = refs.newUserRole.value;
       if (!username || !password) {
-        alert("用户名和密码不能为空");
+        alert("用户名和密码不能为空。");
         return;
       }
       try {
@@ -107,6 +116,7 @@
         refs.newUserUsername.value = "";
         refs.newUserPassword.value = "";
         refs.newUserDisplayName.value = "";
+        applyRoleOptions();
         loadUserList();
       } catch (error) {
         alert(error.message);
@@ -131,7 +141,7 @@
           method: "PATCH",
           body: { password },
         });
-        alert("密码已重置");
+        alert("密码已重置。");
       } catch (error) {
         alert(error.message);
       }
@@ -147,6 +157,8 @@
         alert(error.message);
       }
     }
+
+    applyRoleOptions();
 
     if (refs.userSearchInput) {
       refs.userSearchInput.addEventListener("input", () => {

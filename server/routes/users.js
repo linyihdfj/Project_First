@@ -8,7 +8,7 @@ function registerUserRoutes(app, deps) {
     deleteUser,
   } = deps;
 
-  app.get("/api/users", requireAuth, requireRole("admin"), async (req, res) => {
+  app.get("/api/users", requireAuth, async (req, res) => {
     try {
       const users = await listUsers(req.query.q || "");
       res.json({ ok: true, users });

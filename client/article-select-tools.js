@@ -14,8 +14,20 @@ window.createArticleSelectTools = function createArticleSelectTools(deps) {
     onManageAccess,
   } = deps;
 
+  function globalRoleLabel(role) {
+    return role === "admin" ? "管理员" : "用户";
+  }
+
   function articleRoleLabel(role) {
-    return role === "reviewer" ? "审校者" : "编辑者";
+    if (role === "admin") return "文章管理员";
+    if (role === "reviewer") return "审校者";
+    return "编辑者";
+  }
+
+  function articleRoleBadgeClass(role) {
+    if (role === "admin") return "admin";
+    if (role === "reviewer") return "reviewer";
+    return "editor";
   }
 
   function showArticleSelect() {
@@ -29,22 +41,15 @@ window.createArticleSelectTools = function createArticleSelectTools(deps) {
           state.currentUser.displayName || state.currentUser.username;
       }
       if (refs.selectUserRoleBadge) {
-        const labels = {
-          admin: "管理员",
-          editor: "编辑者",
-          reviewer: "审校者",
-        };
-        refs.selectUserRoleBadge.textContent =
-          labels[state.currentUser.role] || state.currentUser.role;
+        refs.selectUserRoleBadge.textContent = globalRoleLabel(
+          state.currentUser.role,
+        );
         refs.selectUserRoleBadge.className = `role-badge ${state.currentUser.role}`;
       }
     }
 
     if (refs.articleCreateSection) {
-      refs.articleCreateSection.hidden = !(
-        state.currentUser &&
-        (state.currentUser.role === "admin" || state.currentUser.role === "editor")
-      );
+      refs.articleCreateSection.hidden = !state.currentUser;
     }
     if (refs.btnSelectUserManage) {
       refs.btnSelectUserManage.hidden = !(
@@ -53,7 +58,7 @@ window.createArticleSelectTools = function createArticleSelectTools(deps) {
     }
 
     loadArticleList().catch((error) => alert(error.message));
-  };
+  }
 
   function hideArticleSelect() {
     if (refs.articleSelectOverlay) refs.articleSelectOverlay.hidden = true;
@@ -85,22 +90,35 @@ window.createArticleSelectTools = function createArticleSelectTools(deps) {
       const response = await fetch(
         apiPath(`/articles/${encodeURIComponent(articleId)}/export-xml`),
         {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
         },
       );
+
       if (!response.ok) {
-        const data = await response.json().catch(() => null);
-        throw new Error(data && data.message ? data.message : "导出失败");
+        const contentType = response.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+          const data = await response.json().catch(() => null);
+          throw new Error(data && data.message ? data.message : "导出失败");
+        }
+        const message = await response.text().catch(() => "");
+        throw new Error(message || "导出失败");
       }
-      const blob = await response.blob();
+
+      const xmlText = await response.text();
+      const blob = new Blob([xmlText], {
+        type: "application/xml;charset=utf-8",
+      });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${title || articleId}.xml`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${String(title || articleId || "article").replace(/[\\\\/:*?\"<>|]+/g, "_")}.xml`;
+      link.style.display = "none";
+      document.body.appendChild(link);
+      link.click();
+      window.setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }, 1000);
     } catch (error) {
       alert(error.message);
     }
@@ -129,13 +147,14 @@ window.createArticleSelectTools = function createArticleSelectTools(deps) {
     }
 
     state.articleList.forEach((article) => {
+      const articleRole = article.articleRole || "editor";
       const card = document.createElement("div");
       card.className = "article-card";
       card.innerHTML = `
         <h3>${escapeHtml(article.title || "未命名文章")}</h3>
         <p>${escapeHtml(article.subtitle || "")}</p>
         <p>作者：${escapeHtml(article.author || "未知")}</p>
-        <p><span class="role-badge ${(article.articleRole || "editor") === "reviewer" ? "reviewer" : "editor"}">${escapeHtml(articleRoleLabel(article.articleRole || "editor"))}</span></p>
+        <p><span class="role-badge ${articleRoleBadgeClass(articleRole)}">${escapeHtml(articleRoleLabel(articleRole))}</span></p>
         <p style="font-size:11px;color:#a08060">${escapeHtml(article.id)}</p>
         <div class="article-card-actions"></div>
       `;
@@ -148,7 +167,8 @@ window.createArticleSelectTools = function createArticleSelectTools(deps) {
       const actions = card.querySelector(".article-card-actions");
 
       const exportBtn = document.createElement("button");
-      exportBtn.textContent = "导出 XML";
+      exportBtn.type = "button";
+      exportBtn.textContent = "📤 导出 XML";
       exportBtn.addEventListener("click", (evt) => {
         evt.stopPropagation();
         exportArticleXml(article.id, article.title);
@@ -156,15 +176,17 @@ window.createArticleSelectTools = function createArticleSelectTools(deps) {
       actions.appendChild(exportBtn);
 
       const accessBtn = document.createElement("button");
-      accessBtn.textContent = "成员与邀请";
+      accessBtn.type = "button";
+      accessBtn.textContent = "👥 成员与邀请";
       accessBtn.addEventListener("click", (evt) => {
         evt.stopPropagation();
         onManageAccess(article.id, article.title);
       });
       actions.appendChild(accessBtn);
 
-      if (isAdmin()) {
+      if (articleRole === "admin" || isAdmin()) {
         const delBtn = document.createElement("button");
+        delBtn.type = "button";
         delBtn.textContent = "删除";
         delBtn.className = "danger";
         delBtn.addEventListener("click", (evt) => {

@@ -5,6 +5,7 @@ function registerArticleRoutes(app, deps) {
     requireAuth,
     requireRole,
     requireArticleAccess,
+    requireArticleCapability,
     listArticlesForUser,
     createArticleRecord,
     assignArticleAccess,
@@ -33,13 +34,12 @@ function registerArticleRoutes(app, deps) {
   app.post(
     "/api/articles",
     requireAuth,
-    requireRole("admin", "editor"),
     async (req, res) => {
       try {
         const payload = req.body || {};
         const article = await createArticleRecord(payload);
-        await assignArticleAccess(req.user.userId, article.id, "editor");
-        res.json({ ok: true, article: { ...article, articleRole: "editor" } });
+        await assignArticleAccess(req.user.userId, article.id, "admin");
+        res.json({ ok: true, article: { ...article, articleRole: "admin" } });
       } catch (error) {
         sendError(res, error);
       }
@@ -49,7 +49,7 @@ function registerArticleRoutes(app, deps) {
   app.delete(
     "/api/articles/:articleId",
     requireAuth,
-    requireRole("admin"),
+    requireArticleCapability((req) => articleIdFromReq(req), "admin"),
     async (req, res) => {
       try {
         const articleId = articleIdFromReq(req);
@@ -79,7 +79,7 @@ function registerArticleRoutes(app, deps) {
   app.post(
     "/api/articles/:articleId/access",
     requireAuth,
-    requireRole("admin"),
+    requireArticleCapability((req) => articleIdFromReq(req), "admin"),
     async (req, res) => {
       try {
         const articleId = articleIdFromReq(req);
@@ -98,7 +98,7 @@ function registerArticleRoutes(app, deps) {
   app.delete(
     "/api/articles/:articleId/access/:userId",
     requireAuth,
-    requireRole("admin"),
+    requireArticleCapability((req) => articleIdFromReq(req), "admin"),
     async (req, res) => {
       try {
         const articleId = articleIdFromReq(req);
