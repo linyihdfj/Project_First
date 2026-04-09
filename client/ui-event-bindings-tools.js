@@ -1,3 +1,11 @@
+/**
+ * @description uieventbindingstools相关前端模块，负责对应界面能力的状态处理与交互封装。
+ */
+/**
+ * @description 创建uieventbindingstools。
+ * @param {*} deps 模块依赖集合。
+ * @returns {*} uieventbindingstools结果。
+ */
 window.createUiEventBindingsTools = function createUiEventBindingsTools(deps) {
   const {
     state,
@@ -48,8 +56,8 @@ window.createUiEventBindingsTools = function createUiEventBindingsTools(deps) {
   } = deps;
 
   /**
-   * @description 绑定文章元数据输入框事件（即时更新 + 防抖保存）。
-   * @returns {void}
+   * @description 绑定metainputs。
+   * @returns {void} 无返回值。
    */
   function bindMetaInputs() {
     const textInputs = [
@@ -78,8 +86,8 @@ window.createUiEventBindingsTools = function createUiEventBindingsTools(deps) {
   }
 
   /**
-   * @description 绑定应用主要 UI 事件（登录、页面、画布、字库等）。
-   * @returns {void}
+   * @description 绑定events。
+   * @returns {void} 无返回值。
    */
   function bindEvents() {
     if (refs.btnLogin) {
@@ -328,7 +336,7 @@ window.createUiEventBindingsTools = function createUiEventBindingsTools(deps) {
   }
 
   return {
-    bindMetaInputs,
     bindEvents,
   };
 };
+

@@ -1,13 +1,23 @@
+/**
+ * @description filehelpers相关前端模块，负责对应界面能力的状态处理与交互封装。
+ */
+/**
+ * @description 处理exposefilehelpersfactory相关逻辑。
+ * @param {*} global global参数。
+ * @returns {*} filehelpersfactory结果。
+ */
 (function exposeFileHelpersFactory(global) {
+
   /**
-   * @description 创建文件处理辅助工具集合。
-   * @returns {object} 文件类型判断与读取工具。
+   * @description 创建filehelpers。
+   * @returns {*} filehelpers结果。
    */
   function createFileHelpers() {
+
     /**
-     * @description 判断文件是否为 PDF。
-     * @param {File} file 文件对象。
-     * @returns {boolean}
+     * @description 判断是否为pdffile。
+     * @param {*} file file参数。
+     * @returns {boolean} pdffile是否成立。
      */
     function isPdfFile(file) {
       const name = (file.name || "").toLowerCase();
@@ -16,9 +26,9 @@
     }
 
     /**
-     * @description 判断文件是否为图片。
-     * @param {File} file 文件对象。
-     * @returns {boolean}
+     * @description 判断是否为imagefile。
+     * @param {*} file file参数。
+     * @returns {boolean} imagefile是否成立。
      */
     function isImageFile(file) {
       const type = (file.type || "").toLowerCase();
@@ -30,9 +40,9 @@
     }
 
     /**
-     * @description 以 ArrayBuffer 形式读取文件。
-     * @param {File|Blob} file 文件或二进制对象。
-     * @returns {Promise<ArrayBuffer>}
+     * @description 处理readfileasarraybuffer相关逻辑。
+     * @param {*} file file参数。
+     * @returns {*} fileasarraybuffer结果。
      */
     function readFileAsArrayBuffer(file) {
       return new Promise((resolve, reject) => {
@@ -45,9 +55,9 @@
     }
 
     /**
-     * @description 以 Data URL 形式读取 Blob。
-     * @param {Blob} blob 二进制对象。
-     * @returns {Promise<string>}
+     * @description 处理readblobasdataurl相关逻辑。
+     * @param {*} blob blob参数。
+     * @returns {*} blobasdataurl结果。
      */
     function readBlobAsDataUrl(blob) {
       return new Promise((resolve, reject) => {
@@ -60,9 +70,9 @@
     }
 
     /**
-     * @description 拉取远端图片并转为 Data URL。
-     * @param {string} url 图片地址。
-     * @returns {Promise<string>}
+     * @description 处理imageurldataurl相关逻辑。
+     * @param {*} url url参数。
+     * @returns {*} urldataurl结果。
      */
     async function imageUrlToDataUrl(url) {
       const response = await fetch(url);
@@ -74,9 +84,9 @@
     }
 
     /**
-     * @description 以 Data URL 形式读取文件。
-     * @param {File|Blob} file 文件或二进制对象。
-     * @returns {Promise<string>}
+     * @description 处理readfileasdataurl相关逻辑。
+     * @param {*} file file参数。
+     * @returns {*} fileasdataurl结果。
      */
     function readFileAsDataUrl(file) {
       return new Promise((resolve, reject) => {
@@ -98,3 +108,4 @@
 
   global.createFileHelpers = createFileHelpers;
 })(window);
+

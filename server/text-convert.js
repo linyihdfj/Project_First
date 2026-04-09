@@ -1,3 +1,6 @@
+/**
+ * @description textconvert服务端模块，负责对应领域能力的实现。
+ */
 const FALLBACK_TRADITIONAL_TO_SIMPLIFIED = new Map(
   Object.entries({
     萬: "万",
@@ -955,8 +958,8 @@ const FALLBACK_TRADITIONAL_TO_SIMPLIFIED = new Map(
 );
 
 /**
- * @description 尝试创建 OpenCC 转换器；若运行环境中未安装或不可用则返回 null。
- * @returns {(null|((text:string) => string))} OpenCC 转换函数。
+ * @description 创建openccconverter。
+ * @returns {*} openccconverter结果。
  */
 function createOpenCcConverter() {
   try {
@@ -983,9 +986,9 @@ function createOpenCcConverter() {
 const openCcConverter = createOpenCcConverter();
 
 /**
- * @description 使用内置常见繁简字符映射进行逐字转换，作为 OpenCC 缺失时的兜底方案。
- * @param {string} text 原始文本。
- * @returns {string} 转换后的简体文本。
+ * @description 转换fallbackmap。
+ * @param {*} text text参数。
+ * @returns {*} fallbackmap结果。
  */
 function convertWithFallbackMap(text) {
   return Array.from(String(text || ""))
@@ -994,9 +997,9 @@ function convertWithFallbackMap(text) {
 }
 
 /**
- * @description 将原文转换为简体字；优先使用 OpenCC，失败时回退到内置映射。
- * @param {string} text 原始文本。
- * @returns {string} 简体转写文本。
+ * @description 转换simplified。
+ * @param {*} text text参数。
+ * @returns {*} simplified结果。
  */
 function convertToSimplified(text) {
   const value = String(text || "");
@@ -1016,3 +1019,4 @@ function convertToSimplified(text) {
 module.exports = {
   convertToSimplified,
 };
+

@@ -1,3 +1,11 @@
+/**
+ * @description regioncreatehelpers相关前端模块，负责对应界面能力的状态处理与交互封装。
+ */
+/**
+ * @description 创建regioncreatehelpers。
+ * @param {*} deps 模块依赖集合。
+ * @returns {*} regioncreatehelpers结果。
+ */
 window.createRegionCreateHelpers = function createRegionCreateHelpers(deps) {
   const {
     state,
@@ -12,9 +20,9 @@ window.createRegionCreateHelpers = function createRegionCreateHelpers(deps) {
   } = deps;
 
   /**
-   * @description 以画框结果为基础构造新标注的草稿数据。
-   * @param {object} body 区域基础参数。
-   * @returns {object} 可直接提交到创建标注接口的 payload。
+   * @description 构建draftpayload。
+   * @param {*} body 请求体对象。
+   * @returns {*} draftpayload结果。
    */
   function buildDraftPayload(body) {
     return {
@@ -34,8 +42,8 @@ window.createRegionCreateHelpers = function createRegionCreateHelpers(deps) {
   }
 
   /**
-   * @description 持久化区域拖拽（移动/缩放）结果；失败时回滚到原始坐标。
-   * @returns {Promise<boolean>} 有拖拽流程被处理时返回 true，否则 false。
+   * @description 处理persistdraggedregion相关逻辑。
+   * @returns {*} draggedregion结果。
    */
   async function persistDraggedRegion() {
     const dragState = state.regionResize || state.regionMove;
@@ -95,10 +103,10 @@ window.createRegionCreateHelpers = function createRegionCreateHelpers(deps) {
   }
 
   /**
-   * @description 为已有标注追加一个区域，并刷新该页标注数据与选中状态。
-   * @param {object} page 当前页面对象。
-   * @param {object} body 新区域参数。
-   * @returns {Promise<void>}
+   * @description 处理addregionexisting相关逻辑。
+   * @param {*} page 页面对象。
+   * @param {*} body 请求体对象。
+   * @returns {*} regionexisting结果。
    */
   async function addRegionToExisting(page, body) {
     const targetAnnotationId = state.addingRegionForAnnotation;
@@ -144,3 +152,4 @@ window.createRegionCreateHelpers = function createRegionCreateHelpers(deps) {
     addRegionToExisting,
   };
 };
+

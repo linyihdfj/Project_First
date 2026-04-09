@@ -1,37 +1,46 @@
+/**
+ * @description utils相关前端模块，负责对应界面能力的状态处理与交互封装。
+ */
+/**
+ * @description 处理exposeapputils相关逻辑。
+ * @param {*} global global参数。
+ * @returns {*} apputils结果。
+ */
 (function exposeAppUtils(global) {
+
   /**
-   * @description 生成带前缀的简易唯一 ID。
-   * @param {string} prefix 前缀。
-   * @returns {string} 生成的 ID。
+   * @description 处理uid相关逻辑。
+   * @param {*} prefix 唯一标识前缀。
+   * @returns {*} 处理结果。
    */
   function uid(prefix) {
     return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
   }
 
   /**
-   * @description 将数值限制在给定区间内。
-   * @param {number} value 原始值。
-   * @param {number} min 最小值。
-   * @param {number} max 最大值。
-   * @returns {number} 夹取后的值。
+   * @description 处理clampvalue相关逻辑。
+   * @param {*} value 待处理的值。
+   * @param {*} min min参数。
+   * @param {*} max max参数。
+   * @returns {*} value结果。
    */
   function clampValue(value, min, max) {
     return Math.max(min, Math.min(max, value));
   }
 
   /**
-   * @description 规范化文章 ID，空值时回退默认值。
-   * @param {string} value 原始文章 ID。
-   * @returns {string} 规范化后的文章 ID。
+   * @description 规范化articleid。
+   * @param {*} value 待处理的值。
+   * @returns {*} articleid结果。
    */
   function normalizeArticleId(value) {
     return String(value || "").trim() || "article-1";
   }
 
   /**
-   * @description 对 HTML 特殊字符进行转义，防止注入。
-   * @param {string} value 原始文本。
-   * @returns {string} 转义后的安全文本。
+   * @description 转义html。
+   * @param {*} value 待处理的值。
+   * @returns {string} html后的字符串。
    */
   function escapeHtml(value) {
     return String(value)
@@ -44,18 +53,23 @@
 
   /**
    * @description 创建 API 路径拼接函数。
-   * @param {string} apiBase API 基础前缀。
-   * @returns {(pathname:string)=>string} 路径拼接函数。
+   * @param {*} apiBase API 基础路径。
+   * @returns {*} apipath结果。
    */
   function createApiPath(apiBase) {
+    /**
+     * @description ?????
+     * @param {*} pathname ?????
+     */
+
     return function apiPath(pathname) {
       return `${apiBase}${pathname}`;
     };
   }
 
   /**
-   * @description 创建通用工具集合。
-   * @returns {{uid:Function,clampValue:Function,normalizeArticleId:Function,escapeHtml:Function,createApiPath:Function}} 工具对象。
+   * @description 创建apputils。
+   * @returns {*} apputils结果。
    */
   global.createAppUtils = function createAppUtils() {
     return {
@@ -67,3 +81,4 @@
     };
   };
 })(window);
+

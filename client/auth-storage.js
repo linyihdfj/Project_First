@@ -1,30 +1,40 @@
+/**
+ * @description authstorage相关前端模块，负责对应界面能力的状态处理与交互封装。
+ */
+/**
+ * @description 处理exposeauthstorage相关逻辑。
+ * @param {*} global global参数。
+ * @returns {*} authstorage结果。
+ */
 (function exposeAuthStorage(global) {
+
   /**
-   * @description 创建 token 存储工具，统一封装 localStorage 读写。
-   * @param {string} storageKey 本地存储键名。
-   * @returns {{getAuthToken:()=>string,setAuthToken:(token:string)=>void,removeAuthToken:()=>void}} token 存储 API。
+   * @description 创建authstorage。
+   * @param {*} storageKey storagekey参数。
+   * @returns {*} authstorage结果。
    */
   function createAuthStorage(storageKey) {
+
     /**
-     * @description 读取已保存的鉴权 token。
-     * @returns {string} token 字符串，不存在时返回空串。
+     * @description 获取authtoken。
+     * @returns {*} authtoken结果。
      */
     function getAuthToken() {
       return localStorage.getItem(storageKey) || "";
     }
 
     /**
-     * @description 写入鉴权 token 到本地存储。
-     * @param {string} token 要保存的 token。
-     * @returns {void}
+     * @description 设置authtoken。
+     * @param {*} token 认证令牌。
+     * @returns {*} authtoken结果。
      */
     function setAuthToken(token) {
       localStorage.setItem(storageKey, token);
     }
 
     /**
-     * @description 删除本地存储中的鉴权 token。
-     * @returns {void}
+     * @description 处理removeauthtoken相关逻辑。
+     * @returns {void} 无返回值。
      */
     function removeAuthToken() {
       localStorage.removeItem(storageKey);
@@ -39,3 +49,4 @@
 
   global.createAuthStorage = createAuthStorage;
 })(window);
+

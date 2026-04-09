@@ -1,3 +1,11 @@
+/**
+ * @description regiondragtools相关前端模块，负责对应界面能力的状态处理与交互封装。
+ */
+/**
+ * @description 创建regiondragtools。
+ * @param {*} deps 模块依赖集合。
+ * @returns {*} regiondragtools结果。
+ */
 window.createRegionDragTools = function createRegionDragTools(deps) {
   const {
     state,
@@ -11,12 +19,12 @@ window.createRegionDragTools = function createRegionDragTools(deps) {
   } = deps;
 
   /**
-   * @description 开始区域缩放操作并记录初始状态。
-   * @param {MouseEvent} evt 鼠标事件。
-   * @param {number} annotationId 标注 ID。
-   * @param {number} regionId 区域 ID。
-   * @param {string} handle 缩放手柄方向。
-   * @returns {void}
+   * @description 开始regionresize。
+   * @param {*} evt 浏览器事件对象。
+   * @param {*} annotationId 标注 ID。
+   * @param {*} regionId 区域 ID。
+   * @param {*} handle handle参数。
+   * @returns {void} 无返回值。
    */
   function startRegionResize(evt, annotationId, regionId, handle) {
     if (!isEditor()) {
@@ -54,11 +62,11 @@ window.createRegionDragTools = function createRegionDragTools(deps) {
   }
 
   /**
-   * @description 开始区域平移操作并记录初始状态。
-   * @param {MouseEvent} evt 鼠标事件。
-   * @param {number} annotationId 标注 ID。
-   * @param {number} regionId 区域 ID。
-   * @returns {void}
+   * @description 开始regionmove。
+   * @param {*} evt 浏览器事件对象。
+   * @param {*} annotationId 标注 ID。
+   * @param {*} regionId 区域 ID。
+   * @returns {void} 无返回值。
    */
   function startRegionMove(evt, annotationId, regionId) {
     if (!isEditor()) {
@@ -95,9 +103,9 @@ window.createRegionDragTools = function createRegionDragTools(deps) {
   }
 
   /**
-   * @description 根据鼠标位移实时更新区域位置。
-   * @param {MouseEvent} evt 鼠标事件。
-   * @returns {void}
+   * @description 更新regionmove。
+   * @param {*} evt 浏览器事件对象。
+   * @returns {void} 无返回值。
    */
   function updateRegionMove(evt) {
     if (!state.regionMove) {
@@ -122,9 +130,9 @@ window.createRegionDragTools = function createRegionDragTools(deps) {
   }
 
   /**
-   * @description 根据鼠标位移实时更新区域尺寸与位置。
-   * @param {MouseEvent} evt 鼠标事件。
-   * @returns {void}
+   * @description 更新regionresize。
+   * @param {*} evt 浏览器事件对象。
+   * @returns {void} 无返回值。
    */
   function updateRegionResize(evt) {
     if (!state.regionResize) {
@@ -182,3 +190,4 @@ window.createRegionDragTools = function createRegionDragTools(deps) {
     updateRegionResize,
   };
 };
+

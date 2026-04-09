@@ -1,3 +1,11 @@
+/**
+ * @description pagerendertools相关前端模块，负责对应界面能力的状态处理与交互封装。
+ */
+/**
+ * @description 创建pagerendertools。
+ * @param {*} deps 模块依赖集合。
+ * @returns {*} pagerendertools结果。
+ */
 window.createPageRenderTools = function createPageRenderTools(deps) {
   const {
     refs,
@@ -51,6 +59,10 @@ window.createPageRenderTools = function createPageRenderTools(deps) {
    * @returns {void}
    */
   function syncStageByImage(page) {
+    /**
+     * @description 处理imageload相关逻辑。
+     * @returns {*} imageload结果。
+     */
     const onImageLoad = () => {
       refs.canvasStage.style.height = `${refs.pageImage.clientHeight}px`;
       const clamped = clampCanvasView(
@@ -75,7 +87,7 @@ window.createPageRenderTools = function createPageRenderTools(deps) {
   }
 
   /**
-   * @description 渲染当前页面（图片、标注列表、覆盖层与元信息）。
+   * @description 渲染当前页面的图片、标注列表、覆盖层与元信息。
    * @returns {void}
    */
   function renderPage() {
@@ -105,3 +117,4 @@ window.createPageRenderTools = function createPageRenderTools(deps) {
     renderPage,
   };
 };
+

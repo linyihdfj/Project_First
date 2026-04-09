@@ -1,3 +1,12 @@
+/**
+ * @description annotationregions路由模块，负责注册对应的 HTTP 接口。
+ */
+/**
+ * @description 注册annotationregionroutes。
+ * @param {*} app Express 应用实例。
+ * @param {*} deps 模块依赖集合。
+ * @returns {void} 无返回值。
+ */
 function registerAnnotationRegionRoutes(app, deps) {
   const {
     sendError,
@@ -188,3 +197,4 @@ function registerAnnotationRegionRoutes(app, deps) {
 }
 
 module.exports = registerAnnotationRegionRoutes;
+

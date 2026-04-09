@@ -1,4 +1,12 @@
+/**
+ * @description socket服务端模块，负责对应领域能力的实现。
+ */
 const { Server: SocketServer } = require("socket.io");
+
+/**
+ * @description ?? Socket.IO ????
+ * @returns {*} ???????
+ */
 
 function createSocketLayer({
   httpServer,
@@ -8,6 +16,14 @@ function createSocketLayer({
 }) {
   const io = new SocketServer(httpServer, { cors: { origin: "*" } });
 
+  /**
+   * @description 处理broadcastpage相关逻辑。
+   * @param {*} req Express 请求对象。
+   * @param {*} roomName roomname参数。
+   * @param {*} event 浏览器事件对象。
+   * @param {*} data 通用数据对象。
+   * @returns {void} 无返回值。
+   */
   function broadcastToPage(req, roomName, event, data) {
     const senderSocketId = req.headers["x-socket-id"];
     if (senderSocketId) {
@@ -27,6 +43,11 @@ function createSocketLayer({
     next();
   });
 
+  /**
+   * @description 获取roommembers。
+   * @param {*} roomName roomname参数。
+   * @returns {*} roommembers结果。
+   */
   async function getRoomMembers(roomName) {
     const sockets = await io.in(roomName).fetchSockets();
     return sockets.map((s) => ({
@@ -104,3 +125,4 @@ function createSocketLayer({
 module.exports = {
   createSocketLayer,
 };
+

@@ -1,3 +1,11 @@
+/**
+ * @description apiclient相关前端模块，负责对应界面能力的状态处理与交互封装。
+ */
+/**
+ * @description 处理exposeapiclientfactory相关逻辑。
+ * @param {*} global global参数。
+ * @returns {*} apiclientfactory结果。
+ */
 (function exposeApiClientFactory(global) {
   /**
    * @description 创建统一的 API 请求函数，自动注入鉴权与协作上下文并处理错误。
@@ -76,3 +84,4 @@
 
   global.createApiRequest = createApiRequest;
 })(window);
+

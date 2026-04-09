@@ -1,8 +1,17 @@
+/**
+ * @description filepdfutils相关前端模块，负责对应界面能力的状态处理与交互封装。
+ */
+/**
+ * @description 处理exposefilepdfutilsfactory相关逻辑。
+ * @param {*} global global参数。
+ * @returns {*} filepdfutilsfactory结果。
+ */
 (function exposeFilePdfUtilsFactory(global) {
+
   /**
-   * @description 创建 PDF/图片导入工具，支持 PDF 页面转图片。
-   * @param {(src:string,name:string,width:number,height:number)=>object} createPageFromImage 页面构造函数。
-   * @returns {object} 文件导入工具集合。
+   * @description 创建filepdfutils。
+   * @param {*} createPageFromImage createpageimage参数。
+   * @returns {*} filepdfutils结果。
    */
   function createFilePdfUtils(createPageFromImage) {
     const PDF_JS_SOURCES = [
@@ -33,9 +42,9 @@
     } = global.createFileHelpers();
 
     /**
-     * @description 动态加载脚本（同一 src 仅加载一次）。
-     * @param {string} src 脚本地址。
-     * @returns {Promise<void>}
+     * @description 加载scriptonce。
+     * @param {*} src src参数。
+     * @returns {*} scriptonce结果。
      */
     function loadScriptOnce(src) {
       return new Promise((resolve, reject) => {
@@ -76,8 +85,8 @@
     }
 
     /**
-     * @description 从多个 CDN 依次尝试加载 PDF.js。
-     * @returns {Promise<void>}
+     * @description 加载pdfjsanycdn。
+     * @returns {*} pdfjsanycdn结果。
      */
     async function loadPdfJsFromAnyCdn() {
       let lastError = null;
@@ -95,9 +104,9 @@
     }
 
     /**
-     * @description 判断错误是否与 worker/cors 限制相关。
-     * @param {any} error 错误对象。
-     * @returns {boolean}
+     * @description 判断是否为workerlikelyblocked。
+     * @param {*} error error参数。
+     * @returns {boolean} workerlikelyblocked是否成立。
      */
     function isWorkerLikelyBlocked(error) {
       const message = String((error && error.message) || error || "");
@@ -107,10 +116,10 @@
     }
 
     /**
-     * @description 加载 PDF 文档，必要时回退为主线程解析。
-     * @param {any} pdfjsLib PDF.js 实例。
-     * @param {ArrayBuffer|Uint8Array} buffer 文件数据。
-     * @returns {Promise<any>} PDF 文档对象。
+     * @description 加载pdfdocument。
+     * @param {*} pdfjsLib pdfjslib参数。
+     * @param {*} buffer buffer参数。
+     * @returns {*} pdfdocument结果。
      */
     async function loadPdfDocument(pdfjsLib, buffer) {
       const data =
@@ -131,8 +140,8 @@
     }
 
     /**
-     * @description 确保 PDF.js 已初始化并返回可用实例。
-     * @returns {Promise<any>}
+     * @description 处理ensurepdfjsloaded相关逻辑。
+     * @returns {void} 无返回值。
      */
     async function ensurePdfJsLoaded() {
       if (window.pdfjsLib && window.pdfjsLib.getDocument) {
@@ -158,10 +167,10 @@
     }
 
     /**
-     * @description 将 PDF 每一页渲染为 PNG，并转换为页面对象数组。
-     * @param {File} file PDF 文件。
-     * @param {{onProgress?:(info:{fileName:string,current:number,total:number})=>void}} [options={}] 配置项。
-     * @returns {Promise<Array<object>>}
+     * @description 处理extractpdfpagesasimages相关逻辑。
+     * @param {*} file file参数。
+     * @param {*} options options参数。
+     * @returns {*} pdfpagesasimages结果。
      */
     async function extractPdfPagesAsImages(file, options = {}) {
       const { onProgress } = options;
@@ -218,3 +227,4 @@
 
   global.createFilePdfUtils = createFilePdfUtils;
 })(window);
+

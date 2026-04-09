@@ -1,3 +1,6 @@
+/**
+ * @description annotationhierarchytools相关前端模块，负责对应界面能力的状态处理与交互封装。
+ */
 window.createAnnotationHierarchyTools = function createAnnotationHierarchyTools(
   deps,
 ) {
@@ -17,6 +20,11 @@ window.createAnnotationHierarchyTools = function createAnnotationHierarchyTools(
     setReviewStatus,
   } = deps;
 
+  /**
+   * @description 处理recalcparenttextchildren相关逻辑。
+   * @param {*} parentId 父级 ID。
+   * @returns {*} parenttextchildren结果。
+   */
   function recalcParentTextFromChildren(parentId) {
     if (!parentId) return;
     const currentPage = getCurrentPage();
@@ -40,6 +48,11 @@ window.createAnnotationHierarchyTools = function createAnnotationHierarchyTools(
 
     const childrenMap = new Map();
 
+    /**
+     * @description 计算textcompleteness。
+     * @param {*} ann 标注对象。
+     * @returns {number} textcompleteness结果。
+     */
     function scoreTextCompleteness(ann) {
       return (
         String(ann.originalText || "").length +
@@ -90,6 +103,12 @@ window.createAnnotationHierarchyTools = function createAnnotationHierarchyTools(
     }
   }
 
+  /**
+   * @description 处理reparentannotation相关逻辑。
+   * @param {*} childId 子级 ID。
+   * @param {*} newParentId newparent ID。
+   * @returns {*} annotation结果。
+   */
   async function reparentAnnotation(childId, newParentId) {
     const page = getCurrentPage();
     if (!page) return;
@@ -157,6 +176,13 @@ window.createAnnotationHierarchyTools = function createAnnotationHierarchyTools(
     }
   }
 
+  /**
+   * @description 处理reorderannotation相关逻辑。
+   * @param {*} draggedId dragged ID。
+   * @param {*} targetId target ID。
+   * @param {*} position position参数。
+   * @returns {*} annotation结果。
+   */
   async function reorderAnnotation(draggedId, targetId, position) {
     const page = getCurrentPage();
     if (!page) return;
@@ -222,6 +248,10 @@ window.createAnnotationHierarchyTools = function createAnnotationHierarchyTools(
     renderAll();
   }
 
+  /**
+   * @description 构建annotationlist。
+   * @returns {*} annotationlist结果。
+   */
   function buildAnnotationList() {
     const page = getCurrentPage();
     refs.annotationList.innerHTML = "";
@@ -235,6 +265,11 @@ window.createAnnotationHierarchyTools = function createAnnotationHierarchyTools(
       rejected: "驳回",
     };
 
+    /**
+     * @description 处理makereviewbadge相关逻辑。
+     * @param {*} ann 标注对象。
+     * @returns {*} reviewbadge结果。
+     */
     function makeReviewBadge(ann) {
       const st = ann.reviewStatus || "pending";
       return `<span class="review-badge-sm ${st}">${statusLabels[st] || st}</span>`;
@@ -260,6 +295,12 @@ window.createAnnotationHierarchyTools = function createAnnotationHierarchyTools(
 
     if (!state.annotationExpandedState) state.annotationExpandedState = {};
 
+    /**
+     * @description 渲染annotationitem。
+     * @param {*} ann 标注对象。
+     * @param {*} depth depth参数。
+     * @returns {void} 无返回值。
+     */
     function renderAnnotationItem(ann, depth) {
       const item = document.createElement("li");
       item.className = "annotation-list-item";
@@ -408,3 +449,4 @@ window.createAnnotationHierarchyTools = function createAnnotationHierarchyTools(
     recalcParentTextFromChildren,
   };
 };
+

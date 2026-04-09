@@ -1,3 +1,11 @@
+/**
+ * @description pageimporttools相关前端模块，负责对应界面能力的状态处理与交互封装。
+ */
+/**
+ * @description 创建pageimporttools。
+ * @param {*} deps 模块依赖集合。
+ * @returns {*} pageimporttools结果。
+ */
 window.createPageImportTools = function createPageImportTools(deps) {
   const {
     state,
@@ -15,9 +23,9 @@ window.createPageImportTools = function createPageImportTools(deps) {
   } = deps;
 
   /**
-   * @description 预加载图片并读取其自然尺寸。
-   * @param {string} src 图片地址。
-   * @returns {Promise<{src:string,width:number,height:number}>}
+   * @description 加载imagesrc。
+   * @param {*} src src参数。
+   * @returns {*} imagesrc结果。
    */
   function loadImageBySrc(src) {
     return new Promise((resolve, reject) => {
@@ -34,9 +42,9 @@ window.createPageImportTools = function createPageImportTools(deps) {
   }
 
   /**
-   * @description 将导入页面批量持久化到后端。
-   * @param {Array<object>} importedPages 待保存页面数组。
-   * @returns {Promise<Array<object>>} 已保存页面数组。
+   * @description 处理persistnewpages相关逻辑。
+   * @param {*} importedPages importedpages参数。
+   * @returns {*} newpages结果。
    */
   async function persistNewPages(importedPages) {
     if (!importedPages.length) {
@@ -61,9 +69,9 @@ window.createPageImportTools = function createPageImportTools(deps) {
   }
 
   /**
-   * @description 处理页面文件上传（图片/PDF），并替换当前文章页面。
-   * @param {Event} event 文件选择事件。
-   * @returns {Promise<void>}
+   * @description 处理imageupload。
+   * @param {*} event 浏览器事件对象。
+   * @returns {void} 无返回值。
    */
   async function handleImageUpload(event) {
     const files = Array.from(event.target.files || []);
@@ -129,8 +137,8 @@ window.createPageImportTools = function createPageImportTools(deps) {
   }
 
   /**
-   * @description 清空当前文章全部页面与标注。
-   * @returns {Promise<void>}
+   * @description 清空allpages。
+   * @returns {void} 无返回值。
    */
   async function clearAllPages() {
     if (!state.pages.length) {
@@ -155,9 +163,8 @@ window.createPageImportTools = function createPageImportTools(deps) {
   }
 
   return {
-    loadImageBySrc,
-    persistNewPages,
     handleImageUpload,
     clearAllPages,
   };
 };
+

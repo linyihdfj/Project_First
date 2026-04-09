@@ -1,3 +1,12 @@
+/**
+ * @description ocr路由模块，负责注册对应的 HTTP 接口。
+ */
+/**
+ * @description 注册ocrroutes。
+ * @param {*} app Express 应用实例。
+ * @param {*} deps 模块依赖集合。
+ * @returns {void} 无返回值。
+ */
 function registerOcrRoutes(app, deps) {
   const {
     sendError,
@@ -10,6 +19,12 @@ function registerOcrRoutes(app, deps) {
     projectRoot,
   } = deps;
 
+  /**
+   * @description 处理ensureocraccess相关逻辑。
+   * @param {*} req Express 请求对象。
+   * @param {*} pageId 页面 ID。
+   * @returns {void} 无返回值。
+   */
   async function ensureOcrAccess(req, pageId) {
     if (!pageId) {
       throw Object.assign(new Error("缺少 pageId"), { statusCode: 400 });
@@ -119,3 +134,4 @@ function registerOcrRoutes(app, deps) {
 }
 
 module.exports = registerOcrRoutes;
+

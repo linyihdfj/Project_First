@@ -1,4 +1,18 @@
+/**
+ * @description authpermissions相关前端模块，负责对应界面能力的状态处理与交互封装。
+ */
+/**
+ * @description 处理exposeauthpermissionsfactory相关逻辑。
+ * @param {*} global global参数。
+ * @returns {*} authpermissionsfactory结果。
+ */
 (function exposeAuthPermissionsFactory(global) {
+
+  /**
+   * @description 创建authpermissions。
+   * @param {*} deps 模块依赖集合。
+   * @returns {*} authpermissions结果。
+   */
   function createAuthPermissions(deps) {
     const {
       refs,
@@ -16,44 +30,81 @@
       onInviteAccepted,
     } = deps;
 
+    /**
+     * @description 处理invitetokenlocation相关逻辑。
+     * @returns {*} tokenlocation结果。
+     */
     function inviteTokenFromLocation() {
       const params = new URLSearchParams(window.location.search);
       return String(params.get("invite") || "").trim();
     }
 
+    /**
+     * @description 清空invitetokenlocation。
+     * @returns {void} 无返回值。
+     */
     function clearInviteTokenFromLocation() {
       const url = new URL(window.location.href);
       url.searchParams.delete("invite");
       window.history.replaceState({}, document.title, url.toString());
     }
 
+    /**
+     * @description 清空loginerror。
+     * @returns {void} 无返回值。
+     */
     function clearLoginError() {
       if (!refs.loginError) return;
       refs.loginError.textContent = "";
       refs.loginError.hidden = true;
     }
 
+    /**
+     * @description 显示loginerror。
+     * @param {*} message message参数。
+     * @returns {void} 无返回值。
+     */
     function showLoginError(message) {
       if (!refs.loginError) return;
       refs.loginError.textContent = message;
       refs.loginError.hidden = false;
     }
 
+    /**
+     * @description 设置text。
+     * @param {*} id id参数。
+     * @param {*} text text参数。
+     * @returns {*} text结果。
+     */
     function setText(id, text) {
       const element = document.getElementById(id);
       if (element) element.textContent = text;
     }
 
+    /**
+     * @description 处理globalrolelabel相关逻辑。
+     * @param {*} role 角色值。
+     * @returns {*} rolelabel结果。
+     */
     function globalRoleLabel(role) {
       return role === "admin" ? "管理员" : "用户";
     }
 
+    /**
+     * @description 处理articlerolelabel相关逻辑。
+     * @param {*} role 角色值。
+     * @returns {*} rolelabel结果。
+     */
     function articleRoleLabel(role) {
       if (role === "admin") return "文章管理员";
       if (role === "reviewer") return "审校者";
       return "编辑者";
     }
 
+    /**
+     * @description 应用staticcopy。
+     * @returns {void} 无返回值。
+     */
     function applyStaticCopy() {
       const loginBox = document.querySelector(".login-box");
       if (loginBox) {
@@ -87,28 +138,48 @@
       if (importLabel) importLabel.textContent = "📥 导入古籍";
     }
 
+    /**
+     * @description 显示loginoverlay。
+     * @returns {void} 无返回值。
+     */
     function showLoginOverlay() {
       hideArticleSelect();
       hideAppShell();
       if (refs.loginOverlay) refs.loginOverlay.hidden = false;
     }
 
+    /**
+     * @description 隐藏loginoverlay。
+     * @returns {void} 无返回值。
+     */
     function hideLoginOverlay() {
       if (refs.loginOverlay) refs.loginOverlay.hidden = true;
     }
 
+    /**
+     * @description 显示appshell。
+     * @returns {void} 无返回值。
+     */
     function showAppShell() {
       if (refs.appTopbar) refs.appTopbar.hidden = false;
       if (refs.appTabs) refs.appTabs.hidden = false;
       if (refs.appMain) refs.appMain.hidden = false;
     }
 
+    /**
+     * @description 隐藏appshell。
+     * @returns {void} 无返回值。
+     */
     function hideAppShell() {
       if (refs.appTopbar) refs.appTopbar.hidden = true;
       if (refs.appTabs) refs.appTabs.hidden = true;
       if (refs.appMain) refs.appMain.hidden = true;
     }
 
+    /**
+     * @description 判断是否为editor。
+     * @returns {boolean} editor是否成立。
+     */
     function isEditor() {
       if (!state.currentUser) return false;
       if (state.currentUser.role === "admin") return true;
@@ -118,10 +189,18 @@
       );
     }
 
+    /**
+     * @description 判断是否为admin。
+     * @returns {boolean} admin是否成立。
+     */
     function isAdmin() {
       return !!(state.currentUser && state.currentUser.role === "admin");
     }
 
+    /**
+     * @description 判断是否可以review。
+     * @returns {boolean} review是否成立。
+     */
     function canReview() {
       if (!state.currentUser) return false;
       if (state.currentUser.role === "admin") return true;
@@ -131,20 +210,37 @@
       );
     }
 
+    /**
+     * @description 设置inviteauthmode。
+     * @param {*} mode mode参数。
+     * @returns {*} inviteauthmode结果。
+     */
     function setInviteAuthMode(mode) {
       state.inviteAuthMode = mode === "register" ? "register" : "login";
       renderInviteMode();
     }
 
+    /**
+     * @description 显示inviteloginmode。
+     * @returns {void} 无返回值。
+     */
     function showInviteLoginMode() {
       setInviteAuthMode("login");
     }
 
+    /**
+     * @description 显示inviteregistermode。
+     * @returns {void} 无返回值。
+     */
     function showInviteRegisterMode() {
       if (!state.pendingInvite) return;
       setInviteAuthMode("register");
     }
 
+    /**
+     * @description 渲染invitemode。
+     * @returns {void} 无返回值。
+     */
     function renderInviteMode() {
       applyStaticCopy();
       const invite = state.pendingInvite;
@@ -222,6 +318,10 @@
       }
     }
 
+    /**
+     * @description 应用permissions。
+     * @returns {void} 无返回值。
+     */
     function applyPermissions() {
       const editable = isEditor();
       const canManagePages = !!(
@@ -268,6 +368,10 @@
       }
     }
 
+    /**
+     * @description 更新userbar。
+     * @returns {void} 无返回值。
+     */
     function updateUserBar() {
       if (!refs.userBar) return;
 
@@ -287,6 +391,10 @@
       }
     }
 
+    /**
+     * @description 处理resolveinvitelocation相关逻辑。
+     * @returns {*} invitelocation结果。
+     */
     async function resolveInviteFromLocation() {
       const token = inviteTokenFromLocation();
       if (!token) {
@@ -320,6 +428,10 @@
       }
     }
 
+    /**
+     * @description 处理acceptpendinginvite相关逻辑。
+     * @returns {*} pendinginvite结果。
+     */
     async function acceptPendingInvite() {
       if (!state.currentUser || !state.pendingInvite || !state.pendingInvite.token) {
         return null;
@@ -342,13 +454,16 @@
       return data.invite || null;
     }
 
+    /**
+     * @description 处理finalizeauthenticatedsession相关逻辑。
+     * @param {*} user user参数。
+     * @returns {*} authenticatedsession结果。
+     */
     async function finalizeAuthenticatedSession(user) {
       state.currentUser = user;
       hideLoginOverlay();
       hideAppShell();
       updateUserBar();
-      showArticleSelect();
-      initSocket();
 
       if (state.pendingInvite) {
         try {
@@ -359,9 +474,15 @@
         }
       }
 
+      showArticleSelect();
+      initSocket();
       applyPermissions();
     }
 
+    /**
+     * @description 处理dologin相关逻辑。
+     * @returns {void} 无返回值。
+     */
     async function doLogin() {
       const username = refs.loginUsername.value.trim();
       const password = refs.loginPassword.value;
@@ -393,6 +514,10 @@
       }
     }
 
+    /**
+     * @description 处理doinviteregister相关逻辑。
+     * @returns {void} 无返回值。
+     */
     async function doInviteRegister() {
       if (!state.pendingInvite || !state.pendingInvite.token) return;
 
@@ -442,6 +567,10 @@
       }
     }
 
+    /**
+     * @description 处理dologout相关逻辑。
+     * @returns {void} 无返回值。
+     */
     function doLogout() {
       const socket = getSocket();
       if (socket) {
@@ -464,6 +593,10 @@
       renderInviteMode();
     }
 
+    /**
+     * @description 处理checkauth相关逻辑。
+     * @returns {*} auth结果。
+     */
     async function checkAuth() {
       await resolveInviteFromLocation();
 

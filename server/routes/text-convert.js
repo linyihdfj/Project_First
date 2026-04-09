@@ -1,8 +1,11 @@
 /**
- * @description 注册文本转换接口，供前端在 OCR 后将原文自动转换为简体。
- * @param {import("express").Express} app Express 应用实例。
- * @param {object} deps 路由依赖集合。
- * @returns {void}
+ * @description textconvert路由模块，负责注册对应的 HTTP 接口。
+ */
+/**
+ * @description 注册textconvertroutes。
+ * @param {*} app Express 应用实例。
+ * @param {*} deps 模块依赖集合。
+ * @returns {void} 无返回值。
  */
 function registerTextConvertRoutes(app, deps) {
   const {
@@ -31,3 +34,4 @@ function registerTextConvertRoutes(app, deps) {
 }
 
 module.exports = registerTextConvertRoutes;
+

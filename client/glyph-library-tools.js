@@ -1,3 +1,11 @@
+/**
+ * @description glyphlibrarytools相关前端模块，负责对应界面能力的状态处理与交互封装。
+ */
+/**
+ * @description 创建glyphlibrarytools。
+ * @param {*} deps 模块依赖集合。
+ * @returns {*} glyphlibrarytools结果。
+ */
 window.createGlyphLibraryTools = function createGlyphLibraryTools(deps) {
   const {
     state,
@@ -14,6 +22,11 @@ window.createGlyphLibraryTools = function createGlyphLibraryTools(deps) {
     setActiveTab,
   } = deps;
 
+  /**
+   * @description 加载imageelement。
+   * @param {*} src src参数。
+   * @returns {*} imageelement结果。
+   */
   function loadImageElement(src) {
     return new Promise((resolve, reject) => {
       const img = new Image();
@@ -23,6 +36,12 @@ window.createGlyphLibraryTools = function createGlyphLibraryTools(deps) {
     });
   }
 
+  /**
+   * @description 设置glyphcaptureimage。
+   * @param {*} dataUrl dataurl参数。
+   * @param {*} tipText tiptext参数。
+   * @returns {*} glyphcaptureimage结果。
+   */
   function setGlyphCaptureImage(dataUrl, tipText) {
     state.glyphCaptureDataUrl = dataUrl || "";
 
@@ -46,6 +65,10 @@ window.createGlyphLibraryTools = function createGlyphLibraryTools(deps) {
     refs.glyphCapturePreviewWrap.hidden = true;
   }
 
+  /**
+   * @description 处理captureglyphselection相关逻辑。
+   * @returns {*} glyphselection结果。
+   */
   async function captureGlyphFromSelection() {
     const page = getCurrentPage();
     const ann = getSelectedAnnotation();
@@ -86,6 +109,10 @@ window.createGlyphLibraryTools = function createGlyphLibraryTools(deps) {
     setActiveTab("glyph");
   }
 
+  /**
+   * @description 渲染glyphlist。
+   * @returns {void} 无返回值。
+   */
   function renderGlyphList() {
     refs.glyphList.innerHTML = "";
     if (!state.glyphs.length) {
@@ -116,6 +143,11 @@ window.createGlyphLibraryTools = function createGlyphLibraryTools(deps) {
     });
   }
 
+  /**
+   * @description 处理deleteglyph相关逻辑。
+   * @param {*} glyph 造字对象。
+   * @returns {void} 无返回值。
+   */
   async function deleteGlyph(glyph) {
     await apiRequest(`/glyphs/${encodeURIComponent(glyph.id)}`, {
       method: "DELETE",
@@ -131,6 +163,10 @@ window.createGlyphLibraryTools = function createGlyphLibraryTools(deps) {
     renderAll();
   }
 
+  /**
+   * @description 处理addglyph相关逻辑。
+   * @returns {*} glyph结果。
+   */
   async function addGlyph() {
     const code = refs.glyphCode.value.trim().toUpperCase();
     const name = refs.glyphName.value.trim();
@@ -167,6 +203,10 @@ window.createGlyphLibraryTools = function createGlyphLibraryTools(deps) {
     renderAll();
   }
 
+  /**
+   * @description 处理exportglyphjson相关逻辑。
+   * @returns {*} glyphjson结果。
+   */
   function exportGlyphJson() {
     const payload = JSON.stringify(
       {
@@ -189,6 +229,11 @@ window.createGlyphLibraryTools = function createGlyphLibraryTools(deps) {
     URL.revokeObjectURL(url);
   }
 
+  /**
+   * @description 处理importglyphjson相关逻辑。
+   * @param {*} event 浏览器事件对象。
+   * @returns {*} glyphjson结果。
+   */
   async function importGlyphJson(event) {
     const file = event.target.files && event.target.files[0];
     if (!file) return;
@@ -241,3 +286,4 @@ window.createGlyphLibraryTools = function createGlyphLibraryTools(deps) {
     importGlyphJson,
   };
 };
+

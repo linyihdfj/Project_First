@@ -1,3 +1,11 @@
+/**
+ * @description headingtools相关前端模块，负责对应界面能力的状态处理与交互封装。
+ */
+/**
+ * @description 创建headingtools。
+ * @param {*} deps 模块依赖集合。
+ * @returns {*} headingtools结果。
+ */
 window.createHeadingTools = function createHeadingTools(deps) {
   const {
     state,
@@ -14,6 +22,11 @@ window.createHeadingTools = function createHeadingTools(deps) {
     joinCurrentPageRoom,
   } = deps;
 
+  /**
+   * @description 处理levellabel相关逻辑。
+   * @param {*} level level参数。
+   * @returns {*} label结果。
+   */
   function levelLabel(level) {
     if (level === "char") return "字";
     if (level === "sentence") return "句";
@@ -21,6 +34,11 @@ window.createHeadingTools = function createHeadingTools(deps) {
     return "段";
   }
 
+  /**
+   * @description 处理headinglevellabel相关逻辑。
+   * @param {*} level level参数。
+   * @returns {*} levellabel结果。
+   */
   function headingLevelLabel(level) {
     if (level === 1) return "一级标题";
     if (level === 2) return "二级标题";
@@ -28,10 +46,19 @@ window.createHeadingTools = function createHeadingTools(deps) {
     return "四级标题";
   }
 
+  /**
+   * @description 查找pageindexid。
+   * @param {*} pageId 页面 ID。
+   * @returns {*} pageindexid结果。
+   */
   function findPageIndexById(pageId) {
     return state.pages.findIndex((page) => page.id === pageId);
   }
 
+  /**
+   * @description 处理addheadingselection相关逻辑。
+   * @returns {*} headingselection结果。
+   */
   async function addHeadingFromSelection() {
     const page = getCurrentPage();
     if (!page) {
@@ -85,6 +112,11 @@ window.createHeadingTools = function createHeadingTools(deps) {
     renderAll();
   }
 
+  /**
+   * @description 处理deleteheadingid相关逻辑。
+   * @param {*} headingId 标题 ID。
+   * @returns {void} 无返回值。
+   */
   async function deleteHeadingById(headingId) {
     if (!window.confirm("确定删除该标题吗？")) {
       return;
@@ -101,6 +133,11 @@ window.createHeadingTools = function createHeadingTools(deps) {
     renderAll();
   }
 
+  /**
+   * @description 计算headingdepth。
+   * @param {*} headingId 标题 ID。
+   * @returns {number} headingdepth结果。
+   */
   function calcHeadingDepth(headingId) {
     let depth = 0;
     let currentId = headingId;
@@ -115,6 +152,11 @@ window.createHeadingTools = function createHeadingTools(deps) {
     return depth;
   }
 
+  /**
+   * @description 更新childlevels。
+   * @param {*} parentId 父级 ID。
+   * @returns {void} 无返回值。
+   */
   function updateChildLevels(parentId) {
     state.headings.forEach((heading) => {
       if (heading.parentId === parentId) {
@@ -124,6 +166,12 @@ window.createHeadingTools = function createHeadingTools(deps) {
     });
   }
 
+  /**
+   * @description 判断是否为descendant。
+   * @param {*} headingId 标题 ID。
+   * @param {*} ancestorId ancestor ID。
+   * @returns {boolean} descendant是否成立。
+   */
   function isDescendantOf(headingId, ancestorId) {
     let currentId = headingId;
     const visited = new Set();
@@ -137,6 +185,13 @@ window.createHeadingTools = function createHeadingTools(deps) {
     return false;
   }
 
+  /**
+   * @description 处理moveheading相关逻辑。
+   * @param {*} headingId 标题 ID。
+   * @param {*} newParentId newparent ID。
+   * @param {*} newOrderIndex neworderindex参数。
+   * @returns {void} 无返回值。
+   */
   async function moveHeading(headingId, newParentId, newOrderIndex) {
     const articleId = normalizeArticleId(state.article.id);
     const newLevel = newParentId ? calcHeadingDepth(newParentId) + 2 : 1;
@@ -189,6 +244,11 @@ window.createHeadingTools = function createHeadingTools(deps) {
     renderHeadingIndex();
   }
 
+  /**
+   * @description 处理jumpheading相关逻辑。
+   * @param {*} heading 标题对象。
+   * @returns {*} heading结果。
+   */
   function jumpToHeading(heading) {
     const pageIndex = findPageIndexById(heading.pageId);
     if (pageIndex < 0) {
@@ -216,6 +276,10 @@ window.createHeadingTools = function createHeadingTools(deps) {
     renderAll();
   }
 
+  /**
+   * @description 渲染headingindex。
+   * @returns {void} 无返回值。
+   */
   function renderHeadingIndex() {
     if (!refs.headingIndexList) {
       return;
@@ -274,6 +338,12 @@ window.createHeadingTools = function createHeadingTools(deps) {
       });
     }
 
+    /**
+     * @description 渲染headingtree。
+     * @param {*} parentId 父级 ID。
+     * @param {*} depth depth参数。
+     * @returns {void} 无返回值。
+     */
     function renderHeadingTree(parentId, depth = 0) {
       const children = tree[parentId] || [];
       if (children.length === 0) {
@@ -455,6 +525,10 @@ window.createHeadingTools = function createHeadingTools(deps) {
     renderHeadingTree("root");
   }
 
+  /**
+   * @description 渲染headingaddtip。
+   * @returns {void} 无返回值。
+   */
   function renderHeadingAddTip() {
     if (!refs.headingAddTip) {
       return;
@@ -485,3 +559,4 @@ window.createHeadingTools = function createHeadingTools(deps) {
     renderHeadingAddTip,
   };
 };
+

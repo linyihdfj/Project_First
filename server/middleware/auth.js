@@ -1,9 +1,20 @@
+/**
+ * @description auth中间件模块，负责服务端权限校验与请求拦截。
+ */
 function createAuthMiddlewares({
   verifyToken,
   checkArticleAccess,
   articleIdFromReq,
   getArticleMembershipRole,
 }) {
+
+  /**
+   * @description 处理requireauth相关逻辑。
+   * @param {*} req Express 请求对象。
+   * @param {*} res Express 响应对象。
+   * @param {*} next Express 中间件回调。
+   * @returns {*} auth结果。
+   */
   function requireAuth(req, res, next) {
     const header = req.headers.authorization || "";
     const token = header.startsWith("Bearer ") ? header.slice(7) : "";
@@ -20,6 +31,11 @@ function createAuthMiddlewares({
     next();
   }
 
+  /**
+   * @description 处理requirerole相关逻辑。
+   * @param {*} roles 允许的角色列表。
+   * @returns {*} role结果。
+   */
   function requireRole(...roles) {
     return (req, res, next) => {
       if (!req.user) {
@@ -32,6 +48,13 @@ function createAuthMiddlewares({
     };
   }
 
+  /**
+   * @description 处理requirearticleaccess相关逻辑。
+   * @param {*} req Express 请求对象。
+   * @param {*} res Express 响应对象。
+   * @param {*} next Express 中间件回调。
+   * @returns {*} articleaccess结果。
+   */
   async function requireArticleAccess(req, res, next) {
     const articleId = articleIdFromReq(req);
     if (!req.user) {
@@ -52,6 +75,12 @@ function createAuthMiddlewares({
     }
   }
 
+  /**
+   * @description 处理requirearticlecapability相关逻辑。
+   * @param {*} resolveArticleId resolvearticle ID。
+   * @param {*} allowedRoles allowedroles参数。
+   * @returns {*} articlecapability结果。
+   */
   function requireArticleCapability(resolveArticleId, ...allowedRoles) {
     return async (req, res, next) => {
       if (!req.user) {
@@ -99,3 +128,4 @@ function createAuthMiddlewares({
 module.exports = {
   createAuthMiddlewares,
 };
+

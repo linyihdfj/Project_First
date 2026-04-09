@@ -1,7 +1,16 @@
+/**
+ * @description state相关前端模块，负责对应界面能力的状态处理与交互封装。
+ */
+/**
+ * @description 处理exposestatefactory相关逻辑。
+ * @param {*} global global参数。
+ * @returns {*} statefactory结果。
+ */
 (function exposeStateFactory(global) {
+
   /**
-   * @description 创建应用初始状态，集中定义编辑器运行时数据模型。
-   * @returns {object} 应用初始状态对象。
+   * @description 创建initialstate。
+   * @returns {*} initialstate结果。
    */
   function createInitialState() {
     return {
@@ -62,3 +71,4 @@
 
   global.createInitialState = createInitialState;
 })(window);
+

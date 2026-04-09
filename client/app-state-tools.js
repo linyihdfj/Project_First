@@ -1,3 +1,11 @@
+/**
+ * @description appstatetools相关前端模块，负责对应界面能力的状态处理与交互封装。
+ */
+/**
+ * @description 创建appstatetools。
+ * @param {*} deps 模块依赖集合。
+ * @returns {*} appstatetools结果。
+ */
 window.createAppStateTools = function createAppStateTools(deps) {
   const {
     state,
@@ -16,8 +24,8 @@ window.createAppStateTools = function createAppStateTools(deps) {
   let metaSaveTimer = null;
 
   /**
-   * @description 将 state.article 同步到元数据表单输入框。
-   * @returns {void}
+   * @description 同步metainputsstate。
+   * @returns {void} 无返回值。
    */
   function syncMetaInputsFromState() {
     refs.metaArticleId.value = state.article.id;
@@ -31,8 +39,8 @@ window.createAppStateTools = function createAppStateTools(deps) {
   }
 
   /**
-   * @description 从元数据表单读取值并写回 state.article。
-   * @returns {void}
+   * @description 更新articlemetaform。
+   * @returns {void} 无返回值。
    */
   function updateArticleMetaFromForm() {
     state.article.id = normalizeArticleId(refs.metaArticleId.value);
@@ -46,8 +54,8 @@ window.createAppStateTools = function createAppStateTools(deps) {
   }
 
   /**
-   * @description 立即保存文章元数据到后端并刷新本地状态。
-   * @returns {Promise<void>}
+   * @description 处理savearticlemeta相关逻辑。
+   * @returns {*} articlemeta结果。
    */
   async function saveArticleMeta() {
     updateArticleMetaFromForm();
@@ -65,8 +73,8 @@ window.createAppStateTools = function createAppStateTools(deps) {
   }
 
   /**
-   * @description 防抖触发文章元数据保存。
-   * @returns {void}
+   * @description 安排savearticlemeta。
+   * @returns {void} 无返回值。
    */
   function scheduleSaveArticleMeta() {
     if (metaSaveTimer) {
@@ -78,9 +86,9 @@ window.createAppStateTools = function createAppStateTools(deps) {
   }
 
   /**
-   * @description 加载文章快照并重置页面级选择与视图状态。
-   * @param {string} articleId 文章 ID。
-   * @returns {Promise<void>}
+   * @description 加载snapshot。
+   * @param {*} articleId 文章 ID。
+   * @returns {*} snapshot结果。
    */
   async function loadSnapshot(articleId) {
     const payload = await apiRequest(
@@ -111,9 +119,9 @@ window.createAppStateTools = function createAppStateTools(deps) {
   }
 
   /**
-   * @description 切换顶部标签页并更新对应面板可见性。
-   * @param {string} tabName 目标标签名。
-   * @returns {void}
+   * @description 设置activetab。
+   * @param {*} tabName tabname参数。
+   * @returns {*} activetab结果。
    */
   function setActiveTab(tabName) {
     refs.tabs.forEach((tab) => {
@@ -126,12 +134,12 @@ window.createAppStateTools = function createAppStateTools(deps) {
   }
 
   /**
-   * @description 基于上传图片信息构造页面对象。
-   * @param {string} src 图片地址。
-   * @param {string} name 页面名称。
-   * @param {number} width 图片宽度。
-   * @param {number} height 图片高度。
-   * @returns {object} 页面数据对象。
+   * @description 创建pageimage。
+   * @param {*} src src参数。
+   * @param {*} name name参数。
+   * @param {*} width width参数。
+   * @param {*} height height参数。
+   * @returns {*} pageimage结果。
    */
   function createPageFromImage(src, name, width, height) {
     return {
@@ -155,3 +163,4 @@ window.createAppStateTools = function createAppStateTools(deps) {
     createPageFromImage,
   };
 };
+

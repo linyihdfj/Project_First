@@ -1,7 +1,10 @@
 /**
- * @description 组合画布导航与区域命中能力，向上层暴露统一画布视图工具集。
- * @param {object} deps 依赖注入对象。
- * @returns {object} 合并后的画布视图工具。
+ * @description canvasviewtools相关前端模块，负责对应界面能力的状态处理与交互封装。
+ */
+/**
+ * @description 创建canvasviewtools。
+ * @param {*} deps 模块依赖集合。
+ * @returns {*} canvasviewtools结果。
  */
 window.createCanvasViewTools = function createCanvasViewTools(deps) {
   const navTools = window.createCanvasNavigationTools(deps);
@@ -15,3 +18,4 @@ window.createCanvasViewTools = function createCanvasViewTools(deps) {
     ...regionTools,
   };
 };
+

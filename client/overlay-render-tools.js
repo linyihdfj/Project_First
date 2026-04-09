@@ -1,3 +1,11 @@
+/**
+ * @description overlayrendertools相关前端模块，负责对应界面能力的状态处理与交互封装。
+ */
+/**
+ * @description 创建overlayrendertools。
+ * @param {*} deps 模块依赖集合。
+ * @returns {*} overlayrendertools结果。
+ */
 window.createOverlayRenderTools = function createOverlayRenderTools(deps) {
   const {
     NS_SVG,
@@ -170,6 +178,10 @@ window.createOverlayRenderTools = function createOverlayRenderTools(deps) {
             const isCurrent =
               state.selectedAnnotationId === ann.id &&
               state.selectedRegionId === region.id;
+            /**
+             * @description 处理run相关逻辑。
+             * @returns {*} 处理结果。
+             */
             const run = async () => {
               if (isCurrent) {
                 await flushPendingRegionEdit();
@@ -191,6 +203,10 @@ window.createOverlayRenderTools = function createOverlayRenderTools(deps) {
           shape.addEventListener("dblclick", (evt) => {
             evt.stopPropagation();
             if (state.selectedAnnotationId !== ann.id) return;
+            /**
+             * @description 处理run相关逻辑。
+             * @returns {*} 处理结果。
+             */
             const run = async () => {
               await flushPendingRegionEdit();
               state.selectedAnnotationId = null;
@@ -232,9 +248,7 @@ window.createOverlayRenderTools = function createOverlayRenderTools(deps) {
   }
 
   return {
-    buildShapeElement,
-    buildResizeHandles,
-    getVisibleAnnotationIds,
     drawOverlay,
   };
 };
+

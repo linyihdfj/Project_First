@@ -1,3 +1,11 @@
+/**
+ * @description reviewstatustools相关前端模块，负责对应界面能力的状态处理与交互封装。
+ */
+/**
+ * @description 创建reviewstatustools。
+ * @param {*} deps 模块依赖集合。
+ * @returns {*} reviewstatustools结果。
+ */
 window.createReviewStatusTools = function createReviewStatusTools(deps) {
   const {
     state,
@@ -9,6 +17,10 @@ window.createReviewStatusTools = function createReviewStatusTools(deps) {
     buildAnnotationList,
   } = deps;
 
+  /**
+   * @description 渲染reviewstatus。
+   * @returns {void} 无返回值。
+   */
   function renderReviewStatus() {
     const ann = getSelectedAnnotation();
     if (!refs.reviewStatusSection) return;
@@ -28,6 +40,12 @@ window.createReviewStatusTools = function createReviewStatusTools(deps) {
     }
   }
 
+  /**
+   * @description 设置reviewstatus。
+   * @param {*} annotationIdOrStatus annotationidstatus参数。
+   * @param {*} statusArg statusarg参数。
+   * @returns {*} reviewstatus结果。
+   */
   async function setReviewStatus(annotationIdOrStatus, statusArg) {
     let annId;
     let status;
@@ -79,3 +97,4 @@ window.createReviewStatusTools = function createReviewStatusTools(deps) {
     setReviewStatus,
   };
 };
+

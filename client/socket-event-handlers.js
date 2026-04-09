@@ -1,3 +1,11 @@
+/**
+ * @description socketeventhandlers相关前端模块，负责对应界面能力的状态处理与交互封装。
+ */
+/**
+ * @description 创建socketeventhandlers。
+ * @param {*} deps 模块依赖集合。
+ * @returns {*} socketeventhandlers结果。
+ */
 window.createSocketEventHandlers = function createSocketEventHandlers(deps) {
   const {
     state,
@@ -15,10 +23,10 @@ window.createSocketEventHandlers = function createSocketEventHandlers(deps) {
   } = deps;
 
   /**
-   * @description 对同一 annotation 在各页面中的副本执行同步更新。
-   * @param {string} annotationId 标注 ID。
-   * @param {(annotation: object, page: object) => void} callback 更新回调。
-   * @returns {boolean} 是否至少命中了一个副本。
+   * @description 处理eachannotationcopy相关逻辑。
+   * @param {*} annotationId 标注 ID。
+   * @param {*} callback 回调函数。
+   * @returns {*} eachannotationcopy结果。
    */
   function forEachAnnotationCopy(annotationId, callback) {
     let changed = false;
@@ -35,10 +43,10 @@ window.createSocketEventHandlers = function createSocketEventHandlers(deps) {
   }
 
   /**
-   * @description 在区域协作事件后最小化刷新当前页标注覆盖层与表单。
-   * @param {string} pageId 页面 ID。
-   * @param {string} annotationId 标注 ID。
-   * @returns {void}
+   * @description 渲染regionchange。
+   * @param {*} pageId 页面 ID。
+   * @param {*} annotationId 标注 ID。
+   * @returns {void} 无返回值。
    */
   function renderRegionChange(pageId, annotationId) {
     const currentPage = getCurrentPage();
@@ -53,14 +61,18 @@ window.createSocketEventHandlers = function createSocketEventHandlers(deps) {
   }
 
   /**
-   * @description 在标题协作事件后最小化刷新标题提示与目录树。
-   * @returns {void}
+   * @description 渲染headingchange。
+   * @returns {void} 无返回值。
    */
   function renderHeadingChange() {
     renderHeadingAddTip();
     renderHeadingIndex();
   }
 
+  /**
+   * @description 渲染presencebar。
+   * @returns {void} 无返回值。
+   */
   function renderPresenceBar() {
     const bar = document.getElementById("presence-bar");
     if (!bar) return;
@@ -77,6 +89,10 @@ window.createSocketEventHandlers = function createSocketEventHandlers(deps) {
     bar.innerHTML = `<span class="presence-label">在线:</span> ${avatars}`;
   }
 
+  /**
+   * @description 处理refreshcurrentpageannotations相关逻辑。
+   * @returns {*} currentpageannotations结果。
+   */
   async function refreshCurrentPageAnnotations() {
     const page = getCurrentPage();
     if (!page || !state.article) return;
@@ -96,6 +112,12 @@ window.createSocketEventHandlers = function createSocketEventHandlers(deps) {
     } catch (error) {}
   }
 
+  /**
+   * @description 处理remoteannotationcreated。
+   * @param {*} { annotation {annotation参数。
+   * @param {*} pageId } pageid}参数。
+   * @returns {void} 无返回值。
+   */
   function handleRemoteAnnotationCreated({ annotation, pageId }) {
     const page = state.pages.find((p) => p.id === pageId);
     if (!page || page.annotations.some((a) => a.id === annotation.id)) return;
@@ -106,6 +128,11 @@ window.createSocketEventHandlers = function createSocketEventHandlers(deps) {
     }
   }
 
+  /**
+   * @description 处理remoteannotationupdated。
+   * @param {*} { annotation } {annotation}参数。
+   * @returns {void} 无返回值。
+   */
   function handleRemoteAnnotationUpdated({ annotation }) {
     const protectedFields = [
       "level",
@@ -158,6 +185,12 @@ window.createSocketEventHandlers = function createSocketEventHandlers(deps) {
     }
   }
 
+  /**
+   * @description 处理remoteannotationdeleted。
+   * @param {*} { annotationId {annotation ID。
+   * @param {*} pageId } pageid}参数。
+   * @returns {void} 无返回值。
+   */
   function handleRemoteAnnotationDeleted({ annotationId, pageId }) {
     state.pages.forEach((p) => {
       p.annotations = p.annotations.filter((a) => a.id !== annotationId);
@@ -181,9 +214,11 @@ window.createSocketEventHandlers = function createSocketEventHandlers(deps) {
   }
 
   /**
-   * @description 处理远端新增区域事件并增量写入本地 state。
-   * @param {{annotationId:string,pageId:string,region:object}} payload 事件载荷。
-   * @returns {void}
+   * @description 处理remoteregioncreated。
+   * @param {*} { annotationId {annotation ID。
+   * @param {*} pageId 页面 ID。
+   * @param {*} region } region}参数。
+   * @returns {void} 无返回值。
    */
   function handleRemoteRegionCreated({ annotationId, pageId, region }) {
     if (!region || !annotationId) {
@@ -204,9 +239,10 @@ window.createSocketEventHandlers = function createSocketEventHandlers(deps) {
   }
 
   /**
-   * @description 处理远端区域几何更新事件并同步到本地副本。
-   * @param {{region:object,pageId:string}} payload 事件载荷。
-   * @returns {void}
+   * @description 处理remoteregionupdated。
+   * @param {*} { region {region参数。
+   * @param {*} pageId } pageid}参数。
+   * @returns {void} 无返回值。
    */
   function handleRemoteRegionUpdated({ region, pageId }) {
     if (!region || !region.annotationId) {
@@ -231,9 +267,11 @@ window.createSocketEventHandlers = function createSocketEventHandlers(deps) {
   }
 
   /**
-   * @description 处理远端区域删除事件并清理本地选中态。
-   * @param {{regionId:string,annotationId:string,pageId:string}} payload 事件载荷。
-   * @returns {void}
+   * @description 处理remoteregiondeleted。
+   * @param {*} { regionId {region ID。
+   * @param {*} annotationId 标注 ID。
+   * @param {*} pageId } pageid}参数。
+   * @returns {void} 无返回值。
    */
   function handleRemoteRegionDeleted({ regionId, annotationId, pageId }) {
     if (!regionId || !annotationId) {
@@ -255,9 +293,11 @@ window.createSocketEventHandlers = function createSocketEventHandlers(deps) {
   }
 
   /**
-   * @description 处理远端区域重排事件，仅重排同一标注下的 regions。
-   * @param {{annotationId:string,regionIds:string[],pageId:string}} payload 事件载荷。
-   * @returns {void}
+   * @description 处理remoteregionreordered。
+   * @param {*} { annotationId {annotation ID。
+   * @param {*} regionIds region ID 列表。
+   * @param {*} pageId } pageid}参数。
+   * @returns {void} 无返回值。
    */
   function handleRemoteRegionReordered({ annotationId, regionIds, pageId }) {
     if (!annotationId || !Array.isArray(regionIds)) {
@@ -284,9 +324,10 @@ window.createSocketEventHandlers = function createSocketEventHandlers(deps) {
   }
 
   /**
-   * @description 处理远端新增标题事件并增量加入标题树。
-   * @param {{articleId:string,heading:object}} payload 事件载荷。
-   * @returns {void}
+   * @description 处理remoteheadingcreated。
+   * @param {*} { articleId {article ID。
+   * @param {*} heading } heading}参数。
+   * @returns {void} 无返回值。
    */
   function handleRemoteHeadingCreated({ articleId, heading }) {
     if (!state.article || state.article.id !== articleId || !heading) {
@@ -300,9 +341,10 @@ window.createSocketEventHandlers = function createSocketEventHandlers(deps) {
   }
 
   /**
-   * @description 处理远端标题更新事件并合并本地标题对象。
-   * @param {{articleId:string,heading:object}} payload 事件载荷。
-   * @returns {void}
+   * @description 处理remoteheadingupdated。
+   * @param {*} { articleId {article ID。
+   * @param {*} heading } heading}参数。
+   * @returns {void} 无返回值。
    */
   function handleRemoteHeadingUpdated({ articleId, heading }) {
     if (!state.article || state.article.id !== articleId || !heading) {
@@ -320,9 +362,11 @@ window.createSocketEventHandlers = function createSocketEventHandlers(deps) {
   }
 
   /**
-   * @description 处理远端标题重排事件，仅重排同一父节点下的标题顺序。
-   * @param {{articleId:string,parentId:string|null,orderedIds:string[]}} payload 事件载荷。
-   * @returns {void}
+   * @description 处理remoteheadingreordered。
+   * @param {*} { articleId {article ID。
+   * @param {*} parentId 父级 ID。
+   * @param {*} orderedIds } orderedids}参数。
+   * @returns {void} 无返回值。
    */
   function handleRemoteHeadingReordered({ articleId, parentId, orderedIds }) {
     if (
@@ -357,9 +401,10 @@ window.createSocketEventHandlers = function createSocketEventHandlers(deps) {
   }
 
   /**
-   * @description 处理远端标题删除事件，并清理本地选中标题。
-   * @param {{articleId:string,headingId:string}} payload 事件载荷。
-   * @returns {void}
+   * @description 处理remoteheadingdeleted。
+   * @param {*} { articleId {article ID。
+   * @param {*} headingId } headingid}参数。
+   * @returns {void} 无返回值。
    */
   function handleRemoteHeadingDeleted({ articleId, headingId }) {
     if (!state.article || state.article.id !== articleId || !headingId) {
@@ -376,6 +421,12 @@ window.createSocketEventHandlers = function createSocketEventHandlers(deps) {
     renderHeadingChange();
   }
 
+  /**
+   * @description 处理remoteglyphcreated。
+   * @param {*} { articleId {article ID。
+   * @param {*} glyph } glyph}参数。
+   * @returns {void} 无返回值。
+   */
   function handleRemoteGlyphCreated({ articleId, glyph }) {
     if (!state.article || state.article.id !== articleId || !glyph) return;
     if (state.glyphs.some((item) => item.id === glyph.id)) return;
@@ -383,6 +434,12 @@ window.createSocketEventHandlers = function createSocketEventHandlers(deps) {
     renderAll();
   }
 
+  /**
+   * @description 处理remoteglyphdeleted。
+   * @param {*} { articleId {article ID。
+   * @param {*} glyphId } glyphid}参数。
+   * @returns {void} 无返回值。
+   */
   function handleRemoteGlyphDeleted({ articleId, glyphId }) {
     if (!state.article || state.article.id !== articleId || !glyphId) return;
     const beforeCount = state.glyphs.length;
@@ -396,6 +453,12 @@ window.createSocketEventHandlers = function createSocketEventHandlers(deps) {
     renderAll();
   }
 
+  /**
+   * @description 处理remoteglyphimported。
+   * @param {*} { articleId {article ID。
+   * @param {*} glyphs } glyphs}参数。
+   * @returns {void} 无返回值。
+   */
   function handleRemoteGlyphImported({ articleId, glyphs }) {
     if (
       !state.article ||
@@ -419,6 +482,13 @@ window.createSocketEventHandlers = function createSocketEventHandlers(deps) {
     if (changed) renderAll();
   }
 
+  /**
+   * @description 处理presencejoin。
+   * @param {*} { userId {user ID。
+   * @param {*} displayName displayname参数。
+   * @param {*} role } role}参数。
+   * @returns {void} 无返回值。
+   */
   function handlePresenceJoin({ userId, displayName, role }) {
     if (state.currentUser && userId === state.currentUser.id) return;
     if (!state.presenceUsers.some((u) => u.userId === userId)) {
@@ -427,6 +497,11 @@ window.createSocketEventHandlers = function createSocketEventHandlers(deps) {
     renderPresenceBar();
   }
 
+  /**
+   * @description 处理presenceleave。
+   * @param {*} { userId } {userid}参数。
+   * @returns {void} 无返回值。
+   */
   function handlePresenceLeave({ userId }) {
     state.presenceUsers = state.presenceUsers.filter(
       (u) => u.userId !== userId,
@@ -434,6 +509,11 @@ window.createSocketEventHandlers = function createSocketEventHandlers(deps) {
     renderPresenceBar();
   }
 
+  /**
+   * @description 处理presencemembers。
+   * @param {*} { members } {members}参数。
+   * @returns {void} 无返回值。
+   */
   function handlePresenceMembers({ members }) {
     state.presenceUsers = members.filter(
       (m) => !state.currentUser || m.userId !== state.currentUser.id,
@@ -463,3 +543,4 @@ window.createSocketEventHandlers = function createSocketEventHandlers(deps) {
     handlePresenceMembers,
   };
 };
+

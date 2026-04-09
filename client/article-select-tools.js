@@ -1,3 +1,11 @@
+/**
+ * @description articleselecttools相关前端模块，负责对应界面能力的状态处理与交互封装。
+ */
+/**
+ * @description 创建articleselecttools。
+ * @param {*} deps 模块依赖集合。
+ * @returns {*} articleselecttools结果。
+ */
 window.createArticleSelectTools = function createArticleSelectTools(deps) {
   const {
     refs,
@@ -14,22 +22,41 @@ window.createArticleSelectTools = function createArticleSelectTools(deps) {
     onManageAccess,
   } = deps;
 
+  /**
+   * @description 处理globalrolelabel相关逻辑。
+   * @param {*} role 角色值。
+   * @returns {*} rolelabel结果。
+   */
   function globalRoleLabel(role) {
     return role === "admin" ? "管理员" : "用户";
   }
 
+  /**
+   * @description 处理articlerolelabel相关逻辑。
+   * @param {*} role 角色值。
+   * @returns {*} rolelabel结果。
+   */
   function articleRoleLabel(role) {
     if (role === "admin") return "文章管理员";
     if (role === "reviewer") return "审校者";
     return "编辑者";
   }
 
+  /**
+   * @description 处理articlerolebadgeclass相关逻辑。
+   * @param {*} role 角色值。
+   * @returns {*} rolebadgeclass结果。
+   */
   function articleRoleBadgeClass(role) {
     if (role === "admin") return "admin";
     if (role === "reviewer") return "reviewer";
     return "editor";
   }
 
+  /**
+   * @description 显示articleselect。
+   * @returns {void} 无返回值。
+   */
   function showArticleSelect() {
     hideAppShell();
     if (refs.articleSelectOverlay) refs.articleSelectOverlay.hidden = false;
@@ -60,10 +87,18 @@ window.createArticleSelectTools = function createArticleSelectTools(deps) {
     loadArticleList().catch((error) => alert(error.message));
   }
 
+  /**
+   * @description 隐藏articleselect。
+   * @returns {void} 无返回值。
+   */
   function hideArticleSelect() {
     if (refs.articleSelectOverlay) refs.articleSelectOverlay.hidden = true;
   }
 
+  /**
+   * @description 加载articlelist。
+   * @returns {*} articlelist结果。
+   */
   async function loadArticleList() {
     try {
       const data = await apiRequest("/articles");
@@ -84,6 +119,12 @@ window.createArticleSelectTools = function createArticleSelectTools(deps) {
     }
   }
 
+  /**
+   * @description 处理exportarticlexml相关逻辑。
+   * @param {*} articleId 文章 ID。
+   * @param {*} title title参数。
+   * @returns {*} articlexml结果。
+   */
   async function exportArticleXml(articleId, title) {
     try {
       const token = getAuthToken();
@@ -124,6 +165,12 @@ window.createArticleSelectTools = function createArticleSelectTools(deps) {
     }
   }
 
+  /**
+   * @description 处理deletearticleid相关逻辑。
+   * @param {*} articleId 文章 ID。
+   * @param {*} title title参数。
+   * @returns {void} 无返回值。
+   */
   async function deleteArticleById(articleId, title) {
     if (!confirm(`确定删除文章“${title || articleId}”吗？`)) return;
     try {
@@ -136,6 +183,10 @@ window.createArticleSelectTools = function createArticleSelectTools(deps) {
     }
   }
 
+  /**
+   * @description 渲染articlegrid。
+   * @returns {void} 无返回值。
+   */
   function renderArticleGrid() {
     if (!refs.articleGrid) return;
     refs.articleGrid.innerHTML = "";
@@ -200,6 +251,11 @@ window.createArticleSelectTools = function createArticleSelectTools(deps) {
     });
   }
 
+  /**
+   * @description 处理openarticle相关逻辑。
+   * @param {*} articleId 文章 ID。
+   * @returns {*} article结果。
+   */
   async function openArticle(articleId) {
     hideArticleSelect();
     if (refs.btnBackToSelect) refs.btnBackToSelect.hidden = false;
@@ -207,6 +263,10 @@ window.createArticleSelectTools = function createArticleSelectTools(deps) {
     showAppShell();
   }
 
+  /**
+   * @description 处理backarticleselect相关逻辑。
+   * @returns {*} articleselect结果。
+   */
   function backToArticleSelect() {
     state.currentArticleRole = "";
     hideAppShell();
@@ -214,6 +274,10 @@ window.createArticleSelectTools = function createArticleSelectTools(deps) {
     showArticleSelect();
   }
 
+  /**
+   * @description 创建newarticle。
+   * @returns {*} newarticle结果。
+   */
   async function createNewArticle() {
     const title = refs.newArticleTitle ? refs.newArticleTitle.value.trim() : "";
     const subtitle = refs.newArticleSubtitle
@@ -245,11 +309,9 @@ window.createArticleSelectTools = function createArticleSelectTools(deps) {
   return {
     showArticleSelect,
     hideArticleSelect,
-    loadArticleList,
-    renderArticleGrid,
-    openArticle,
     backToArticleSelect,
     createNewArticle,
     exportArticleXml,
   };
 };
+

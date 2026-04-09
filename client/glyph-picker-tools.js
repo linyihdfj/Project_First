@@ -1,3 +1,11 @@
+/**
+ * @description glyphpickertools相关前端模块，负责对应界面能力的状态处理与交互封装。
+ */
+/**
+ * @description 创建glyphpickertools。
+ * @param {*} deps 模块依赖集合。
+ * @returns {*} glyphpickertools结果。
+ */
 window.createGlyphPickerTools = function createGlyphPickerTools(deps) {
   const {
     state,
@@ -10,22 +18,41 @@ window.createGlyphPickerTools = function createGlyphPickerTools(deps) {
     drawOverlay,
   } = deps;
 
+  /**
+   * @description 获取glyphid。
+   * @param {*} glyphId 造字 ID。
+   * @returns {*} glyphid结果。
+   */
   function getGlyphById(glyphId) {
     if (!glyphId) return null;
     return state.glyphs.find((item) => item.id === glyphId) || null;
   }
 
+  /**
+   * @description 处理glyphdisplaytext相关逻辑。
+   * @param {*} glyph 造字对象。
+   * @returns {*} displaytext结果。
+   */
   function glyphDisplayText(glyph) {
     if (!glyph) return "未关联造字";
     return `${glyph.code} - ${glyph.name || "未命名"}`;
   }
 
+  /**
+   * @description 隐藏glyphpicker。
+   * @returns {void} 无返回值。
+   */
   function hideGlyphPicker() {
     if (refs.glyphPickerDialog) refs.glyphPickerDialog.hidden = true;
     state.glyphPicker.annotationId = null;
     state.glyphPicker.query = "";
   }
 
+  /**
+   * @description 清空glyphrefannotation。
+   * @param {*} annotationId 标注 ID。
+   * @returns {void} 无返回值。
+   */
   function clearGlyphRefForAnnotation(annotationId) {
     const ann = getAnnotationById(annotationId);
     if (!ann) return;
@@ -36,6 +63,11 @@ window.createGlyphPickerTools = function createGlyphPickerTools(deps) {
     scheduleAnnotationPersist(ann);
   }
 
+  /**
+   * @description 应用glyphcurrentannotation。
+   * @param {*} glyphId 造字 ID。
+   * @returns {void} 无返回值。
+   */
   function applyGlyphToCurrentAnnotation(glyphId) {
     const ann = getAnnotationById(
       state.glyphPicker.annotationId || state.selectedAnnotationId,
@@ -50,6 +82,10 @@ window.createGlyphPickerTools = function createGlyphPickerTools(deps) {
     scheduleAnnotationPersist(ann);
   }
 
+  /**
+   * @description 渲染glyphpickerlist。
+   * @returns {void} 无返回值。
+   */
   function renderGlyphPickerList() {
     if (!refs.glyphPickerList) return;
 
@@ -94,6 +130,11 @@ window.createGlyphPickerTools = function createGlyphPickerTools(deps) {
     });
   }
 
+  /**
+   * @description 处理openglyphpickerannotation相关逻辑。
+   * @param {*} annotationId 标注 ID。
+   * @returns {*} glyphpickerannotation结果。
+   */
   function openGlyphPickerForAnnotation(annotationId) {
     if (!annotationId || !refs.glyphPickerDialog) return;
     const ann = getAnnotationById(annotationId);
@@ -106,6 +147,13 @@ window.createGlyphPickerTools = function createGlyphPickerTools(deps) {
     if (refs.glyphPickerSearch) refs.glyphPickerSearch.focus();
   }
 
+  /**
+   * @description 处理fillglyphrefcontrol相关逻辑。
+   * @param {*} fragment fragment参数。
+   * @param {*} glyphRefEl glyphrefel参数。
+   * @param {*} ann 标注对象。
+   * @returns {*} glyphrefcontrol结果。
+   */
   function fillGlyphRefControl(fragment, glyphRefEl, ann) {
     glyphRefEl.value = ann.glyphRef || "";
     const displayEl = fragment.querySelector('[data-role="glyph-display"]');
@@ -129,13 +177,9 @@ window.createGlyphPickerTools = function createGlyphPickerTools(deps) {
   }
 
   return {
-    getGlyphById,
-    glyphDisplayText,
     fillGlyphRefControl,
-    openGlyphPickerForAnnotation,
     hideGlyphPicker,
-    clearGlyphRefForAnnotation,
-    applyGlyphToCurrentAnnotation,
     renderGlyphPickerList,
   };
 };
+

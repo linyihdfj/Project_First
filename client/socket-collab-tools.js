@@ -1,3 +1,11 @@
+/**
+ * @description socketcollabtools相关前端模块，负责对应界面能力的状态处理与交互封装。
+ */
+/**
+ * @description 创建socketcollabtools。
+ * @param {*} deps 模块依赖集合。
+ * @returns {*} socketcollabtools结果。
+ */
 window.createSocketCollabTools = function createSocketCollabTools(deps) {
   const {
     state,
@@ -12,8 +20,8 @@ window.createSocketCollabTools = function createSocketCollabTools(deps) {
   const handlers = window.createSocketEventHandlers(deps);
 
   /**
-   * @description 加入当前文章协作房间。
-   * @returns {void}
+   * @description 加入currentarticleroom。
+   * @returns {void} 无返回值。
    */
   function joinCurrentArticleRoom() {
     const socket = getSocket();
@@ -23,8 +31,8 @@ window.createSocketCollabTools = function createSocketCollabTools(deps) {
   }
 
   /**
-   * @description 加入当前页面协作房间并重置在线成员展示。
-   * @returns {void}
+   * @description 加入currentpageroom。
+   * @returns {void} 无返回值。
    */
   function joinCurrentPageRoom() {
     const socket = getSocket();
@@ -39,9 +47,10 @@ window.createSocketCollabTools = function createSocketCollabTools(deps) {
    * @description 初始化 socket 连接并绑定协作事件处理器。
    * @returns {void}
    */
+
   /**
-   * @description 初始化 socket 连接并绑定标注、区域、标题、字库及在线状态协作事件。
-   * @returns {void}
+   * @description 初始化协作 Socket 连接并绑定事件。
+   * @returns {*} socket结果。
    */
   function initSocket() {
     if (getSocket()) return;
@@ -106,24 +115,6 @@ window.createSocketCollabTools = function createSocketCollabTools(deps) {
     initSocket,
     joinCurrentArticleRoom,
     joinCurrentPageRoom,
-    refreshCurrentPageAnnotations: handlers.refreshCurrentPageAnnotations,
-    handleRemoteAnnotationCreated: handlers.handleRemoteAnnotationCreated,
-    handleRemoteAnnotationUpdated: handlers.handleRemoteAnnotationUpdated,
-    handleRemoteAnnotationDeleted: handlers.handleRemoteAnnotationDeleted,
-    handleRemoteRegionCreated: handlers.handleRemoteRegionCreated,
-    handleRemoteRegionUpdated: handlers.handleRemoteRegionUpdated,
-    handleRemoteRegionDeleted: handlers.handleRemoteRegionDeleted,
-    handleRemoteRegionReordered: handlers.handleRemoteRegionReordered,
-    handleRemoteHeadingCreated: handlers.handleRemoteHeadingCreated,
-    handleRemoteHeadingUpdated: handlers.handleRemoteHeadingUpdated,
-    handleRemoteHeadingReordered: handlers.handleRemoteHeadingReordered,
-    handleRemoteHeadingDeleted: handlers.handleRemoteHeadingDeleted,
-    handleRemoteGlyphCreated: handlers.handleRemoteGlyphCreated,
-    handleRemoteGlyphDeleted: handlers.handleRemoteGlyphDeleted,
-    handleRemoteGlyphImported: handlers.handleRemoteGlyphImported,
-    handlePresenceJoin: handlers.handlePresenceJoin,
-    handlePresenceLeave: handlers.handlePresenceLeave,
-    handlePresenceMembers: handlers.handlePresenceMembers,
-    renderPresenceBar: handlers.renderPresenceBar,
   };
 };
+

@@ -1,3 +1,6 @@
+/**
+ * @description db服务端模块，负责对应领域能力的实现。
+ */
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
@@ -8,14 +11,28 @@ const DATA_DIR = path.join(PROJECT_ROOT, "data");
 const UPLOADS_DIR = path.join(PROJECT_ROOT, "uploads");
 const DB_PATH = path.join(DATA_DIR, "sdudoc.sqlite");
 
+/**
+ * @description 生成当前时间的 ISO 字符串。
+ * @returns {*} iso结果。
+ */
 function nowIso() {
   return new Date().toISOString();
 }
 
+/**
+ * @description 生成带前缀的唯一标识。
+ * @param {*} prefix 唯一标识前缀。
+ * @returns {*} 处理结果。
+ */
 function uid(prefix) {
   return `${prefix}-${Date.now()}-${crypto.randomBytes(4).toString("hex")}`;
 }
 
+/**
+ * @description 确保指定目录存在，不存在时递归创建。
+ * @param {*} dirPath 目录路径。
+ * @returns {void} 无返回值。
+ */
 function ensureDir(dirPath) {
   if (!fs.existsSync(dirPath)) {
     fs.mkdirSync(dirPath, { recursive: true });
@@ -32,6 +49,12 @@ db.serialize(() => {
   db.run("PRAGMA foreign_keys = ON;");
 });
 
+/**
+ * @description 执行写入型 SQL 语句并返回执行结果。
+ * @param {*} sql SQL 语句。
+ * @param {*} params SQL 参数列表。
+ * @returns {*} 处理结果。
+ */
 function run(sql, params = []) {
   return new Promise((resolve, reject) => {
     db.run(sql, params, function onRun(err) {
@@ -44,6 +67,12 @@ function run(sql, params = []) {
   });
 }
 
+/**
+ * @description 执行单行查询 SQL 语句并返回结果。
+ * @param {*} sql SQL 语句。
+ * @param {*} params SQL 参数列表。
+ * @returns {*} 处理结果。
+ */
 function get(sql, params = []) {
   return new Promise((resolve, reject) => {
     db.get(sql, params, (err, row) => {
@@ -56,6 +85,12 @@ function get(sql, params = []) {
   });
 }
 
+/**
+ * @description 执行多行查询 SQL 语句并返回结果列表。
+ * @param {*} sql SQL 语句。
+ * @param {*} params SQL 参数列表。
+ * @returns {*} 处理结果。
+ */
 function all(sql, params = []) {
   return new Promise((resolve, reject) => {
     db.all(sql, params, (err, rows) => {
@@ -68,6 +103,11 @@ function all(sql, params = []) {
   });
 }
 
+/**
+ * @description 处理transaction相关逻辑。
+ * @param {*} fn fn参数。
+ * @returns {*} 处理结果。
+ */
 async function transaction(fn) {
   await run("BEGIN TRANSACTION");
   try {
@@ -80,6 +120,11 @@ async function transaction(fn) {
   }
 }
 
+/**
+ * @description 构造默认文章元数据对象。
+ * @param {*} articleId 文章 ID。
+ * @returns {*} article结果。
+ */
 function defaultArticle(articleId) {
   return {
     id: articleId || "article-1",
@@ -95,6 +140,11 @@ function defaultArticle(articleId) {
   };
 }
 
+/**
+ * @description 映射articlerow。
+ * @param {*} row 数据库查询结果行。
+ * @returns {*} articlerow结果。
+ */
 function mapArticleRow(row) {
   return {
     id: row.id,
@@ -110,16 +160,31 @@ function mapArticleRow(row) {
   };
 }
 
+/**
+ * @description 规范化globalrole。
+ * @param {*} role 角色值。
+ * @returns {*} globalrole结果。
+ */
 function normalizeGlobalRole(role) {
   return role === "admin" ? "admin" : "user";
 }
 
+/**
+ * @description 规范化articlerole。
+ * @param {*} articleRole articlerole参数。
+ * @returns {*} articlerole结果。
+ */
 function normalizeArticleRole(articleRole) {
   if (articleRole === "admin") return "admin";
   if (articleRole === "reviewer") return "reviewer";
   return "editor";
 }
 
+/**
+ * @description 映射pagerow。
+ * @param {*} row 数据库查询结果行。
+ * @returns {*} pagerow结果。
+ */
 function mapPageRow(row) {
   return {
     id: row.id,
@@ -132,6 +197,11 @@ function mapPageRow(row) {
   };
 }
 
+/**
+ * @description 映射annotationrow。
+ * @param {*} row 数据库查询结果行。
+ * @returns {*} annotationrow结果。
+ */
 function mapAnnotationRow(row) {
   return {
     id: row.id,
@@ -159,6 +229,11 @@ function mapAnnotationRow(row) {
   };
 }
 
+/**
+ * @description 映射glyphrow。
+ * @param {*} row 数据库查询结果行。
+ * @returns {*} glyphrow结果。
+ */
 function mapGlyphRow(row) {
   return {
     id: row.id,
@@ -169,6 +244,11 @@ function mapGlyphRow(row) {
   };
 }
 
+/**
+ * @description 映射headingrow。
+ * @param {*} row 数据库查询结果行。
+ * @returns {*} headingrow结果。
+ */
 function mapHeadingRow(row) {
   return {
     id: row.id,
@@ -186,6 +266,11 @@ function mapHeadingRow(row) {
   };
 }
 
+/**
+ * @description 解析dataurl。
+ * @param {*} dataUrl dataurl参数。
+ * @returns {*} dataurl结果。
+ */
 function parseDataUrl(dataUrl) {
   if (typeof dataUrl !== "string") {
     throw new Error("图片数据格式不正确");
@@ -200,6 +285,11 @@ function parseDataUrl(dataUrl) {
   return { mime, buffer };
 }
 
+/**
+ * @description 处理extensionmime相关逻辑。
+ * @param {*} mime mime参数。
+ * @returns {*} mime结果。
+ */
 function extensionFromMime(mime) {
   if (mime.includes("png")) {
     return "png";
@@ -219,6 +309,12 @@ function extensionFromMime(mime) {
   return "bin";
 }
 
+/**
+ * @description 处理saveimagedataurl相关逻辑。
+ * @param {*} dataUrl dataurl参数。
+ * @param {*} typeFolder typefolder参数。
+ * @returns {*} imagedataurl结果。
+ */
 function saveImageDataUrl(dataUrl, typeFolder) {
   const { mime, buffer } = parseDataUrl(dataUrl);
   const ext = extensionFromMime(mime);
@@ -230,6 +326,10 @@ function saveImageDataUrl(dataUrl, typeFolder) {
   return `/uploads/${typeFolder}/${fileName}`;
 }
 
+/**
+ * @description 处理initdatabase相关逻辑。
+ * @returns {*} database结果。
+ */
 async function initDatabase() {
   await run(`
     CREATE TABLE IF NOT EXISTS articles (
@@ -494,6 +594,10 @@ async function initDatabase() {
   await migrateAnnotationsToRegions();
 }
 
+/**
+ * @description 处理migrateannotationsregions相关逻辑。
+ * @returns {*} annotationsregions结果。
+ */
 async function migrateAnnotationsToRegions() {
 
   const rows = await all(
@@ -535,12 +639,23 @@ async function migrateAnnotationsToRegions() {
 const SALT_LEN = 16;
 const KEY_LEN = 32;
 
+/**
+ * @description 处理hashpassword相关逻辑。
+ * @param {*} password password参数。
+ * @returns {string} password后的字符串。
+ */
 function hashPassword(password) {
   const salt = crypto.randomBytes(SALT_LEN).toString("hex");
   const key = crypto.scryptSync(password, salt, KEY_LEN).toString("hex");
   return `${salt}:${key}`;
 }
 
+/**
+ * @description 校验password。
+ * @param {*} password password参数。
+ * @param {*} hash hash参数。
+ * @returns {*} password结果。
+ */
 function verifyPassword(password, hash) {
   const [salt, key] = hash.split(":");
   const derived = crypto.scryptSync(password, salt, KEY_LEN).toString("hex");
@@ -551,6 +666,11 @@ const JWT_SECRET =
   process.env.JWT_SECRET || "sdudoc-secret-key-change-in-production";
 const JWT_EXPIRY = 7 * 24 * 60 * 60;
 
+/**
+ * @description 处理base64urlencode相关逻辑。
+ * @param {*} data 通用数据对象。
+ * @returns {*} urlencode结果。
+ */
 function base64UrlEncode(data) {
   return Buffer.from(data)
     .toString("base64")
@@ -559,12 +679,23 @@ function base64UrlEncode(data) {
     .replace(/=+$/, "");
 }
 
+/**
+ * @description 处理base64urldecode相关逻辑。
+ * @param {*} str str参数。
+ * @returns {*} urldecode结果。
+ */
 function base64UrlDecode(str) {
   str = str.replace(/-/g, "+").replace(/_/g, "/");
   while (str.length % 4) str += "=";
   return Buffer.from(str, "base64").toString("utf8");
 }
 
+/**
+ * @description 创建token。
+ * @param {*} userId 用户 ID。
+ * @param {*} role 角色值。
+ * @returns {*} token结果。
+ */
 function createToken(userId, role) {
   const header = base64UrlEncode(JSON.stringify({ alg: "HS256", typ: "JWT" }));
   const payload = base64UrlEncode(
@@ -584,6 +715,11 @@ function createToken(userId, role) {
   return `${header}.${payload}.${signature}`;
 }
 
+/**
+ * @description 校验token。
+ * @param {*} token 认证令牌。
+ * @returns {*} token结果。
+ */
 function verifyToken(token) {
   const parts = token.split(".");
   if (parts.length !== 3) return null;
@@ -605,6 +741,10 @@ function verifyToken(token) {
   }
 }
 
+/**
+ * @description 处理ensureadminuser相关逻辑。
+ * @returns {void} 无返回值。
+ */
 async function ensureAdminUser() {
   const existing = await get("SELECT id FROM users WHERE username = ?", [
     "admin",
@@ -626,6 +766,11 @@ async function ensureAdminUser() {
   );
 }
 
+/**
+ * @description 映射userrow。
+ * @param {*} row 数据库查询结果行。
+ * @returns {*} userrow结果。
+ */
 function mapUserRow(row) {
   return {
     id: row.id,
@@ -637,16 +782,31 @@ function mapUserRow(row) {
   };
 }
 
+/**
+ * @description 获取userusername。
+ * @param {*} username username参数。
+ * @returns {*} userusername结果。
+ */
 async function getUserByUsername(username) {
   const row = await get("SELECT * FROM users WHERE username = ?", [username]);
   return row || null;
 }
 
+/**
+ * @description 获取userid。
+ * @param {*} userId 用户 ID。
+ * @returns {*} userid结果。
+ */
 async function getUserById(userId) {
   const row = await get("SELECT * FROM users WHERE id = ?", [userId]);
   return row ? mapUserRow(row) : null;
 }
 
+/**
+ * @description 处理listusers相关逻辑。
+ * @param {*} query query参数。
+ * @returns {*} users结果。
+ */
 async function listUsers(query = "") {
   const keyword = String(query || "").trim();
   let rows = [];
@@ -664,6 +824,14 @@ async function listUsers(query = "") {
   return rows.map(mapUserRow);
 }
 
+/**
+ * @description 创建user。
+ * @param {*} username username参数。
+ * @param {*} password password参数。
+ * @param {*} displayName displayname参数。
+ * @param {*} role 角色值。
+ * @returns {*} user结果。
+ */
 async function createUser(username, password, displayName, role) {
   const existing = await get("SELECT id FROM users WHERE username = ?", [
     username,
@@ -694,6 +862,12 @@ async function createUser(username, password, displayName, role) {
   return user;
 }
 
+/**
+ * @description 更新user。
+ * @param {*} userId 用户 ID。
+ * @param {*} updates updates参数。
+ * @returns {void} 无返回值。
+ */
 async function updateUser(userId, updates) {
   const row = await get("SELECT * FROM users WHERE id = ?", [userId]);
   if (!row) throw new Error("用户不存在");
@@ -720,6 +894,11 @@ async function updateUser(userId, updates) {
   return getUserById(userId);
 }
 
+/**
+ * @description 处理deleteuser相关逻辑。
+ * @param {*} userId 用户 ID。
+ * @returns {void} 无返回值。
+ */
 async function deleteUser(userId) {
   const row = await get("SELECT * FROM users WHERE id = ?", [userId]);
   if (!row) throw new Error("用户不存在");
@@ -727,6 +906,11 @@ async function deleteUser(userId) {
   await run("DELETE FROM users WHERE id = ?", [userId]);
 }
 
+/**
+ * @description 映射commentrow。
+ * @param {*} row 数据库查询结果行。
+ * @returns {*} commentrow结果。
+ */
 function mapCommentRow(row) {
   return {
     id: row.id,
@@ -743,6 +927,11 @@ function mapCommentRow(row) {
   };
 }
 
+/**
+ * @description 获取commentsarticle。
+ * @param {*} articleId 文章 ID。
+ * @returns {*} commentsarticle结果。
+ */
 async function getCommentsByArticle(articleId) {
   const rows = await all(
     `SELECT c.*, u.username, u.display_name
@@ -755,6 +944,13 @@ async function getCommentsByArticle(articleId) {
   return rows.map(mapCommentRow);
 }
 
+/**
+ * @description 创建comment。
+ * @param {*} articleId 文章 ID。
+ * @param {*} userId 用户 ID。
+ * @param {*} payload 请求或事件载荷。
+ * @returns {*} comment结果。
+ */
 async function createComment(articleId, userId, payload) {
   const now = nowIso();
   const comment = {
@@ -790,6 +986,12 @@ async function createComment(articleId, userId, payload) {
   return row ? mapCommentRow(row) : comment;
 }
 
+/**
+ * @description 更新comment。
+ * @param {*} commentId comment ID。
+ * @param {*} updates updates参数。
+ * @returns {void} 无返回值。
+ */
 async function updateComment(commentId, updates) {
   const row = await get("SELECT * FROM comments WHERE id = ?", [commentId]);
   if (!row) throw new Error("评论不存在");
@@ -815,10 +1017,20 @@ async function updateComment(commentId, updates) {
   return updated ? mapCommentRow(updated) : null;
 }
 
+/**
+ * @description 处理deletecomment相关逻辑。
+ * @param {*} commentId comment ID。
+ * @returns {void} 无返回值。
+ */
 async function deleteComment(commentId) {
   await run("DELETE FROM comments WHERE id = ?", [commentId]);
 }
 
+/**
+ * @description 处理ensurearticle相关逻辑。
+ * @param {*} articleId 文章 ID。
+ * @returns {void} 无返回值。
+ */
 async function ensureArticle(articleId) {
   const row = await get("SELECT * FROM articles WHERE id = ?", [articleId]);
   if (row) {
@@ -829,11 +1041,21 @@ async function ensureArticle(articleId) {
   return article;
 }
 
+/**
+ * @description 获取article。
+ * @param {*} articleId 文章 ID。
+ * @returns {*} article结果。
+ */
 async function getArticle(articleId) {
   const row = await get("SELECT * FROM articles WHERE id = ?", [articleId]);
   return row ? mapArticleRow(row) : null;
 }
 
+/**
+ * @description 处理upsertarticle相关逻辑。
+ * @param {*} article 文章对象。
+ * @returns {void} 无返回值。
+ */
 async function upsertArticle(article) {
   const now = nowIso();
   const existing = await getArticle(article.id);
@@ -881,6 +1103,11 @@ async function upsertArticle(article) {
   return ensureArticle(article.id);
 }
 
+/**
+ * @description 获取pageidsarticle。
+ * @param {*} articleId 文章 ID。
+ * @returns {*} pageidsarticle结果。
+ */
 async function getPageIdsByArticle(articleId) {
   const rows = await all("SELECT id FROM pages WHERE article_id = ?", [
     articleId,
@@ -888,6 +1115,11 @@ async function getPageIdsByArticle(articleId) {
   return rows.map((r) => r.id);
 }
 
+/**
+ * @description 获取pagesarticle。
+ * @param {*} articleId 文章 ID。
+ * @returns {*} pagesarticle结果。
+ */
 async function getPagesByArticle(articleId) {
   const pageRows = await all(
     "SELECT * FROM pages WHERE article_id = ? ORDER BY page_no ASC",
@@ -940,6 +1172,13 @@ async function getPagesByArticle(articleId) {
       childrenMap.get(row.parent_id).push(row.id);
     }
   });
+
+  /**
+   * @description ??AllDescendants?
+   * @param {*} parentId ?? ID?
+   * @param {*} result ???
+   * @returns {*} ???????
+   */
 
   function getAllDescendants(parentId, result = new Set()) {
     const children = childrenMap.get(parentId) || [];
@@ -1003,6 +1242,12 @@ async function getPagesByArticle(articleId) {
   return pages;
 }
 
+/**
+ * @description 创建pages。
+ * @param {*} articleId 文章 ID。
+ * @param {*} pagesInput pagesinput参数。
+ * @returns {*} pages结果。
+ */
 async function createPages(articleId, pagesInput) {
   await ensureArticle(articleId);
   if (!Array.isArray(pagesInput) || !pagesInput.length) {
@@ -1048,6 +1293,11 @@ async function createPages(articleId, pagesInput) {
   });
 }
 
+/**
+ * @description 清空pagesarticle。
+ * @param {*} articleId 文章 ID。
+ * @returns {void} 无返回值。
+ */
 async function clearPagesByArticle(articleId) {
   await ensureArticle(articleId);
   await transaction(async () => {
@@ -1067,15 +1317,30 @@ async function clearPagesByArticle(articleId) {
   });
 }
 
+/**
+ * @description 获取pagerow。
+ * @param {*} pageId 页面 ID。
+ * @returns {*} pagerow结果。
+ */
 async function getPageRow(pageId) {
   return get("SELECT * FROM pages WHERE id = ?", [pageId]);
 }
 
+/**
+ * @description 获取pagearticleid。
+ * @param {*} pageId 页面 ID。
+ * @returns {*} pagearticleid结果。
+ */
 async function getPageArticleId(pageId) {
   const row = await get("SELECT article_id FROM pages WHERE id = ?", [pageId]);
   return row ? row.article_id : "";
 }
 
+/**
+ * @description 获取annotationarticleid。
+ * @param {*} annotationId 标注 ID。
+ * @returns {*} annotationarticleid结果。
+ */
 async function getAnnotationArticleId(annotationId) {
   const row = await get("SELECT article_id FROM annotations WHERE id = ?", [
     annotationId,
@@ -1083,6 +1348,11 @@ async function getAnnotationArticleId(annotationId) {
   return row ? row.article_id : "";
 }
 
+/**
+ * @description 获取regionarticleid。
+ * @param {*} regionId 区域 ID。
+ * @returns {*} regionarticleid结果。
+ */
 async function getRegionArticleId(regionId) {
   const row = await get(
     `SELECT a.article_id
@@ -1094,11 +1364,21 @@ async function getRegionArticleId(regionId) {
   return row ? row.article_id : "";
 }
 
+/**
+ * @description 获取glypharticleid。
+ * @param {*} glyphId 造字 ID。
+ * @returns {*} glypharticleid结果。
+ */
 async function getGlyphArticleId(glyphId) {
   const row = await get("SELECT article_id FROM glyphs WHERE id = ?", [glyphId]);
   return row ? row.article_id : "";
 }
 
+/**
+ * @description 获取headingarticleid。
+ * @param {*} headingId 标题 ID。
+ * @returns {*} headingarticleid结果。
+ */
 async function getHeadingArticleId(headingId) {
   const row = await get("SELECT article_id FROM headings WHERE id = ?", [
     headingId,
@@ -1106,6 +1386,12 @@ async function getHeadingArticleId(headingId) {
   return row ? row.article_id : "";
 }
 
+/**
+ * @description 创建annotation。
+ * @param {*} pageId 页面 ID。
+ * @param {*} payload 请求或事件载荷。
+ * @returns {*} annotation结果。
+ */
 async function createAnnotation(pageId, payload) {
   const page = await get("SELECT * FROM pages WHERE id = ?", [pageId]);
   if (!page) {
@@ -1189,6 +1475,12 @@ async function createAnnotation(pageId, payload) {
   };
 }
 
+/**
+ * @description 更新annotation。
+ * @param {*} annotationId 标注 ID。
+ * @param {*} payload 请求或事件载荷。
+ * @returns {void} 无返回值。
+ */
 async function updateAnnotation(annotationId, payload) {
   const row = await get("SELECT * FROM annotations WHERE id = ?", [
     annotationId,
@@ -1265,6 +1557,11 @@ async function updateAnnotation(annotationId, payload) {
   };
 }
 
+/**
+ * @description 处理deleteannotation相关逻辑。
+ * @param {*} annotationId 标注 ID。
+ * @returns {void} 无返回值。
+ */
 async function deleteAnnotation(annotationId) {
 
   const regionRows = await all(
@@ -1288,6 +1585,11 @@ async function deleteAnnotation(annotationId) {
   return row ? { pageId: row.page_id, pageIds } : null;
 }
 
+/**
+ * @description 获取childannotations。
+ * @param {*} parentId 父级 ID。
+ * @returns {*} childannotations结果。
+ */
 async function getChildAnnotations(parentId) {
   const rows = await all(
     "SELECT * FROM annotations WHERE parent_id = ? ORDER BY order_index ASC, created_at ASC",
@@ -1296,6 +1598,16 @@ async function getChildAnnotations(parentId) {
   return rows.map(mapAnnotationRow);
 }
 
+/**
+ * @description 处理addannotationregion相关逻辑。
+ * @param {*} annotationId 标注 ID。
+ * @param {*} pageId 页面 ID。
+ * @param {*} x x参数。
+ * @param {*} y y参数。
+ * @param {*} width width参数。
+ * @param {*} height height参数。
+ * @returns {*} annotationregion结果。
+ */
 async function addAnnotationRegion(annotationId, pageId, x, y, width, height) {
   const id = uid("region");
   const now = nowIso();
@@ -1325,6 +1637,11 @@ async function addAnnotationRegion(annotationId, pageId, x, y, width, height) {
   };
 }
 
+/**
+ * @description 获取annotationspage。
+ * @param {*} pageId 页面 ID。
+ * @returns {*} annotationspage结果。
+ */
 async function getAnnotationsForPage(pageId) {
   const pageRow = await get("SELECT * FROM pages WHERE id = ?", [pageId]);
   if (!pageRow) return [];
@@ -1358,6 +1675,13 @@ async function getAnnotationsForPage(pageId) {
       childrenMap.get(row.parent_id).push(row.id);
     }
   });
+
+  /**
+   * @description ??AllDescendants?
+   * @param {*} parentId ?? ID?
+   * @param {*} result ???
+   * @returns {*} ???????
+   */
 
   function getAllDescendants(parentId, result = new Set()) {
     const children = childrenMap.get(parentId) || [];
@@ -1422,6 +1746,11 @@ async function getAnnotationsForPage(pageId) {
   return annotations;
 }
 
+/**
+ * @description 获取regionspage。
+ * @param {*} pageId 页面 ID。
+ * @returns {*} regionspage结果。
+ */
 async function getRegionsByPage(pageId) {
   const rows = await all(
     `SELECT ar.*, a.level, a.style, a.color, a.original_text, a.simplified_text,
@@ -1462,6 +1791,11 @@ async function getRegionsByPage(pageId) {
   }));
 }
 
+/**
+ * @description 获取regionsannotation。
+ * @param {*} annotationId 标注 ID。
+ * @returns {*} regionsannotation结果。
+ */
 async function getRegionsByAnnotation(annotationId) {
   const rows = await all(
     "SELECT * FROM annotation_regions WHERE annotation_id = ? ORDER BY order_index ASC, created_at ASC",
@@ -1481,9 +1815,9 @@ async function getRegionsByAnnotation(annotationId) {
 }
 
 /**
- * @description 按区域 ID 查询单个标注区域，供协作广播时补充 pageId / annotationId。
- * @param {string} regionId 区域 ID。
- * @returns {Promise<object|null>} 区域对象；不存在时返回 null。
+ * @description 获取annotationregion。
+ * @param {*} regionId 区域 ID。
+ * @returns {*} annotationregion结果。
  */
 async function getAnnotationRegion(regionId) {
   const row = await get("SELECT * FROM annotation_regions WHERE id = ?", [
@@ -1505,10 +1839,21 @@ async function getAnnotationRegion(regionId) {
   };
 }
 
+/**
+ * @description 处理deleteannotationregion相关逻辑。
+ * @param {*} regionId 区域 ID。
+ * @returns {void} 无返回值。
+ */
 async function deleteAnnotationRegion(regionId) {
   await run("DELETE FROM annotation_regions WHERE id = ?", [regionId]);
 }
 
+/**
+ * @description 更新annotationregion。
+ * @param {*} regionId 区域 ID。
+ * @param {*} payload 请求或事件载荷。
+ * @returns {void} 无返回值。
+ */
 async function updateAnnotationRegion(regionId, payload) {
   const x = Number(payload.x);
   const y = Number(payload.y);
@@ -1551,6 +1896,12 @@ async function updateAnnotationRegion(regionId, payload) {
   };
 }
 
+/**
+ * @description 处理reorderannotationregions相关逻辑。
+ * @param {*} annotationId 标注 ID。
+ * @param {*} regionIds region ID 列表。
+ * @returns {*} annotationregions结果。
+ */
 async function reorderAnnotationRegions(annotationId, regionIds) {
   for (let i = 0; i < regionIds.length; i++) {
     await run(
@@ -1560,6 +1911,11 @@ async function reorderAnnotationRegions(annotationId, regionIds) {
   }
 }
 
+/**
+ * @description 获取headingsarticle。
+ * @param {*} articleId 文章 ID。
+ * @returns {*} headingsarticle结果。
+ */
 async function getHeadingsByArticle(articleId) {
   await ensureArticle(articleId);
   const rows = await all(
@@ -1573,6 +1929,12 @@ async function getHeadingsByArticle(articleId) {
   return rows.map(mapHeadingRow);
 }
 
+/**
+ * @description 创建heading。
+ * @param {*} articleId 文章 ID。
+ * @param {*} payload 请求或事件载荷。
+ * @returns {*} heading结果。
+ */
 async function createHeading(articleId, payload) {
   await ensureArticle(articleId);
   const pageId = String(payload.pageId || "").trim();
@@ -1680,9 +2042,9 @@ async function createHeading(articleId, payload) {
 }
 
 /**
- * @description 按标题 ID 查询单个标题，供删除前广播所属文章与标题信息。
- * @param {string} headingId 标题 ID。
- * @returns {Promise<object|null>} 标题对象；不存在时返回 null。
+ * @description 获取headingid。
+ * @param {*} headingId 标题 ID。
+ * @returns {*} headingid结果。
  */
 async function getHeadingById(headingId) {
   const row = await get(
@@ -1695,9 +2057,24 @@ async function getHeadingById(headingId) {
   return row ? mapHeadingRow(row) : null;
 }
 
+/**
+ * @description 处理deleteheading相关逻辑。
+ * @param {*} headingId 标题 ID。
+ * @returns {void} 无返回值。
+ */
 async function deleteHeading(headingId) {
   await run("DELETE FROM headings WHERE id = ?", [headingId]);
 }
+
+/**
+ * @description ???????
+ * @param {*} articleId ?? ID?
+ * @param {*} headingId ?? ID?
+ * @param {*} parentId ?? ID?
+ * @param {*} orderIndex ?????
+ * @param {*} level ???
+ * @returns {Promise<void>} ?????
+ */
 
 async function updateHeadingParent(
   articleId,
@@ -1756,6 +2133,13 @@ async function updateHeadingParent(
   return row ? mapHeadingRow(row) : null;
 }
 
+/**
+ * @description 更新childlevelsdb。
+ * @param {*} articleId 文章 ID。
+ * @param {*} parentId 父级 ID。
+ * @param {*} parentLevel parentlevel参数。
+ * @returns {void} 无返回值。
+ */
 async function updateChildLevelsDb(articleId, parentId, parentLevel) {
   const children = await all(
     "SELECT id FROM headings WHERE article_id = ? AND parent_id = ?",
@@ -1771,6 +2155,13 @@ async function updateChildLevelsDb(articleId, parentId, parentLevel) {
   }
 }
 
+/**
+ * @description 处理reorderheadings相关逻辑。
+ * @param {*} articleId 文章 ID。
+ * @param {*} parentId 父级 ID。
+ * @param {*} orderedIds ordered ID 列表。
+ * @returns {*} headings结果。
+ */
 async function reorderHeadings(articleId, parentId, orderedIds) {
   const now = nowIso();
   for (let i = 0; i < orderedIds.length; i++) {
@@ -1781,6 +2172,11 @@ async function reorderHeadings(articleId, parentId, orderedIds) {
   }
 }
 
+/**
+ * @description 获取glyphsarticle。
+ * @param {*} articleId 文章 ID。
+ * @returns {*} glyphsarticle结果。
+ */
 async function getGlyphsByArticle(articleId) {
   const rows = await all(
     "SELECT * FROM glyphs WHERE article_id = ? ORDER BY created_at DESC",
@@ -1789,6 +2185,12 @@ async function getGlyphsByArticle(articleId) {
   return rows.map(mapGlyphRow);
 }
 
+/**
+ * @description 创建glyph。
+ * @param {*} articleId 文章 ID。
+ * @param {*} payload 请求或事件载荷。
+ * @returns {*} glyph结果。
+ */
 async function createGlyph(articleId, payload) {
   await ensureArticle(articleId);
   const code = String(payload.code || "")
@@ -1839,6 +2241,12 @@ async function createGlyph(articleId, payload) {
   return glyph;
 }
 
+/**
+ * @description 处理importglyph相关逻辑。
+ * @param {*} articleId 文章 ID。
+ * @param {*} payload 请求或事件载荷。
+ * @returns {*} glyph结果。
+ */
 async function importGlyph(articleId, payload) {
   await ensureArticle(articleId);
   const code = String(payload.code || "")
@@ -1893,6 +2301,11 @@ async function importGlyph(articleId, payload) {
   return glyph;
 }
 
+/**
+ * @description 处理deleteglyph相关逻辑。
+ * @param {*} glyphId 造字 ID。
+ * @returns {void} 无返回值。
+ */
 async function deleteGlyph(glyphId) {
   const glyph = await get("SELECT * FROM glyphs WHERE id = ?", [glyphId]);
   if (!glyph) {
@@ -1919,6 +2332,12 @@ async function deleteGlyph(glyphId) {
   };
 }
 
+/**
+ * @description 获取pagesrcsarticle。
+ * @param {*} articleId 文章 ID。
+ * @param {*} limit limit参数。
+ * @returns {*} pagesrcsarticle结果。
+ */
 async function getPageSrcsByArticle(articleId, limit = 3) {
   await ensureArticle(articleId);
   const rows = await all(
@@ -1928,6 +2347,11 @@ async function getPageSrcsByArticle(articleId, limit = 3) {
   return rows.map((r) => r.src).filter(Boolean);
 }
 
+/**
+ * @description 获取snapshot。
+ * @param {*} articleId 文章 ID。
+ * @returns {*} snapshot结果。
+ */
 async function getSnapshot(articleId) {
   const article = await ensureArticle(articleId);
   const pages = await getPagesByArticle(articleId);
@@ -1941,6 +2365,12 @@ async function getSnapshot(articleId) {
   };
 }
 
+/**
+ * @description 处理savexmlversion相关逻辑。
+ * @param {*} articleId 文章 ID。
+ * @param {*} xmlContent xmlcontent参数。
+ * @returns {*} xmlversion结果。
+ */
 async function saveXmlVersion(articleId, xmlContent) {
   await ensureArticle(articleId);
   const maxRow = await get(
@@ -1966,6 +2396,11 @@ async function saveXmlVersion(articleId, xmlContent) {
   };
 }
 
+/**
+ * @description 处理listxmlversions相关逻辑。
+ * @param {*} articleId 文章 ID。
+ * @returns {*} xmlversions结果。
+ */
 async function listXmlVersions(articleId) {
   await ensureArticle(articleId);
   const rows = await all(
@@ -1979,6 +2414,12 @@ async function listXmlVersions(articleId) {
   }));
 }
 
+/**
+ * @description 获取xmlversion。
+ * @param {*} articleId 文章 ID。
+ * @param {*} versionNo versionno参数。
+ * @returns {*} xmlversion结果。
+ */
 async function getXmlVersion(articleId, versionNo) {
   const row = await get(
     "SELECT version_no, created_at, xml_content FROM xml_versions WHERE article_id = ? AND version_no = ?",
@@ -1994,11 +2435,21 @@ async function getXmlVersion(articleId, versionNo) {
   };
 }
 
+/**
+ * @description 处理listarticles相关逻辑。
+ * @returns {*} articles结果。
+ */
 async function listArticles() {
   const rows = await all("SELECT * FROM articles ORDER BY updated_at DESC");
   return rows.map(mapArticleRow);
 }
 
+/**
+ * @description 处理listarticlesuser相关逻辑。
+ * @param {*} userId 用户 ID。
+ * @param {*} role 角色值。
+ * @returns {*} articlesuser结果。
+ */
 async function listArticlesForUser(userId, role) {
   if (role === "admin") {
     const articles = await listArticles();
@@ -2020,6 +2471,13 @@ async function listArticlesForUser(userId, role) {
   }));
 }
 
+/**
+ * @description 处理checkarticleaccess相关逻辑。
+ * @param {*} userId 用户 ID。
+ * @param {*} articleId 文章 ID。
+ * @param {*} role 角色值。
+ * @returns {*} articleaccess结果。
+ */
 async function checkArticleAccess(userId, articleId, role) {
   if (role === "admin") return true;
   const row = await get(
@@ -2029,6 +2487,13 @@ async function checkArticleAccess(userId, articleId, role) {
   return !!row;
 }
 
+/**
+ * @description 获取articlemembershiprole。
+ * @param {*} userId 用户 ID。
+ * @param {*} articleId 文章 ID。
+ * @param {*} globalRole globalrole参数。
+ * @returns {*} articlemembershiprole结果。
+ */
 async function getArticleMembershipRole(userId, articleId, globalRole) {
   if (globalRole === "admin") {
     return "admin";
@@ -2040,6 +2505,13 @@ async function getArticleMembershipRole(userId, articleId, globalRole) {
   return row ? normalizeArticleRole(row.article_role) : "";
 }
 
+/**
+ * @description 处理assignarticleaccess相关逻辑。
+ * @param {*} userId 用户 ID。
+ * @param {*} articleId 文章 ID。
+ * @param {*} articleRole articlerole参数。
+ * @returns {*} articleaccess结果。
+ */
 async function assignArticleAccess(userId, articleId, articleRole = "editor") {
   const now = nowIso();
   const normalizedRole = normalizeArticleRole(articleRole);
@@ -2052,6 +2524,12 @@ async function assignArticleAccess(userId, articleId, articleRole = "editor") {
   );
 }
 
+/**
+ * @description 处理removearticleaccess相关逻辑。
+ * @param {*} userId 用户 ID。
+ * @param {*} articleId 文章 ID。
+ * @returns {void} 无返回值。
+ */
 async function removeArticleAccess(userId, articleId) {
   await run("DELETE FROM user_articles WHERE user_id = ? AND article_id = ?", [
     userId,
@@ -2059,6 +2537,11 @@ async function removeArticleAccess(userId, articleId) {
   ]);
 }
 
+/**
+ * @description 获取articleaccessusers。
+ * @param {*} articleId 文章 ID。
+ * @returns {*} articleaccessusers结果。
+ */
 async function getArticleAccessUsers(articleId) {
   const rows = await all(
     `SELECT u.id, u.username, u.display_name, u.role, ua.assigned_at, ua.article_role
@@ -2078,14 +2561,30 @@ async function getArticleAccessUsers(articleId) {
   }));
 }
 
+/**
+ * @description 创建invitetoken。
+ * @returns {*} invitetoken结果。
+ */
 function createInviteToken() {
   return crypto.randomBytes(24).toString("hex");
 }
 
+/**
+ * @description 处理hashinvitetoken相关逻辑。
+ * @param {*} token 认证令牌。
+ * @returns {string} invitetoken后的字符串。
+ */
 function hashInviteToken(token) {
   return crypto.createHash("sha256").update(String(token || "")).digest("hex");
 }
 
+/**
+ * @description 创建articleinvite。
+ * @param {*} articleId 文章 ID。
+ * @param {*} inviteRole inviterole参数。
+ * @param {*} createdBy created参数。
+ * @returns {*} articleinvite结果。
+ */
 async function createArticleInvite(articleId, inviteRole, createdBy) {
   await ensureArticle(articleId);
   const id = uid("invite");
@@ -2109,6 +2608,13 @@ async function createArticleInvite(articleId, inviteRole, createdBy) {
   };
 }
 
+/**
+ * @description 处理listarticleinvites相关逻辑。
+ * @param {*} articleId 文章 ID。
+ * @param {*} requesterUserId requesteruser ID。
+ * @param {*} requesterRole requesterrole参数。
+ * @returns {*} articleinvites结果。
+ */
 async function listArticleInvites(articleId, requesterUserId, requesterRole) {
   await ensureArticle(articleId);
   const params = [articleId];
@@ -2138,10 +2644,20 @@ async function listArticleInvites(articleId, requesterUserId, requesterRole) {
   }));
 }
 
+/**
+ * @description 获取articleinviteid。
+ * @param {*} inviteId invite ID。
+ * @returns {*} articleinviteid结果。
+ */
 async function getArticleInviteById(inviteId) {
   return get("SELECT * FROM article_invites WHERE id = ?", [inviteId]);
 }
 
+/**
+ * @description 处理deactivatearticleinvite相关逻辑。
+ * @param {*} inviteId invite ID。
+ * @returns {*} articleinvite结果。
+ */
 async function deactivateArticleInvite(inviteId) {
   await run(
     "UPDATE article_invites SET is_active = 0, updated_at = ? WHERE id = ?",
@@ -2149,6 +2665,11 @@ async function deactivateArticleInvite(inviteId) {
   );
 }
 
+/**
+ * @description 处理resolvearticleinvite相关逻辑。
+ * @param {*} token 认证令牌。
+ * @returns {*} articleinvite结果。
+ */
 async function resolveArticleInvite(token) {
   const tokenHash = hashInviteToken(token);
   const row = await get(
@@ -2174,6 +2695,12 @@ async function resolveArticleInvite(token) {
   };
 }
 
+/**
+ * @description 处理acceptarticleinvite相关逻辑。
+ * @param {*} token 认证令牌。
+ * @param {*} userId 用户 ID。
+ * @returns {*} articleinvite结果。
+ */
 async function acceptArticleInvite(token, userId) {
   const invite = await resolveArticleInvite(token);
   if (!invite) {
@@ -2183,6 +2710,12 @@ async function acceptArticleInvite(token, userId) {
   return invite;
 }
 
+/**
+ * @description 处理acceptarticleinvite相关逻辑。
+ * @param {*} token 认证令牌。
+ * @param {*} userId 用户 ID。
+ * @returns {*} articleinvite结果。
+ */
 async function acceptArticleInvite(token, userId) {
   const invite = await resolveArticleInvite(token);
   if (!invite) {
@@ -2192,6 +2725,11 @@ async function acceptArticleInvite(token, userId) {
   return invite;
 }
 
+/**
+ * @description 创建articlerecord。
+ * @param {*} payload 请求或事件载荷。
+ * @returns {*} articlerecord结果。
+ */
 async function createArticleRecord(payload) {
   const id = uid("article");
   const now = nowIso();
@@ -2218,6 +2756,11 @@ async function createArticleRecord(payload) {
   return row ? mapArticleRow(row) : null;
 }
 
+/**
+ * @description 处理deletearticle相关逻辑。
+ * @param {*} articleId 文章 ID。
+ * @returns {void} 无返回值。
+ */
 async function deleteArticle(articleId) {
 
   const pageRows = await all("SELECT src FROM pages WHERE article_id = ?", [
@@ -2314,3 +2857,4 @@ module.exports = {
   resolveArticleInvite,
   acceptArticleInvite,
 };
+

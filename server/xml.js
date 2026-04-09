@@ -1,9 +1,12 @@
+/**
+ * @description xml服务端模块，负责对应领域能力的实现。
+ */
 const FALLBACK_CHAR = "□";
 
 /**
- * @description 对 XML 文本和属性值进行转义，避免出现非法字符。
- * @param {string} str 原始字符串。
- * @returns {string} 转义后的字符串。
+ * @description 转义xml。
+ * @param {*} str str参数。
+ * @returns {string} xml后的字符串。
  */
 function escapeXml(str) {
   return String(str)
@@ -15,9 +18,9 @@ function escapeXml(str) {
 }
 
 /**
- * @description 统一格式化年份字段；若只给出数字年份，则默认补齐 AD 前缀。
- * @param {string} year 年份字符串。
- * @returns {string} 格式化后的年份字符串。
+ * @description 格式化year。
+ * @param {*} year year参数。
+ * @returns {string} year后的字符串。
  */
 function formatYear(year) {
   const value = String(year || "").trim();
@@ -34,9 +37,9 @@ function formatYear(year) {
 }
 
 /**
- * @description 获取标注的首字符；为空时返回兜底方框字符。
- * @param {object} ann 标注对象。
- * @returns {string} 单个字符。
+ * @description 获取charvalue。
+ * @param {*} ann 标注对象。
+ * @returns {*} charvalue结果。
  */
 function getCharValue(ann) {
   const value = String(ann.originalText || ann.simplifiedText || "").trim();
@@ -44,9 +47,9 @@ function getCharValue(ann) {
 }
 
 /**
- * @description 生成字符编码；若未录入编码则按当前字符推导 Unicode 编码。
- * @param {object} ann 标注对象。
- * @returns {string} 形如 U+4E00 的编码。
+ * @description 获取charcode。
+ * @param {*} ann 标注对象。
+ * @returns {*} charcode结果。
  */
 function getCharCode(ann) {
   const rawCode = String(ann.charCode || "").trim();
@@ -57,10 +60,10 @@ function getCharCode(ann) {
 }
 
 /**
- * @description 生成稳定的排序键，优先按顺序号，其次按创建顺序。
- * @param {object} left 左侧对象。
- * @param {object} right 右侧对象。
- * @returns {number} 排序结果。
+ * @description 比较order。
+ * @param {*} left left参数。
+ * @param {*} right right参数。
+ * @returns {number} order结果。
  */
 function compareByOrder(left, right) {
   const leftOrder = Number(left.orderIndex || 0);
@@ -72,9 +75,9 @@ function compareByOrder(left, right) {
 }
 
 /**
- * @description 为标注列表构建 parentId -> children 的索引，并按顺序号排序。
- * @param {object[]} annotations 标注列表。
- * @returns {Map<string, object[]>} 子节点索引。
+ * @description 构建childmap。
+ * @param {*} annotations annotations参数。
+ * @returns {*} childmap结果。
  */
 function buildChildMap(annotations) {
   const childMap = new Map();
@@ -94,9 +97,9 @@ function buildChildMap(annotations) {
 }
 
 /**
- * @description 生成单个 word 节点；当前数据模型按“一个标注对应一个 word + 一个 char”导出。
- * @param {object} ann 标注对象。
- * @returns {string} word XML 片段。
+ * @description 构建wordxml。
+ * @param {*} ann 标注对象。
+ * @returns {*} wordxml结果。
  */
 function buildWordXml(ann) {
   const wordNoteXml = ann.note
@@ -112,10 +115,10 @@ function buildWordXml(ann) {
 }
 
 /**
- * @description 生成 sentence 节点，并将其子字级标注转成 word 列表。
- * @param {object} ann 句级或兜底标注对象。
- * @param {Map<string, object[]>} childMap 标注子节点索引。
- * @returns {string} sentence XML 片段。
+ * @description 构建sentencexml。
+ * @param {*} ann 标注对象。
+ * @param {*} childMap childmap参数。
+ * @returns {*} sentencexml结果。
  */
 function buildSentenceXml(ann, childMap) {
   const wordChildren = (childMap.get(ann.id) || []).filter(
@@ -130,10 +133,10 @@ function buildSentenceXml(ann, childMap) {
 }
 
 /**
- * @description 生成 paragraph 节点，并将其子句级标注转成 sentence 列表。
- * @param {object} ann 段级或兜底标注对象。
- * @param {Map<string, object[]>} childMap 标注子节点索引。
- * @returns {string} paragraph XML 片段。
+ * @description 构建paragraphxml。
+ * @param {*} ann 标注对象。
+ * @param {*} childMap childmap参数。
+ * @returns {*} paragraphxml结果。
  */
 function buildParagraphXml(ann, childMap) {
   const sentenceChildren = (childMap.get(ann.id) || []).filter(
@@ -149,9 +152,9 @@ function buildParagraphXml(ann, childMap) {
 }
 
 /**
- * @description 提取页面中参与 textfield 的文本类顶层标注。
- * @param {object[]} annotations 页面标注列表。
- * @returns {object[]} 顶层文本标注列表。
+ * @description 获取topleveltextannotations。
+ * @param {*} annotations annotations参数。
+ * @returns {*} topleveltextannotations结果。
  */
 function getTopLevelTextAnnotations(annotations) {
   return annotations
@@ -164,9 +167,9 @@ function getTopLevelTextAnnotations(annotations) {
 }
 
 /**
- * @description 提取页面中作为 panel 子元素输出的顶层图片标注。
- * @param {object[]} annotations 页面标注列表。
- * @returns {object[]} 顶层图片标注列表。
+ * @description 获取toplevelimageannotations。
+ * @param {*} annotations annotations参数。
+ * @returns {*} toplevelimageannotations结果。
  */
 function getTopLevelImageAnnotations(annotations) {
   return annotations
@@ -175,9 +178,9 @@ function getTopLevelImageAnnotations(annotations) {
 }
 
 /**
- * @description 生成 content/page/panel/textfield 结构中的文本段落 XML。
- * @param {object[]} annotations 页面标注列表。
- * @returns {string} 段落 XML 片段。
+ * @description 构建textfieldcontentxml。
+ * @param {*} annotations annotations参数。
+ * @returns {*} textfieldcontentxml结果。
  */
 function buildTextfieldContentXml(annotations) {
   const childMap = buildChildMap(annotations);
@@ -187,9 +190,9 @@ function buildTextfieldContentXml(annotations) {
 }
 
 /**
- * @description 生成 content/panel 下的图片节点 XML。
- * @param {object[]} annotations 页面标注列表。
- * @returns {string} 图片节点 XML 片段。
+ * @description 构建panelimagesxml。
+ * @param {*} annotations annotations参数。
+ * @returns {*} panelimagesxml结果。
  */
 function buildPanelImagesXml(annotations) {
   return getTopLevelImageAnnotations(annotations)
@@ -201,9 +204,9 @@ function buildPanelImagesXml(annotations) {
 }
 
 /**
- * @description 提取需要在 view 中输出 text 元素的标注集合，保证与 content 中的 char 一一对应。
- * @param {object[]} annotations 页面标注列表。
- * @returns {object[]} 参与文本视图输出的标注列表。
+ * @description 获取textannotationsview。
+ * @param {*} annotations annotations参数。
+ * @returns {*} textannotationsview结果。
  */
 function getTextAnnotationsForView(annotations) {
   const childMap = buildChildMap(annotations);
@@ -224,9 +227,9 @@ function getTextAnnotationsForView(annotations) {
 }
 
 /**
- * @description 生成单页的 content/page 节点。
- * @param {object} page 页面对象。
- * @returns {string} page XML 片段。
+ * @description 构建contentpagexml。
+ * @param {*} page 页面对象。
+ * @returns {*} contentpagexml结果。
  */
 function buildContentPageXml(page) {
   const paragraphsXml = buildTextfieldContentXml(page.annotations || []);
@@ -240,9 +243,9 @@ function buildContentPageXml(page) {
 }
 
 /**
- * @description 生成文字标注在 view 中的 SVG text 元素。
- * @param {object} ann 标注对象。
- * @returns {string} SVG text 片段；无区域时返回空串。
+ * @description 构建textviewxml。
+ * @param {*} ann 标注对象。
+ * @returns {*} textviewxml结果。
  */
 function buildTextViewXml(ann) {
   const regions = ann.regions || [];
@@ -255,9 +258,9 @@ function buildTextViewXml(ann) {
 }
 
 /**
- * @description 生成普通标注在 view 中的高亮框或下划线。
- * @param {object} ann 标注对象。
- * @returns {string} SVG 形状片段。
+ * @description 构建shapeviewxml。
+ * @param {*} ann 标注对象。
+ * @returns {*} shapeviewxml结果。
  */
 function buildShapeViewXml(ann) {
   const stroke = ann.color || "#d5533f";
@@ -281,9 +284,9 @@ function buildShapeViewXml(ann) {
 }
 
 /**
- * @description 生成图片标注在 view 中的 SVG image 或兜底矩形。
- * @param {object} ann 图片标注对象。
- * @returns {string} SVG 片段。
+ * @description 构建imageviewxml。
+ * @param {*} ann 标注对象。
+ * @returns {*} imageviewxml结果。
  */
 function buildImageViewXml(ann) {
   const regions = ann.regions || [];
@@ -302,9 +305,9 @@ function buildImageViewXml(ann) {
 }
 
 /**
- * @description 生成单页的 view/svg 节点。
- * @param {object} page 页面对象。
- * @returns {string} svg XML 片段。
+ * @description 构建viewpagexml。
+ * @param {*} page 页面对象。
+ * @returns {*} viewpagexml结果。
  */
 function buildViewPageXml(page) {
   const annotations = page.annotations || [];
@@ -322,10 +325,10 @@ function buildViewPageXml(page) {
 }
 
 /**
- * @description 生成 head 节点 XML。
- * @param {object} article 文章对象。
- * @param {object[]} pages 页面列表。
- * @returns {string} head XML 片段。
+ * @description 构建headxml。
+ * @param {*} article 文章对象。
+ * @param {*} pages pages参数。
+ * @returns {*} headxml结果。
  */
 function buildHeadXml(article, pages) {
   const pageNos = pages.map((page) => page.pageNo).join(",");
@@ -348,9 +351,9 @@ function buildHeadXml(article, pages) {
 }
 
 /**
- * @description 生成 sources 节点 XML。
- * @param {object[]} pages 页面列表。
- * @returns {string} sources XML 片段。
+ * @description 构建sourcesxml。
+ * @param {*} pages pages参数。
+ * @returns {*} sourcesxml结果。
  */
 function buildSourcesXml(pages) {
   return `
@@ -365,9 +368,9 @@ ${pages
 }
 
 /**
- * @description 基于文章快照生成符合 XML-V0.1 文档要求的导出 XML。
- * @param {{article: object, pages: object[]}} snapshot 文章快照。
- * @returns {string} XML 字符串。
+ * @description 处理generatexmlsnapshot相关逻辑。
+ * @param {*} snapshot snapshot参数。
+ * @returns {*} xmlsnapshot结果。
  */
 function generateXmlFromSnapshot(snapshot) {
   const article = snapshot.article || {};
@@ -393,3 +396,4 @@ ${pages.map((page) => buildViewPageXml(page)).join("\n")}
 module.exports = {
   generateXmlFromSnapshot,
 };
+

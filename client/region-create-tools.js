@@ -1,3 +1,11 @@
+/**
+ * @description regioncreatetools相关前端模块，负责对应界面能力的状态处理与交互封装。
+ */
+/**
+ * @description 创建regioncreatetools。
+ * @param {*} deps 模块依赖集合。
+ * @returns {*} regioncreatetools结果。
+ */
 window.createRegionCreateTools = function createRegionCreateTools(deps) {
   const {
     state,
@@ -31,10 +39,10 @@ window.createRegionCreateTools = function createRegionCreateTools(deps) {
   let lastPointerClientY = null;
 
   /**
-   * @description 根据指针与视口边缘距离计算自动滚动画布的纵向步进值。
-   * @param {number} clientY 鼠标当前 Y 坐标（视口坐标系）。
-   * @param {number} viewportHeight 视口高度。
-   * @returns {number} 向上滚动为正，向下滚动为负，0 表示无需自动滚动。
+   * @description 处理computeautopandelta相关逻辑。
+   * @param {*} clientY clienty参数。
+   * @param {*} viewportHeight viewportheight参数。
+   * @returns {*} autopandelta结果。
    */
   function computeAutoPanDelta(clientY, viewportHeight) {
     if (!Number.isFinite(clientY) || !Number.isFinite(viewportHeight)) {
@@ -62,8 +70,8 @@ window.createRegionCreateTools = function createRegionCreateTools(deps) {
   }
 
   /**
-   * @description 在自动滚动后用最新鼠标位置同步草绘终点，避免框选形状漂移。
-   * @returns {void}
+   * @description 同步drawingpointer。
+   * @returns {void} 无返回值。
    */
   function syncDrawingPointer() {
     if (
@@ -82,9 +90,9 @@ window.createRegionCreateTools = function createRegionCreateTools(deps) {
   }
 
   /**
-   * @description 应用自动滚动位移并返回画布偏移是否发生变化。
-   * @param {number} deltaY 纵向偏移量。
-   * @returns {boolean} 偏移发生变化时为 true。
+   * @description 应用autopandelta。
+   * @param {*} deltaY deltay参数。
+   * @returns {void} 无返回值。
    */
   function applyAutoPanDelta(deltaY) {
     if (!deltaY) {
@@ -100,9 +108,9 @@ window.createRegionCreateTools = function createRegionCreateTools(deps) {
   }
 
   /**
-   * @description 在绘制过程中按当前鼠标位置即时触发一次自动滚动检查。
-   * @param {MouseEvent} evt 鼠标事件。
-   * @returns {void}
+   * @description 处理maybeautopanwhiledrawing相关逻辑。
+   * @param {*} evt 浏览器事件对象。
+   * @returns {*} autopanwhiledrawing结果。
    */
   function maybeAutoPanWhileDrawing(evt) {
     if (!state.drawing) {
@@ -130,8 +138,8 @@ window.createRegionCreateTools = function createRegionCreateTools(deps) {
   }
 
   /**
-   * @description 启动自动滚动循环，在持续贴边绘制时按固定间隔推动画布。
-   * @returns {void}
+   * @description 开始autopanloop。
+   * @returns {void} 无返回值。
    */
   function startAutoPanLoop() {
     if (autoPanTimer) {
@@ -162,8 +170,8 @@ window.createRegionCreateTools = function createRegionCreateTools(deps) {
   }
 
   /**
-   * @description 停止自动滚动循环并清理本次绘制的指针缓存。
-   * @returns {void}
+   * @description 停止autopanloop。
+   * @returns {void} 无返回值。
    */
   function stopAutoPanLoop() {
     if (autoPanTimer) {
@@ -175,14 +183,18 @@ window.createRegionCreateTools = function createRegionCreateTools(deps) {
   }
 
   /**
-   * @description 处理绘制起点：清理选择状态、初始化草绘框与自动滚动状态。
-   * @param {MouseEvent} evt 鼠标按下事件。
-   * @returns {void}
+   * @description 处理flushpendingregionedit相关逻辑。
+   * @returns {*} pendingregionedit结果。
    */
   async function flushPendingRegionEdit() {
     return persistDraggedRegion();
   }
 
+  /**
+   * @description 处理begindraw相关逻辑。
+   * @param {*} evt 浏览器事件对象。
+   * @returns {void} 无返回值。
+   */
   async function beginDraw(evt) {
     if (shouldStartPanning(evt)) {
       beginCanvasPan(evt);
@@ -224,9 +236,9 @@ window.createRegionCreateTools = function createRegionCreateTools(deps) {
   }
 
   /**
-   * @description 处理绘制过程中的鼠标移动，分发到平移、移动区域、缩放区域或草绘逻辑。
-   * @param {MouseEvent} evt 鼠标移动事件。
-   * @returns {void}
+   * @description 处理movedraw相关逻辑。
+   * @param {*} evt 浏览器事件对象。
+   * @returns {void} 无返回值。
    */
   function moveDraw(evt) {
     if (
@@ -295,8 +307,8 @@ window.createRegionCreateTools = function createRegionCreateTools(deps) {
   }
 
   /**
-   * @description 结束当前绘制流程：优先提交区域拖拽，再按草绘结果创建标注或追加区域。
-   * @returns {Promise<void>}
+   * @description 处理finishdraw相关逻辑。
+   * @returns {*} draw结果。
    */
   async function finishDraw() {
     state.pendingRegionMove = null;
@@ -354,3 +366,4 @@ window.createRegionCreateTools = function createRegionCreateTools(deps) {
 
   return { beginDraw, moveDraw, finishDraw, flushPendingRegionEdit };
 };
+

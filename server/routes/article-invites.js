@@ -1,3 +1,13 @@
+/**
+ * @description articleinvites路由模块，负责注册对应的 HTTP 接口。
+ */
+/**
+ * @description 判断是否可以createinvite。
+ * @param {*} globalRole globalrole参数。
+ * @param {*} articleRole articlerole参数。
+ * @param {*} inviteRole inviterole参数。
+ * @returns {boolean} createinvite是否成立。
+ */
 function canCreateInvite(globalRole, articleRole, inviteRole) {
   if (globalRole === "admin" || articleRole === "admin") {
     return (
@@ -15,6 +25,12 @@ function canCreateInvite(globalRole, articleRole, inviteRole) {
   return false;
 }
 
+/**
+ * @description 注册articleinviteroutes。
+ * @param {*} app Express 应用实例。
+ * @param {*} deps 模块依赖集合。
+ * @returns {void} 无返回值。
+ */
 function registerArticleInviteRoutes(app, deps) {
   const {
     sendError,
@@ -125,3 +141,4 @@ function registerArticleInviteRoutes(app, deps) {
 }
 
 module.exports = registerArticleInviteRoutes;
+

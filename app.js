@@ -1,3 +1,6 @@
+/**
+ * @description 前端应用主入口，负责装配浏览器端模块、建立共享依赖并启动页面。
+ */
 const NS_SVG = "http://www.w3.org/2000/svg";
 const API_BASE = "/api";
 const MIN_REGION_SIZE = 8;
@@ -28,7 +31,6 @@ const apiRequest = window.createApiRequest({
 });
 const {
   showLoginOverlay,
-  hideLoginOverlay,
   showAppShell,
   hideAppShell,
   doLogin,
@@ -37,7 +39,6 @@ const {
   showInviteRegisterMode,
   doLogout,
   checkAuth,
-  updateUserBar,
   isEditor,
   isAdmin,
   canReview,
@@ -62,7 +63,6 @@ const {
   },
 });
 const {
-  preloadImage,
   getCachedImageUrl,
   waitForImage,
   preloadAdjacentPages,
@@ -71,11 +71,7 @@ const {
 const {
   showUserManageDialog,
   hideUserManageDialog,
-  loadUserList,
   createNewUser,
-  changeUserRole,
-  resetUserPassword,
-  deleteUserById,
 } = window.createUserManagement({
   refs,
   apiRequest,
@@ -84,30 +80,56 @@ const {
 
 let appStateTools = null;
 
-function syncMetaInputsFromState() {
-  return appStateTools.syncMetaInputsFromState();
-}
-
+/**
+ * @description 更新articlemetaform。
+ * @returns {void} 无返回值。
+ */
 function updateArticleMetaFromForm() {
   return appStateTools.updateArticleMetaFromForm();
 }
 
+/**
+ * @description 处理savearticlemeta相关逻辑。
+ * @returns {*} articlemeta结果。
+ */
 async function saveArticleMeta() {
   return appStateTools.saveArticleMeta();
 }
 
+/**
+ * @description 安排savearticlemeta。
+ * @returns {void} 无返回值。
+ */
 function scheduleSaveArticleMeta() {
   return appStateTools.scheduleSaveArticleMeta();
 }
 
+/**
+ * @description 加载snapshot。
+ * @param {*} articleId 文章 ID。
+ * @returns {*} snapshot结果。
+ */
 async function loadSnapshot(articleId) {
   return appStateTools.loadSnapshot(articleId);
 }
 
+/**
+ * @description 设置activetab。
+ * @param {*} tabName tabname参数。
+ * @returns {*} activetab结果。
+ */
 function setActiveTab(tabName) {
   return appStateTools.setActiveTab(tabName);
 }
 
+/**
+ * @description 创建pageimage。
+ * @param {*} src src参数。
+ * @param {*} name name参数。
+ * @param {*} width width参数。
+ * @param {*} height height参数。
+ * @returns {*} pageimage结果。
+ */
 function createPageFromImage(src, name, width, height) {
   return appStateTools.createPageFromImage(src, name, width, height);
 }
@@ -116,7 +138,6 @@ const {
   isPdfFile,
   isImageFile,
   readFileAsDataUrl,
-  imageUrlToDataUrl,
   extractPdfPagesAsImages,
 } = window.createFilePdfUtils(createPageFromImage);
 
@@ -137,18 +158,19 @@ appStateTools = window.createAppStateTools({
 let pageImportTools = null;
 let glyphLibraryTools = null;
 
-function loadImageBySrc(src) {
-  return pageImportTools.loadImageBySrc(src);
-}
-
-async function persistNewPages(importedPages) {
-  return pageImportTools.persistNewPages(importedPages);
-}
-
+/**
+ * @description 处理imageupload。
+ * @param {*} event 浏览器事件对象。
+ * @returns {void} 无返回值。
+ */
 async function handleImageUpload(event) {
   return pageImportTools.handleImageUpload(event);
 }
 
+/**
+ * @description 清空allpages。
+ * @returns {void} 无返回值。
+ */
 async function clearAllPages() {
   return pageImportTools.clearAllPages();
 }
@@ -156,7 +178,6 @@ async function clearAllPages() {
 const {
   getCurrentPage,
   switchPage,
-  getCanvasViewBounds,
   clampCanvasView,
   applyCanvasView,
   resetCanvasView,
@@ -171,7 +192,6 @@ const {
   getRegionFromAnnotation,
   syncRegionAcrossPages,
   getResizeHandleMetrics,
-  getResizeCursorByHandle,
   getRegionBorderHit,
   updateSvgCursor,
 } = window.createCanvasViewTools({
@@ -207,8 +227,6 @@ pageImportTools = window.createPageImportTools({
 const {
   startRegionResize,
   startRegionMove,
-  updateRegionMove,
-  updateRegionResize,
   beginDraw,
   moveDraw,
   finishDraw,
@@ -239,18 +257,36 @@ const {
 
 let annotationSelectionTools = null;
 
+/**
+ * @description 安排annotationpersist。
+ * @param {*} ann 标注对象。
+ * @returns {void} 无返回值。
+ */
 function scheduleAnnotationPersist(ann) {
   return annotationSelectionTools.scheduleAnnotationPersist(ann);
 }
 
+/**
+ * @description 处理removeselectedannotation相关逻辑。
+ * @returns {void} 无返回值。
+ */
 async function removeSelectedAnnotation() {
   return annotationSelectionTools.removeSelectedAnnotation();
 }
 
+/**
+ * @description 获取selectedannotation。
+ * @returns {*} selectedannotation结果。
+ */
 function getSelectedAnnotation() {
   return annotationSelectionTools.getSelectedAnnotation();
 }
 
+/**
+ * @description 获取annotationid。
+ * @param {*} annotationId 标注 ID。
+ * @returns {*} annotationid结果。
+ */
 function getAnnotationById(annotationId) {
   return annotationSelectionTools.getAnnotationById(annotationId);
 }
@@ -282,18 +318,35 @@ const headingTools = window.createHeadingTools({
   joinCurrentPageRoom,
 });
 
+/**
+ * @description 处理levellabel相关逻辑。
+ * @param {*} level level参数。
+ * @returns {*} label结果。
+ */
 function levelLabel(level) {
   return headingTools.levelLabel(level);
 }
 
+/**
+ * @description 处理addheadingselection相关逻辑。
+ * @returns {*} headingselection结果。
+ */
 async function addHeadingFromSelection() {
   return headingTools.addHeadingFromSelection();
 }
 
+/**
+ * @description 渲染headingindex。
+ * @returns {void} 无返回值。
+ */
 function renderHeadingIndex() {
   return headingTools.renderHeadingIndex();
 }
 
+/**
+ * @description 渲染headingaddtip。
+ * @returns {void} 无返回值。
+ */
 function renderHeadingAddTip() {
   return headingTools.renderHeadingAddTip();
 }
@@ -314,14 +367,31 @@ annotationHierarchyTools = window.createAnnotationHierarchyTools({
   setReviewStatus: (...args) => setReviewStatus(...args),
 });
 
+/**
+ * @description 构建annotationlist。
+ * @returns {*} annotationlist结果。
+ */
 function buildAnnotationList() {
   return annotationHierarchyTools.buildAnnotationList();
 }
 
+/**
+ * @description 处理reparentannotation相关逻辑。
+ * @param {*} childId 子级 ID。
+ * @param {*} newParentId newparent ID。
+ * @returns {*} annotation结果。
+ */
 async function reparentAnnotation(childId, newParentId) {
   return annotationHierarchyTools.reparentAnnotation(childId, newParentId);
 }
 
+/**
+ * @description 处理reorderannotation相关逻辑。
+ * @param {*} draggedId dragged ID。
+ * @param {*} targetId target ID。
+ * @param {*} position position参数。
+ * @returns {*} annotation结果。
+ */
 async function reorderAnnotation(draggedId, targetId, position) {
   return annotationHierarchyTools.reorderAnnotation(
     draggedId,
@@ -330,6 +400,11 @@ async function reorderAnnotation(draggedId, targetId, position) {
   );
 }
 
+/**
+ * @description 处理recalcparenttextchildren相关逻辑。
+ * @param {*} parentId 父级 ID。
+ * @returns {*} parenttextchildren结果。
+ */
 function recalcParentTextFromChildren(parentId) {
   return annotationHierarchyTools.recalcParentTextFromChildren(parentId);
 }
@@ -351,6 +426,10 @@ const annotationFormTools = window.createAnnotationFormTools({
   renderAll,
 });
 
+/**
+ * @description 渲染annotationform。
+ * @returns {void} 无返回值。
+ */
 function renderAnnotationForm() {
   return annotationFormTools.renderAnnotationForm();
 }
@@ -366,34 +445,29 @@ const glyphPickerTools = window.createGlyphPickerTools({
   drawOverlay,
 });
 
-function getGlyphById(glyphId) {
-  return glyphPickerTools.getGlyphById(glyphId);
-}
-
-function glyphDisplayText(glyph) {
-  return glyphPickerTools.glyphDisplayText(glyph);
-}
-
+/**
+ * @description 处理fillglyphrefcontrol相关逻辑。
+ * @param {*} fragment fragment参数。
+ * @param {*} glyphRefEl glyphrefel参数。
+ * @param {*} ann 标注对象。
+ * @returns {*} glyphrefcontrol结果。
+ */
 function fillGlyphRefControl(fragment, glyphRefEl, ann) {
   glyphPickerTools.fillGlyphRefControl(fragment, glyphRefEl, ann);
 }
 
-function openGlyphPickerForAnnotation(annotationId) {
-  glyphPickerTools.openGlyphPickerForAnnotation(annotationId);
-}
-
+/**
+ * @description 隐藏glyphpicker。
+ * @returns {void} 无返回值。
+ */
 function hideGlyphPicker() {
   glyphPickerTools.hideGlyphPicker();
 }
 
-function clearGlyphRefForAnnotation(annotationId) {
-  glyphPickerTools.clearGlyphRefForAnnotation(annotationId);
-}
-
-function applyGlyphToCurrentAnnotation(glyphId) {
-  glyphPickerTools.applyGlyphToCurrentAnnotation(glyphId);
-}
-
+/**
+ * @description 渲染glyphpickerlist。
+ * @returns {void} 无返回值。
+ */
 function renderGlyphPickerList() {
   glyphPickerTools.renderGlyphPickerList();
 }
@@ -413,18 +487,10 @@ const overlayRenderTools = window.createOverlayRenderTools({
   renderAnnotationForm,
 });
 
-function buildShapeElement(ann, page, selected) {
-  return overlayRenderTools.buildShapeElement(ann, page, selected);
-}
-
-function buildResizeHandles(annotationId, region, page) {
-  return overlayRenderTools.buildResizeHandles(annotationId, region, page);
-}
-
-function getVisibleAnnotationIds() {
-  return overlayRenderTools.getVisibleAnnotationIds();
-}
-
+/**
+ * @description 处理drawoverlay相关逻辑。
+ * @returns {*} overlay结果。
+ */
 function drawOverlay() {
   return overlayRenderTools.drawOverlay();
 }
@@ -446,10 +512,19 @@ const pageRenderTools = window.createPageRenderTools({
   applyCanvasView,
 });
 
+/**
+ * @description 处理reloadpageannotations相关逻辑。
+ * @param {*} page 页面对象。
+ * @returns {*} pageannotations结果。
+ */
 async function reloadPageAnnotations(page) {
   return pageRenderTools.reloadPageAnnotations(page);
 }
 
+/**
+ * @description 渲染page。
+ * @returns {void} 无返回值。
+ */
 function renderPage() {
   return pageRenderTools.renderPage();
 }
@@ -469,22 +544,36 @@ glyphLibraryTools = window.createGlyphLibraryTools({
   setActiveTab,
 });
 
+/**
+ * @description 设置glyphcaptureimage。
+ * @param {*} dataUrl dataurl参数。
+ * @param {*} tipText tiptext参数。
+ * @returns {*} glyphcaptureimage结果。
+ */
 function setGlyphCaptureImage(dataUrl, tipText) {
   return glyphLibraryTools.setGlyphCaptureImage(dataUrl, tipText);
 }
 
+/**
+ * @description 处理captureglyphselection相关逻辑。
+ * @returns {*} glyphselection结果。
+ */
 async function captureGlyphFromSelection() {
   return glyphLibraryTools.captureGlyphFromSelection();
 }
 
+/**
+ * @description 渲染glyphlist。
+ * @returns {void} 无返回值。
+ */
 function renderGlyphList() {
   return glyphLibraryTools.renderGlyphList();
 }
 
-async function deleteGlyph(glyph) {
-  return glyphLibraryTools.deleteGlyph(glyph);
-}
-
+/**
+ * @description 处理addglyph相关逻辑。
+ * @returns {*} glyph结果。
+ */
 async function addGlyph() {
   return glyphLibraryTools.addGlyph();
 }
@@ -514,64 +603,80 @@ articleSelectTools = window.createArticleSelectTools({
   onManageAccess: (articleId, title) => showAccessDialog(articleId, title),
 });
 
+/**
+ * @description 显示articleselect。
+ * @returns {void} 无返回值。
+ */
 function showArticleSelect() {
   articleSelectTools.showArticleSelect();
 }
 
+/**
+ * @description 隐藏articleselect。
+ * @returns {void} 无返回值。
+ */
 function hideArticleSelect() {
   articleSelectTools.hideArticleSelect();
 }
 
-async function loadArticleList() {
-  await articleSelectTools.loadArticleList();
-}
-
-function renderArticleGrid() {
-  articleSelectTools.renderArticleGrid();
-}
-
-async function openArticle(articleId) {
-  await articleSelectTools.openArticle(articleId);
-}
-
+/**
+ * @description 处理backarticleselect相关逻辑。
+ * @returns {*} articleselect结果。
+ */
 function backToArticleSelect() {
   articleSelectTools.backToArticleSelect();
 }
 
+/**
+ * @description 创建newarticle。
+ * @returns {*} newarticle结果。
+ */
 async function createNewArticle() {
   await articleSelectTools.createNewArticle();
 }
 
+/**
+ * @description 处理exportarticlexml相关逻辑。
+ * @param {*} articleId 文章 ID。
+ * @param {*} title title参数。
+ * @returns {*} articlexml结果。
+ */
 async function exportArticleXml(articleId, title) {
   await articleSelectTools.exportArticleXml(articleId, title);
 }
 
+/**
+ * @description 显示accessdialog。
+ * @param {*} articleId 文章 ID。
+ * @param {*} title title参数。
+ * @returns {void} 无返回值。
+ */
 async function showAccessDialog(articleId, title) {
   await articleAccessTools.showAccessDialog(articleId, title);
 }
 
+/**
+ * @description 隐藏accessdialog。
+ * @returns {void} 无返回值。
+ */
 function hideAccessDialog() {
   articleAccessTools.hideAccessDialog();
 }
 
-async function loadAccessList(articleId) {
-  await articleAccessTools.loadAccessList(articleId);
-}
-
-function renderAccessList(users) {
-  articleAccessTools.renderAccessList(users);
-}
-
+/**
+ * @description 处理grantaccess相关逻辑。
+ * @returns {*} access结果。
+ */
 async function grantAccess() {
   await articleAccessTools.grantAccess();
 }
 
+/**
+ * @description 创建invite。
+ * @returns {*} invite结果。
+ */
 async function createInvite() {
   await articleAccessTools.createInvite();
-}
-
-async function revokeAccess(userId) {
-  await articleAccessTools.revokeAccess(userId);
 }
 
 let reviewStatusTools = null;
@@ -586,18 +691,37 @@ reviewStatusTools = window.createReviewStatusTools({
   buildAnnotationList,
 });
 
+/**
+ * @description 渲染reviewstatus。
+ * @returns {void} 无返回值。
+ */
 function renderReviewStatus() {
   return reviewStatusTools.renderReviewStatus();
 }
 
+/**
+ * @description 设置reviewstatus。
+ * @param {*} annotationIdOrStatus annotationidstatus参数。
+ * @param {*} statusArg statusarg参数。
+ * @returns {*} reviewstatus结果。
+ */
 async function setReviewStatus(annotationIdOrStatus, statusArg) {
   return reviewStatusTools.setReviewStatus(annotationIdOrStatus, statusArg);
 }
 
+/**
+ * @description 处理exportglyphjson相关逻辑。
+ * @returns {*} glyphjson结果。
+ */
 function exportGlyphJson() {
   return glyphLibraryTools.exportGlyphJson();
 }
 
+/**
+ * @description 处理importglyphjson相关逻辑。
+ * @param {*} event 浏览器事件对象。
+ * @returns {*} glyphjson结果。
+ */
 async function importGlyphJson(event) {
   return glyphLibraryTools.importGlyphJson(event);
 }
@@ -664,14 +788,18 @@ const uiEventBindingsTools = window.createUiEventBindingsTools({
   drawOverlay,
 });
 
-function bindMetaInputs() {
-  return uiEventBindingsTools.bindMetaInputs();
-}
-
+/**
+ * @description 绑定events。
+ * @returns {void} 无返回值。
+ */
 function bindEvents() {
   return uiEventBindingsTools.bindEvents();
 }
 
+/**
+ * @description 处理ensurepagejumpcontrols相关逻辑。
+ * @returns {void} 无返回值。
+ */
 function ensurePageJumpControls() {
   if (refs.pageJumpInput && refs.btnPageJump) return;
   if (!refs.pageIndicator || !refs.pageIndicator.parentElement) return;
@@ -694,6 +822,11 @@ function ensurePageJumpControls() {
   refs.btnPageJump = button;
 }
 
+/**
+ * @description 处理jumppage相关逻辑。
+ * @param {*} pageNumber pagenumber参数。
+ * @returns {*} page结果。
+ */
 function jumpToPage(pageNumber) {
   const targetIndex = Number(pageNumber) - 1;
   if (!Number.isInteger(targetIndex)) {
@@ -709,6 +842,11 @@ function jumpToPage(pageNumber) {
   switchPage(delta);
 }
 
+/**
+ * @description 刷新当前页面相关的主要渲染区域。
+ * @param {*} opts opts参数。
+ * @returns {void} 无返回值。
+ */
 function renderAll(opts = {}) {
   renderPage();
   renderHeadingAddTip();
@@ -746,62 +884,34 @@ socketCollab = window.createSocketCollabTools({
   getSocket: () => socket,
 });
 
+/**
+ * @description 处理initsocket相关逻辑。
+ * @returns {*} socket结果。
+ */
 function initSocket() {
   socketCollab.initSocket();
 }
 
+/**
+ * @description 加入currentarticleroom。
+ * @returns {void} 无返回值。
+ */
 function joinCurrentArticleRoom() {
   socketCollab.joinCurrentArticleRoom();
 }
 
+/**
+ * @description 加入currentpageroom。
+ * @returns {void} 无返回值。
+ */
 function joinCurrentPageRoom() {
   socketCollab.joinCurrentPageRoom();
 }
 
-async function refreshCurrentPageAnnotations() {
-  await socketCollab.refreshCurrentPageAnnotations();
-}
-
-function handleRemoteAnnotationCreated(payload) {
-  socketCollab.handleRemoteAnnotationCreated(payload);
-}
-
-function handleRemoteAnnotationUpdated(payload) {
-  socketCollab.handleRemoteAnnotationUpdated(payload);
-}
-
-function handleRemoteAnnotationDeleted(payload) {
-  socketCollab.handleRemoteAnnotationDeleted(payload);
-}
-
-function handleRemoteGlyphCreated(payload) {
-  socketCollab.handleRemoteGlyphCreated(payload);
-}
-
-function handleRemoteGlyphDeleted(payload) {
-  socketCollab.handleRemoteGlyphDeleted(payload);
-}
-
-function handleRemoteGlyphImported(payload) {
-  socketCollab.handleRemoteGlyphImported(payload);
-}
-
-function handlePresenceJoin(payload) {
-  socketCollab.handlePresenceJoin(payload);
-}
-
-function handlePresenceLeave(payload) {
-  socketCollab.handlePresenceLeave(payload);
-}
-
-function handlePresenceMembers(payload) {
-  socketCollab.handlePresenceMembers(payload);
-}
-
-function renderPresenceBar() {
-  socketCollab.renderPresenceBar();
-}
-
+/**
+ * @description 执行前端应用启动流程并完成模块装配。
+ * @returns {*} 处理结果。
+ */
 async function bootstrap() {
   ensurePageJumpControls();
   bindEvents();
@@ -818,3 +928,4 @@ async function bootstrap() {
 bootstrap().catch((error) => {
   alert(`初始化失败：${error.message}`);
 });
+

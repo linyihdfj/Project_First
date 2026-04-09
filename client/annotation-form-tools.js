@@ -1,3 +1,11 @@
+/**
+ * @description annotationformtools相关前端模块，负责对应界面能力的状态处理与交互封装。
+ */
+/**
+ * @description 创建annotationformtools。
+ * @param {*} deps 模块依赖集合。
+ * @returns {*} annotationformtools结果。
+ */
 window.createAnnotationFormTools = function createAnnotationFormTools(deps) {
   const {
     state,
@@ -15,6 +23,17 @@ window.createAnnotationFormTools = function createAnnotationFormTools(deps) {
     getCurrentPage,
     renderAll,
   } = deps;
+
+  /**
+   * @description ?????
+   * @param {*} annotationId ?? ID?
+   * @param {*} regions ???
+   * @param {*} draggedId dragged ID?
+   * @param {*} targetId target ID?
+   * @param {*} position position?
+   * @param {*} container container?
+   * @returns {Promise<void>} ?????
+   */
 
   async function reorderRegions(
     annotationId,
@@ -54,6 +73,12 @@ window.createAnnotationFormTools = function createAnnotationFormTools(deps) {
     }
   }
 
+  /**
+   * @description 加载annotationregions。
+   * @param {*} annotationId 标注 ID。
+   * @param {*} container container参数。
+   * @returns {*} annotationregions结果。
+   */
   async function loadAnnotationRegions(annotationId, container) {
     try {
       const payload = await apiRequest(
@@ -191,6 +216,10 @@ window.createAnnotationFormTools = function createAnnotationFormTools(deps) {
     }
   }
 
+  /**
+   * @description 渲染annotationform。
+   * @returns {void} 无返回值。
+   */
   function renderAnnotationForm() {
     refs.annotationForm.innerHTML = "";
     const ann = getSelectedAnnotation();
@@ -356,3 +385,4 @@ window.createAnnotationFormTools = function createAnnotationFormTools(deps) {
     renderAnnotationForm,
   };
 };
+

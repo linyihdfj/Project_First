@@ -1,17 +1,26 @@
+/**
+ * @description imagecache相关前端模块，负责对应界面能力的状态处理与交互封装。
+ */
+/**
+ * @description 处理exposeimagecachefactory相关逻辑。
+ * @param {*} global global参数。
+ * @returns {*} imagecachefactory结果。
+ */
 (function exposeImageCacheFactory(global) {
+
   /**
-   * @description 创建图片缓存工具，支持页面和文章级预加载。
-   * @param {(pathname:string, options?:object)=>Promise<any>} apiRequest 通用请求函数。
-   * @returns {object} 图片缓存与预加载方法。
+   * @description 创建imagecache。
+   * @param {*} apiRequest apirequest参数。
+   * @returns {*} imagecache结果。
    */
   function createImageCache(apiRequest) {
     const imageCache = new Map();
     const imageCacheLoading = new Map();
 
     /**
-     * @description 异步预加载图片并缓存 Blob URL。
-     * @param {string} src 图片地址。
-     * @returns {void}
+     * @description 预加载image。
+     * @param {*} src src参数。
+     * @returns {*} image结果。
      */
     function preloadImage(src) {
       if (!src || imageCache.has(src) || imageCacheLoading.has(src)) {
@@ -33,18 +42,18 @@
     }
 
     /**
-     * @description 获取缓存后的图片地址，未命中则返回原地址。
-     * @param {string} src 原始地址。
-     * @returns {string}
+     * @description 获取cachedimageurl。
+     * @param {*} src src参数。
+     * @returns {*} cachedimageurl结果。
      */
     function getCachedImageUrl(src) {
       return imageCache.get(src) || src;
     }
 
     /**
-     * @description 等待指定图片预加载完成。
-     * @param {string} src 图片地址。
-     * @returns {Promise<string|null>} 可用图片地址。
+     * @description 等待image。
+     * @param {*} src src参数。
+     * @returns {*} image结果。
      */
     async function waitForImage(src) {
       if (imageCache.has(src)) return imageCache.get(src);
@@ -53,11 +62,11 @@
     }
 
     /**
-     * @description 预加载当前页附近的若干页面图片。
-     * @param {number} currentIndex 当前页索引。
-     * @param {Array<object>} pages 页面数组。
-     * @param {number} [range=3] 前后预加载范围。
-     * @returns {void}
+     * @description 预加载adjacentpages。
+     * @param {*} currentIndex currentindex参数。
+     * @param {*} pages pages参数。
+     * @param {*} range range参数。
+     * @returns {*} adjacentpages结果。
      */
     function preloadAdjacentPages(currentIndex, pages, range = 3) {
       const start = Math.max(0, currentIndex - range);
@@ -70,9 +79,9 @@
     }
 
     /**
-     * @description 为文章列表预加载每篇文章前几页图片。
-     * @param {Array<object>} articles 文章数组。
-     * @returns {Promise<void>}
+     * @description 预加载articlefirstpages。
+     * @param {*} articles 文章列表。
+     * @returns {*} articlefirstpages结果。
      */
     async function preloadArticleFirstPages(articles) {
       for (const article of articles) {
@@ -96,3 +105,4 @@
 
   global.createImageCache = createImageCache;
 })(window);
+

@@ -1,7 +1,16 @@
+/**
+ * @description refs相关前端模块，负责对应界面能力的状态处理与交互封装。
+ */
+/**
+ * @description 处理exposerefsfactory相关逻辑。
+ * @param {*} global global参数。
+ * @returns {*} refsfactory结果。
+ */
 (function exposeRefsFactory(global) {
+
   /**
-   * @description 收集并缓存页面中常用 DOM 引用，避免重复查询。
-   * @returns {object} 各 UI 节点引用集合。
+   * @description 创建refs。
+   * @returns {*} refs结果。
    */
   function createRefs() {
     return {
@@ -160,3 +169,4 @@
 
   global.createRefs = createRefs;
 })(window);
+

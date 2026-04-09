@@ -1,8 +1,27 @@
+/**
+ * @description usermanagement相关前端模块，负责对应界面能力的状态处理与交互封装。
+ */
+/**
+ * @description 处理exposeusermanagementfactory相关逻辑。
+ * @param {*} global global参数。
+ * @returns {*} usermanagementfactory结果。
+ */
 (function exposeUserManagementFactory(global) {
+
+  /**
+   * @description 创建usermanagement。
+   * @param {*} deps 模块依赖集合。
+   * @returns {*} usermanagement结果。
+   */
   function createUserManagement(deps) {
     const { refs, apiRequest, escapeHtml } = deps;
     let userSearchTimer = null;
 
+    /**
+     * @description 处理rolelabel相关逻辑。
+     * @param {*} role 角色值。
+     * @returns {*} label结果。
+     */
     function roleLabel(role) {
       return (
         {
@@ -12,6 +31,10 @@
       );
     }
 
+    /**
+     * @description 应用roleoptions。
+     * @returns {void} 无返回值。
+     */
     function applyRoleOptions() {
       if (!refs.newUserRole) return;
       refs.newUserRole.innerHTML = `
@@ -20,6 +43,10 @@
       `;
     }
 
+    /**
+     * @description 显示usermanagedialog。
+     * @returns {void} 无返回值。
+     */
     function showUserManageDialog() {
       applyRoleOptions();
       if (refs.userManageDialog) {
@@ -28,10 +55,18 @@
       }
     }
 
+    /**
+     * @description 隐藏usermanagedialog。
+     * @returns {void} 无返回值。
+     */
     function hideUserManageDialog() {
       if (refs.userManageDialog) refs.userManageDialog.hidden = true;
     }
 
+    /**
+     * @description 加载userlist。
+     * @returns {*} userlist结果。
+     */
     async function loadUserList() {
       if (!refs.userList) return;
       const query = refs.userSearchInput ? refs.userSearchInput.value.trim() : "";
@@ -99,6 +134,10 @@
       }
     }
 
+    /**
+     * @description 创建newuser。
+     * @returns {*} newuser结果。
+     */
     async function createNewUser() {
       const username = refs.newUserUsername.value.trim();
       const password = refs.newUserPassword.value;
@@ -123,6 +162,12 @@
       }
     }
 
+    /**
+     * @description 处理changeuserrole相关逻辑。
+     * @param {*} userId 用户 ID。
+     * @param {*} role 角色值。
+     * @returns {*} userrole结果。
+     */
     async function changeUserRole(userId, role) {
       try {
         await apiRequest(`/users/${encodeURIComponent(userId)}`, {
@@ -135,6 +180,12 @@
       }
     }
 
+    /**
+     * @description 重置userpassword。
+     * @param {*} userId 用户 ID。
+     * @param {*} password password参数。
+     * @returns {void} 无返回值。
+     */
     async function resetUserPassword(userId, password) {
       try {
         await apiRequest(`/users/${encodeURIComponent(userId)}`, {
@@ -147,6 +198,11 @@
       }
     }
 
+    /**
+     * @description 处理deleteuserid相关逻辑。
+     * @param {*} userId 用户 ID。
+     * @returns {void} 无返回值。
+     */
     async function deleteUserById(userId) {
       try {
         await apiRequest(`/users/${encodeURIComponent(userId)}`, {
@@ -182,3 +238,4 @@
 
   global.createUserManagement = createUserManagement;
 })(window);
+

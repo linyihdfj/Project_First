@@ -1,3 +1,6 @@
+/**
+ * @description bootstrap服务端模块，负责对应领域能力的实现。
+ */
 async function bootstrapServer({
   initDatabase,
   ensureArticle,
@@ -14,3 +17,4 @@ async function bootstrapServer({
 module.exports = {
   bootstrapServer,
 };
+

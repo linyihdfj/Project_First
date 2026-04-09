@@ -1,3 +1,12 @@
+/**
+ * @description articlepages路由模块，负责注册对应的 HTTP 接口。
+ */
+/**
+ * @description 注册articlepageroutes。
+ * @param {*} app Express 应用实例。
+ * @param {*} deps 模块依赖集合。
+ * @returns {void} 无返回值。
+ */
 function registerArticlePageRoutes(app, deps) {
   const {
     sendError,
@@ -43,3 +52,4 @@ function registerArticlePageRoutes(app, deps) {
 }
 
 module.exports = registerArticlePageRoutes;
+

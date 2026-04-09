@@ -1,3 +1,6 @@
+/**
+ * @description index服务端模块，负责对应领域能力的实现。
+ */
 const http = require("http");
 const express = require("express");
 const { PORT, PROJECT_ROOT } = require("./config");
@@ -183,3 +186,4 @@ bootstrapServer({
   console.error("服务启动失败:", error);
   process.exit(1);
 });
+

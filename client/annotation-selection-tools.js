@@ -1,3 +1,6 @@
+/**
+ * @description annotationselectiontools相关前端模块，负责对应界面能力的状态处理与交互封装。
+ */
 window.createAnnotationSelectionTools = function createAnnotationSelectionTools(
   deps,
 ) {
@@ -11,8 +14,8 @@ window.createAnnotationSelectionTools = function createAnnotationSelectionTools(
   } = deps;
 
   /**
-   * @description 获取当前页面中已选中的标注对象。
-   * @returns {object|null} 当前选中标注；未选中或当前页不存在时返回 null。
+   * @description 获取selectedannotation。
+   * @returns {*} selectedannotation结果。
    */
   function getSelectedAnnotation() {
     const page = getCurrentPage();
@@ -26,9 +29,9 @@ window.createAnnotationSelectionTools = function createAnnotationSelectionTools(
   }
 
   /**
-   * @description 按标注 ID 在当前页优先、全页兜底地查找标注对象。
-   * @param {string} annotationId 标注 ID。
-   * @returns {object|null} 匹配标注；未找到时返回 null。
+   * @description 获取annotationid。
+   * @param {*} annotationId 标注 ID。
+   * @returns {*} annotationid结果。
    */
   function getAnnotationById(annotationId) {
     if (!annotationId) {
@@ -53,9 +56,9 @@ window.createAnnotationSelectionTools = function createAnnotationSelectionTools(
   }
 
   /**
-   * @description 为标注安排防抖保存任务，300ms 内连续编辑只会提交最后一次。
-   * @param {object} ann 标注对象。
-   * @returns {void}
+   * @description 安排annotationpersist。
+   * @param {*} ann 标注对象。
+   * @returns {void} 无返回值。
    */
   function scheduleAnnotationPersist(ann) {
     if (!ann || !ann.id) {
@@ -91,8 +94,8 @@ window.createAnnotationSelectionTools = function createAnnotationSelectionTools(
   }
 
   /**
-   * @description 删除当前选中标注，并同步清理父链文本、标题关联与本地选择状态。
-   * @returns {Promise<void>}
+   * @description 处理removeselectedannotation相关逻辑。
+   * @returns {void} 无返回值。
    */
   async function removeSelectedAnnotation() {
     const page = getCurrentPage();
@@ -171,3 +174,4 @@ window.createAnnotationSelectionTools = function createAnnotationSelectionTools(
     removeSelectedAnnotation,
   };
 };
+

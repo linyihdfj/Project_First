@@ -1,3 +1,6 @@
+/**
+ * @description index路由模块，负责注册对应的 HTTP 接口。
+ */
 const registerAuthRoutes = require("./auth");
 const registerUserRoutes = require("./users");
 const registerArticleRoutes = require("./articles");
@@ -10,8 +13,13 @@ const registerGlyphRoutes = require("./glyphs");
 const registerHeadingRoutes = require("./headings");
 const registerArticleInviteRoutes = require("./article-invites");
 const registerTextConvertRoutes = require("./text-convert");
-const registerHealthRoute = require("./health");
 
+/**
+ * @description 注册全部业务路由模块。
+ * @param {*} app Express 应用实例。
+ * @param {*} deps 模块依赖集合。
+ * @returns {void} 无返回值。
+ */
 function registerAllRoutes(app, deps) {
   registerAuthRoutes(app, {
     sendError: deps.sendError,
@@ -159,13 +167,9 @@ function registerAllRoutes(app, deps) {
     requireAuth: deps.requireAuth,
     convertToSimplified: deps.convertToSimplified,
   });
-
-  registerHealthRoute(app, {
-    ensureArticle: deps.ensureArticle,
-    sendError: deps.sendError,
-  });
 }
 
 module.exports = {
   registerAllRoutes,
 };
+

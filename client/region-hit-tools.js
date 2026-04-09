@@ -1,3 +1,11 @@
+/**
+ * @description regionhittools相关前端模块，负责对应界面能力的状态处理与交互封装。
+ */
+/**
+ * @description 创建regionhittools。
+ * @param {*} deps 模块依赖集合。
+ * @returns {*} regionhittools结果。
+ */
 window.createRegionHitTools = function createRegionHitTools(deps) {
   const {
     state,
@@ -11,6 +19,11 @@ window.createRegionHitTools = function createRegionHitTools(deps) {
     HANDLE_HIT_PADDING_PX,
   } = deps;
 
+  /**
+   * @description 获取resizehandlemetrics。
+   * @param {*} page 页面对象。
+   * @returns {*} resizehandlemetrics结果。
+   */
   function getResizeHandleMetrics(page) {
     const rect = refs.annotationSvg?.getBoundingClientRect();
     if (!page || !rect || rect.width <= 0 || rect.height <= 0) {
@@ -38,9 +51,9 @@ window.createRegionHitTools = function createRegionHitTools(deps) {
   }
 
   /**
-   * @description 将鼠标事件坐标换算到当前页面坐标系。
-   * @param {MouseEvent} evt 鼠标事件。
-   * @returns {{x:number,y:number}} 页面坐标点。
+   * @description 获取pointerpoint。
+   * @param {*} evt 浏览器事件对象。
+   * @returns {*} pointerpoint结果。
    */
   function getPointerPoint(evt) {
     const rect = refs.annotationSvg.getBoundingClientRect();
@@ -58,10 +71,10 @@ window.createRegionHitTools = function createRegionHitTools(deps) {
   }
 
   /**
-   * @description 在标注对象内按 regionId 查找区域。
-   * @param {number} annotationId 标注 ID。
-   * @param {number} regionId 区域 ID。
-   * @returns {object|null} 命中的区域对象。
+   * @description 获取regionannotation。
+   * @param {*} annotationId 标注 ID。
+   * @param {*} regionId 区域 ID。
+   * @returns {*} regionannotation结果。
    */
   function getRegionFromAnnotation(annotationId, regionId) {
     const ann = getAnnotationById(annotationId);
@@ -72,11 +85,11 @@ window.createRegionHitTools = function createRegionHitTools(deps) {
   }
 
   /**
-   * @description 将区域几何信息同步到所有页面中的同 annotation 副本。
-   * @param {number} annotationId 标注 ID。
-   * @param {number} regionId 区域 ID。
-   * @param {{x:number,y:number,width:number,height:number}} rect 新区域矩形。
-   * @returns {void}
+   * @description 同步regionacrosspages。
+   * @param {*} annotationId 标注 ID。
+   * @param {*} regionId 区域 ID。
+   * @param {*} rect rect参数。
+   * @returns {void} 无返回值。
    */
   function syncRegionAcrossPages(annotationId, regionId, rect) {
     state.pages.forEach((page) => {
@@ -96,9 +109,9 @@ window.createRegionHitTools = function createRegionHitTools(deps) {
   }
 
   /**
-   * @description 根据缩放手柄方向返回对应鼠标光标样式。
-   * @param {string} handle 手柄方向（nw/n/ne/e/se/s/sw/w）。
-   * @returns {string} CSS cursor 值。
+   * @description 获取resizecursorhandle。
+   * @param {*} handle handle参数。
+   * @returns {*} resizecursorhandle结果。
    */
   function getResizeCursorByHandle(handle) {
     const cursorMap = {
@@ -115,11 +128,11 @@ window.createRegionHitTools = function createRegionHitTools(deps) {
   }
 
   /**
-   * @description 命中检测：判断鼠标是否落在区域边框或缩放手柄上。
-   * @param {object} region 待检测区域。
-   * @param {object} page 当前页面对象。
-   * @param {MouseEvent} evt 鼠标事件。
-   * @returns {{type:"resize"|"move",handle?:string,cursor:string}|null} 命中结果。
+   * @description 获取regionborderhit。
+   * @param {*} region 区域对象。
+   * @param {*} page 页面对象。
+   * @param {*} evt 浏览器事件对象。
+   * @returns {*} regionborderhit结果。
    */
   function getRegionBorderHit(region, page, evt) {
     if (!region || !page || !evt || !refs.annotationSvg) {
@@ -199,9 +212,9 @@ window.createRegionHitTools = function createRegionHitTools(deps) {
   }
 
   /**
-   * @description 设置标注 SVG 容器的鼠标光标。
-   * @param {string} cursor 目标光标样式。
-   * @returns {void}
+   * @description 更新svgcursor。
+   * @param {*} cursor cursor参数。
+   * @returns {void} 无返回值。
    */
   function updateSvgCursor(cursor) {
     if (!refs.annotationSvg) {
@@ -220,3 +233,4 @@ window.createRegionHitTools = function createRegionHitTools(deps) {
     updateSvgCursor,
   };
 };
+

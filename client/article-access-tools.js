@@ -1,19 +1,41 @@
+/**
+ * @description articleaccesstools相关前端模块，负责对应界面能力的状态处理与交互封装。
+ */
+/**
+ * @description 创建articleaccesstools。
+ * @param {*} deps 模块依赖集合。
+ * @returns {*} articleaccesstools结果。
+ */
 window.createArticleAccessTools = function createArticleAccessTools(deps) {
   const { refs, state, apiRequest, escapeHtml } = deps;
   let accessSearchTimer = null;
   let selectedAccessUser = null;
   const inviteTokensById = new Map();
 
+  /**
+   * @description 处理globalrolelabel相关逻辑。
+   * @param {*} role 角色值。
+   * @returns {*} rolelabel结果。
+   */
   function globalRoleLabel(role) {
     return role === "admin" ? "管理员" : "用户";
   }
 
+  /**
+   * @description 处理articlerolelabel相关逻辑。
+   * @param {*} role 角色值。
+   * @returns {*} rolelabel结果。
+   */
   function articleRoleLabel(role) {
     if (role === "admin") return "文章管理员";
     if (role === "reviewer") return "审校者";
     return "编辑者";
   }
 
+  /**
+   * @description 判断是否可以manageinvites。
+   * @returns {boolean} manageinvites是否成立。
+   */
   function canManageInvites() {
     if (!state.currentUser) return false;
     return (
@@ -24,6 +46,10 @@ window.createArticleAccessTools = function createArticleAccessTools(deps) {
     );
   }
 
+  /**
+   * @description 判断是否可以directgrant。
+   * @returns {boolean} directgrant是否成立。
+   */
   function canDirectGrant() {
     return !!(
       state.currentUser &&
@@ -31,6 +57,10 @@ window.createArticleAccessTools = function createArticleAccessTools(deps) {
     );
   }
 
+  /**
+   * @description 应用accessroleoptions。
+   * @returns {void} 无返回值。
+   */
   function applyAccessRoleOptions() {
     if (refs.accessArticleRole) {
       refs.accessArticleRole.innerHTML = `
@@ -54,6 +84,10 @@ window.createArticleAccessTools = function createArticleAccessTools(deps) {
     refs.accessInviteRole.innerHTML = options.join("");
   }
 
+  /**
+   * @description 渲染selectedaccessuser。
+   * @returns {void} 无返回值。
+   */
   function renderSelectedAccessUser() {
     if (!refs.accessSelectedUser) return;
 
@@ -69,6 +103,11 @@ window.createArticleAccessTools = function createArticleAccessTools(deps) {
     )}</span>`;
   }
 
+  /**
+   * @description 渲染accesslist。
+   * @param {*} users users参数。
+   * @returns {void} 无返回值。
+   */
   function renderAccessList(users) {
     if (!refs.accessUserList) return;
     refs.accessUserList.innerHTML = "";
@@ -104,6 +143,11 @@ window.createArticleAccessTools = function createArticleAccessTools(deps) {
     });
   }
 
+  /**
+   * @description 加载accesslist。
+   * @param {*} articleId 文章 ID。
+   * @returns {*} accesslist结果。
+   */
   async function loadAccessList(articleId) {
     try {
       const data = await apiRequest(
@@ -115,6 +159,12 @@ window.createArticleAccessTools = function createArticleAccessTools(deps) {
     }
   }
 
+  /**
+   * @description 渲染usersearchresults。
+   * @param {*} users users参数。
+   * @param {*} errorMessage errormessage参数。
+   * @returns {void} 无返回值。
+   */
   function renderUserSearchResults(users, errorMessage) {
     if (!refs.accessUserResults) return;
     refs.accessUserResults.innerHTML = "";
@@ -143,13 +193,16 @@ window.createArticleAccessTools = function createArticleAccessTools(deps) {
       `;
       button.addEventListener("click", () => {
         selectedAccessUser = user;
-        if (refs.accessUserSelect) refs.accessUserSelect.value = user.id;
         renderSelectedAccessUser();
       });
       refs.accessUserResults.appendChild(button);
     });
   }
 
+  /**
+   * @description 处理searchusers相关逻辑。
+   * @returns {*} users结果。
+   */
   async function searchUsers() {
     if (!canDirectGrant()) return;
 
@@ -161,28 +214,28 @@ window.createArticleAccessTools = function createArticleAccessTools(deps) {
 
     try {
       const data = await apiRequest(`/users?q=${encodeURIComponent(query)}`);
-      const users = data.users || [];
-      if (refs.accessUserSelect) {
-        refs.accessUserSelect.innerHTML = "";
-        users.forEach((user) => {
-          const opt = document.createElement("option");
-          opt.value = user.id;
-          opt.textContent = `${user.displayName || user.username} (@${user.username})`;
-          refs.accessUserSelect.appendChild(opt);
-        });
-      }
-      renderUserSearchResults(users);
+      renderUserSearchResults(data.users || []);
     } catch (error) {
       renderUserSearchResults([], error.message);
     }
   }
 
+  /**
+   * @description 构建inviteurl。
+   * @param {*} token 认证令牌。
+   * @returns {*} inviteurl结果。
+   */
   function buildInviteUrl(token) {
     const url = new URL(window.location.origin + window.location.pathname);
     url.searchParams.set("invite", token);
     return url.toString();
   }
 
+  /**
+   * @description 格式化invitecreated。
+   * @param {*} value 待处理的值。
+   * @returns {string} invitecreated后的字符串。
+   */
   function formatInviteCreatedAt(value) {
     if (!value) return "";
     const date = new Date(value);
@@ -190,6 +243,11 @@ window.createArticleAccessTools = function createArticleAccessTools(deps) {
     return date.toLocaleString();
   }
 
+  /**
+   * @description 加载invitelist。
+   * @param {*} articleId 文章 ID。
+   * @returns {*} invitelist结果。
+   */
   async function loadInviteList(articleId) {
     if (!canManageInvites() || !refs.accessInviteList) return;
 
@@ -258,6 +316,10 @@ window.createArticleAccessTools = function createArticleAccessTools(deps) {
     }
   }
 
+  /**
+   * @description 创建invite。
+   * @returns {*} invite结果。
+   */
   async function createInvite() {
     if (!state.accessArticleId || !refs.accessInviteRole) return;
 
@@ -280,6 +342,12 @@ window.createArticleAccessTools = function createArticleAccessTools(deps) {
     }
   }
 
+  /**
+   * @description 显示accessdialog。
+   * @param {*} articleId 文章 ID。
+   * @param {*} title title参数。
+   * @returns {void} 无返回值。
+   */
   async function showAccessDialog(articleId, title) {
     state.accessArticleId = articleId;
     selectedAccessUser = null;
@@ -304,18 +372,24 @@ window.createArticleAccessTools = function createArticleAccessTools(deps) {
     await loadInviteList(articleId);
   }
 
+  /**
+   * @description 隐藏accessdialog。
+   * @returns {void} 无返回值。
+   */
   function hideAccessDialog() {
     if (refs.articleAccessDialog) refs.articleAccessDialog.hidden = true;
     state.accessArticleId = null;
     selectedAccessUser = null;
   }
 
+  /**
+   * @description 处理grantaccess相关逻辑。
+   * @returns {*} access结果。
+   */
   async function grantAccess() {
     if (!state.accessArticleId || !canDirectGrant()) return;
 
-    const userId =
-      (selectedAccessUser && selectedAccessUser.id) ||
-      (refs.accessUserSelect && refs.accessUserSelect.value);
+    const userId = selectedAccessUser && selectedAccessUser.id;
 
     if (!userId) {
       alert("请先搜索并选择一个用户。");
@@ -341,6 +415,11 @@ window.createArticleAccessTools = function createArticleAccessTools(deps) {
     }
   }
 
+  /**
+   * @description 处理revokeaccess相关逻辑。
+   * @param {*} userId 用户 ID。
+   * @returns {*} access结果。
+   */
   async function revokeAccess(userId) {
     if (!state.accessArticleId) return;
     try {
@@ -366,10 +445,8 @@ window.createArticleAccessTools = function createArticleAccessTools(deps) {
   return {
     showAccessDialog,
     hideAccessDialog,
-    loadAccessList,
-    renderAccessList,
     grantAccess,
-    revokeAccess,
     createInvite,
   };
 };
+

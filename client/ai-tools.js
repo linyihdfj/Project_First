@@ -1,3 +1,11 @@
+/**
+ * @description aitools相关前端模块，负责对应界面能力的状态处理与交互封装。
+ */
+/**
+ * @description 创建aitools。
+ * @param {*} deps 模块依赖集合。
+ * @returns {*} aitools结果。
+ */
 window.createAiTools = function createAiTools(deps) {
   const {
     refs,
@@ -14,8 +22,8 @@ window.createAiTools = function createAiTools(deps) {
   } = deps;
 
   /**
-   * @description 根据当前选中状态更新 AI 识别按钮可用性。
-   * @returns {void}
+   * @description 更新aibuttonstates。
+   * @returns {void} 无返回值。
    */
   function updateAiButtonStates() {
     if (refs.btnAiOcrRegion) {
@@ -24,9 +32,9 @@ window.createAiTools = function createAiTools(deps) {
   }
 
   /**
-   * @description 调用后端将 OCR 原文转换为简体；失败时回退为原文。
-   * @param {string} text 原始文本。
-   * @returns {Promise<string>} 简体文本。
+   * @description 转换recognizedtext。
+   * @param {*} text text参数。
+   * @returns {*} recognizedtext结果。
    */
   async function convertRecognizedText(text) {
     const originalText = String(text || "");
@@ -46,8 +54,8 @@ window.createAiTools = function createAiTools(deps) {
   }
 
   /**
-   * @description 对当前选中标注执行 AI 识别；字级直接识别文本，句/段级执行版面检测并生成子字标注。
-   * @returns {Promise<void>}
+   * @description 处理airecognizeselected相关逻辑。
+   * @returns {*} recognizeselected结果。
    */
   async function aiRecognizeSelected() {
     const page = getCurrentPage();
@@ -239,3 +247,4 @@ window.createAiTools = function createAiTools(deps) {
     aiRecognizeSelected,
   };
 };
+
